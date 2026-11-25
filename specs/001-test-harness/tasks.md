@@ -226,7 +226,7 @@ with no unexpected skips, the same tests pass with no `IRIS_HOST` and leave no c
 
 ### Tests for User Story 3 (REQUIRED — Constitution VI) ⚠️
 
-- [ ] T029 [P] [US3] Write `.om/ingestion/tests/integration/iris/test_harness.py` (license header), per contracts/test-interface.md:
+- [X] T029 [P] [US3] Write `.om/ingestion/tests/integration/iris/test_harness.py` (license header), per contracts/test-interface.md:
   - three tests marked `@pytest.mark.iris`:
     - `test_select_one`: `SELECT 1` via `iris_engine` returns 1;
     - `test_dictionary_toggle`: `SELECT TOP 1 Name FROM %Dictionary.CompiledProperty` succeeds iff `iris_cell.has_dict_grant`, otherwise the error text contains `-99`;
@@ -237,7 +237,7 @@ with no unexpected skips, the same tests pass with no `IRIS_HOST` and leave no c
 
 ### Implementation for User Story 3
 
-- [ ] T030 [US3] Write `.om/ingestion/tests/integration/iris/conftest.py` (license header), per contracts/test-interface.md and research R4, R11, R12:
+- [X] T030 [US3] Write `.om/ingestion/tests/integration/iris/conftest.py` (license header), per contracts/test-interface.md and research R4, R11, R12:
   - `pytest_configure` registers the `iris` marker;
   - the frozen dataclass `IrisCell` and `_cell_from_env(env)` build the cell from `IRIS_*` env and `data.seed.LOGINS`; `IRIS_LOGIN` defaults to `reader`, `IRIS_TAG` to `latest-em`;
   - `_iris_endpoint` (session):
@@ -246,15 +246,15 @@ with no unexpected skips, the same tests pass with no `IRIS_HOST` and leave no c
   - `seeded`: `self_check` with an `IRIS_HOST`, `load` in fallback mode, failing the session on `SelfCheckError`;
   - `iris_service_connection`: the generated `IrisConnection` model (`hostPort`, `username`, `authType=BasicAuth(password=…)`, `namespace`) for the cell;
   - `iris_engine` / `iris_admin_engine`: `metadata.ingestion.source.database.iris.connection.IrisConnection(config).client`, depending on `seeded`, disposed at session end. Makes T029 pass
-- [ ] T031 [US3] Migrate `.om/ingestion/tests/integration/iris/test_connection.py` (spec 000) onto the conftest (FR-025, research R15): remove its `LOGINS` table, `_login()` and the `IRIS_*` reading; build connections from `iris_service_connection` (with `model_copy(update=…)` for the wrong-password, host, port and namespace cases) and branch on `iris_cell.has_dict_grant` instead of the login string; keep every assertion. Update its docstring. Then migrate `.om/…/iris/test_workflow.py` the same way (research R15): host, port and Namespace from `iris_service_connection`, admin user and password from `data.seed.LOGINS["admin"]`, and the `OM_HOST_PORT`/`OM_JWT` check as a module-level `skipif`; keep every assertion. Both files are Henry's; the change is agreed (2026-11-25). Spec 002 also edits `test_workflow.py`, so whichever branch merges second rebases
-- [ ] T032 [US3] Add to the `Makefile` section `# --- 001: test harness ---`, per research R13:
+- [X] T031 [US3] Migrate `.om/ingestion/tests/integration/iris/test_connection.py` (spec 000) onto the conftest (FR-025, research R15): remove its `LOGINS` table, `_login()` and the `IRIS_*` reading; build connections from `iris_service_connection` (with `model_copy(update=…)` for the wrong-password, host, port and namespace cases) and branch on `iris_cell.has_dict_grant` instead of the login string; keep every assertion. Update its docstring. Then migrate `.om/…/iris/test_workflow.py` the same way (research R15): host, port and Namespace from `iris_service_connection`, admin user and password from `data.seed.LOGINS["admin"]`, and the `OM_HOST_PORT`/`OM_JWT` check as a module-level `skipif`; keep every assertion. Both files are Henry's; the change is agreed (2026-11-25). Spec 002 also edits `test_workflow.py`, so whichever branch merges second rebases
+- [X] T032 [US3] Add to the `Makefile` section `# --- 001: test harness ---`, per research R13:
   - `iris-up TAG=latest-em PORT=11972` runs `fixtures/iris/start-iris.sh $(TAG) $(PORT) omd-test-iris-$(TAG)`;
   - `iris-seed` runs `IRIS_HOST=127.0.0.1 IRIS_PORT=$(PORT) python fixtures/iris/seed.py`;
   - `iris-down` runs `docker rm -f omd-test-iris-$(TAG)`;
-  - `test-cell TAG=… LOGIN=… [PORT=11972]` depends on `iris-up iris-seed`, then runs `IRIS_HOST=127.0.0.1 IRIS_PORT=$(PORT) IRIS_TAG=$(TAG) IRIS_LOGIN=$(LOGIN) .om/env/bin/python -m pytest .om/ingestion/tests/integration/iris -m iris -rs`;
+  - `test-cell TAG=… LOGIN=… [PORT=11972]` depends on `om-test-deps iris-up iris-seed`, then runs, from `.om/ingestion`, `IRIS_HOST=127.0.0.1 IRIS_PORT=$(PORT) IRIS_TAG=$(TAG) IRIS_LOGIN=$(LOGIN) ../env/bin/python -m pytest tests/integration/iris -m iris -rs` (research R13);
   - add all four to `.PHONY`
-- [ ] T033 [US3] Run `make py_format` in `.om/ingestion`, then `make om-export`, and `make om-check` twice (Q9). Commit `overlay/…/iris/{conftest,test_harness,test_connection}.py` and the `Makefile`
-- [ ] T034 [US3] Validate quickstart Q4 (`make test-cell TAG=latest-em LOGIN=reader`, `TAG=latest-cd LOGIN=reader_dict`: all pass, and `-rs` shows only `test_workflow.py`'s server skip) and Q6 (no `IRIS_HOST`: the fallback starts, seeds, passes, and `docker ps -a` shows no leftover container). Record the fallback time in `research.md`
+- [X] T033 [US3] Run `make py_format` in `.om/ingestion`, then `make om-export`, and `make om-check` twice (Q9). Commit `overlay/…/iris/{conftest,test_harness,test_connection}.py` and the `Makefile`
+- [X] T034 [US3] Validate quickstart Q4 (`make test-cell TAG=latest-em LOGIN=reader`, `TAG=latest-cd LOGIN=reader_dict`: all pass, and `-rs` shows only `test_workflow.py`'s server skip) and Q6 (no `IRIS_HOST`: the fallback starts, seeds, passes, and `docker ps -a` shows no leftover container). Record the fallback time in `research.md`
 
 **Checkpoint**: any spec can write `@pytest.mark.iris` tests against `iris_cell` and the engines.
 

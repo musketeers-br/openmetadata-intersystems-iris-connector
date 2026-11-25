@@ -48,12 +48,14 @@ Expected: exit 2 with a message pointing to `start-iris.sh`, not a stack trace.
 ## Q4 — One cell locally (FR-021, SC-005)
 
 ```bash
-make test-cell TAG=latest-em LOGIN=reader          # iris-up (11972) → iris-seed → pytest -m iris
-make test-cell TAG=latest-cd LOGIN=reader_dict
-make iris-down
+make test-cell TAG=latest-em LOGIN=reader                 # om-test-deps → iris-up (11972) → iris-seed → pytest -m iris
+make test-cell TAG=latest-cd LOGIN=reader_dict PORT=11974  # another track needs another port, or make iris-down first
+make iris-down TAG=latest-em; make iris-down TAG=latest-cd
 ```
 
-Expected: the placeholder tests pass, and `-rs` shows no skips for these cells.
+Expected: the placeholder and connection tests pass, and `-rs` shows only `test_workflow.py`'s
+server skip. The connector's tests run from `.om/ingestion`, as OpenMetadata's own do, so that
+`tests.integration.iris` imports and OpenMetadata's pytest settings apply.
 
 ## Q5 — Community-dialect guard can fail (FR-013, SC-006)
 
@@ -67,7 +69,8 @@ python fixtures/iris/check_dialect.py; echo "exit=$?"                    # clean
 
 ```bash
 unset IRIS_HOST IRIS_PORT
-IRIS_LOGIN=reader .om/env/bin/python -m pytest .om/ingestion/tests/integration/iris -m iris -rs
+make om-test-deps
+cd .om/ingestion && IRIS_LOGIN=reader ../env/bin/python -m pytest tests/integration/iris -m iris -rs
 ```
 
 Expected: the conftest starts `latest-em`, prepares and seeds it, runs, and removes it. No container

@@ -263,13 +263,18 @@ Environment: GitHub-hosted `ubuntu-latest`; local WSL2 Ubuntu 24.04 with Docker 
   - `iris-seed` (runs `fixtures/iris/seed.py` against `PORT`);
   - `iris-down`;
   - `test-cell TAG=… LOGIN=… [PORT=11972]`, which runs `iris-up` and `iris-seed`, then
-    `IRIS_HOST=127.0.0.1 IRIS_PORT=… IRIS_TAG=… IRIS_LOGIN=… .om/env/bin/python -m pytest
-    .om/ingestion/tests/integration/iris -m iris -rs`.
+    from `.om/ingestion`, `IRIS_HOST=127.0.0.1 IRIS_PORT=… IRIS_TAG=… IRIS_LOGIN=… ../env/bin/python
+    -m pytest tests/integration/iris -m iris -rs`. It runs `om-test-deps` first, because every
+    `make om-import` (also the one inside `om-check`) resets `.om/env` to the `dev` profile and
+    removes the test dependencies.
 - **Rationale**:
   - the default local port is 11972, because host port 1972 is often taken by another IRIS on
     developer machines (seen on 2026-11-25);
   - `127.0.0.1`, not `localhost` (SPIKE-01: OpenMetadata rewrites `localhost`);
-  - spec 000's Makefile keeps targets small and puts logic in `scripts/`; 001 follows that.
+  - spec 000's Makefile keeps targets small and puts logic in `scripts/`; 001 follows that;
+  - connector tests run from `.om/ingestion`: from the repository root, `tests` resolves to a
+    namespace package and `tests.integration.iris` does not import (OpenMetadata's ruff config
+    forbids relative imports, TID252), and OpenMetadata's pytest settings would not apply.
 - **Alternatives**: a separate `test.mk` include — rejected, spec 000 plans a `test-cell` section in
   its Makefile (its make-targets contract).
 
@@ -339,3 +344,11 @@ Measured on 2026-11-25 on WSL2 (Ubuntu 24.04, Docker Engine), images already pul
   `generate --python-only` and then `generate`, and the ANTLR container of the first leaves
   `generated/antlr` owned by root (research R16). A chown between runs does not help; T001 was done
   with spec 000's one-line fix applied locally and not committed.
+- US3 (2026-11-25, `latest-em`): the integration tests (`test_harness.py`, the migrated
+  `test_connection.py`) pass for `admin`, `reader` and `reader_dict` (14 passed; `test_workflow.py`
+  skips without a server). `make test-cell TAG=latest-cd LOGIN=reader_dict PORT=11974` passes.
+  Fallback mode (no `IRIS_HOST`, image cached): 22 s wall time for start, prepare, load and 10 tests;
+  no container left behind.
+- `make om-import` (also inside `om-check`) runs `uv sync` for the `dev` profile, which uninstalls the
+  `iris` extra and `testcontainers` again; `make om-test-deps` has to follow every `om-import`
+  (`test-cell` runs it first; the CI cells run it right after `om-import`).

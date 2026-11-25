@@ -20,10 +20,14 @@ New needs go through the fixture owner.
 | `iris_cell` | frozen dataclass `IrisCell(tag, login, host, port, namespace, username, password, is_admin, has_dict_grant)` + property `name` → `iris-<tag>-<login>` | values from env + catalog; invalid login → `pytest.UsageError` |
 | `iris_service_connection` | generated model `IrisConnection` (`metadata.generated.schema.entity.services.connections.database.irisConnection`) for the cell's login: `hostPort`, `username`, `authType=BasicAuth(password=…)`, `namespace` | built from `iris_cell`; no skip, because spec 000 is part of the tree |
 | `iris_engine` | SQLAlchemy `Engine`: `metadata.ingestion.source.database.iris.connection.IrisConnection(iris_service_connection).client` | ADR-0015 presets apply because the connector applies them; disposed at session end |
+| `iris_admin_service_connection` | generated model `IrisConnection` for the administrator | setup, assertions, and tests that run as admin by design (`test_workflow.py`) |
 | `iris_admin_engine` | same, for admin | **only** for setup and assertions, never for the behavior under test |
 | `seeded` | `None` | CI and Makefile: runs `self_check` as admin and fails the session if it does not pass. Fallback: `load` first. Every integration test depends on it, directly or through the engines |
 
-Private: `_iris_endpoint` yields `(host, port, tag)` and owns the fallback container lifecycle.
+Private: `_iris_endpoint` yields `(host, port, tag, started_here)` and owns the fallback container
+lifecycle. `iris_cell` depends on `seeded`, so every test that asks for its cell checks the fixtures.
+Import shared names absolutely (`from tests.integration.iris.data.seed import LOGINS`) and run
+pytest from `.om/ingestion`.
 
 ## Marker
 

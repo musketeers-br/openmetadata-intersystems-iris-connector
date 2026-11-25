@@ -11,14 +11,16 @@
 """
 A YAML-style workflow with the same fields as the form creates the service and the Database named after
 the Namespace. Needs an OpenMetadata server built from the overlay (make om-image), because a stock server
-rejects the Iris service type, plus an IRIS container.
+rejects the Iris service type, plus an IRIS instance with the shared fixtures (see conftest.py).
 
-Environment: OM_HOST_PORT (e.g. http://localhost:8585/api), OM_JWT, and the IRIS_* variables of
-test_connection.py (login `admin` is used).
+Environment: OM_HOST_PORT (e.g. http://localhost:8585/api) and OM_JWT. Without them the module is
+skipped before any IRIS fixture is set up. The IRIS side runs as the administrator by design, with the
+settings from `iris_admin_service_connection`.
 
 Ingesting schemas and tables belongs to spec 002: the schema filter below matches nothing, so this test
 only asserts the service and the Database.
 """
+
 import logging
 import os
 
@@ -36,22 +38,26 @@ from metadata.generated.schema.security.client.openMetadataJWTClientConfig impor
 from metadata.ingestion.ometa.ometa_api import OpenMetadata
 from metadata.workflow.metadata import MetadataWorkflow
 
-pytestmark = pytest.mark.iris
+OM_HOST_PORT, OM_JWT = os.environ.get("OM_HOST_PORT"), os.environ.get("OM_JWT")
+
+pytestmark = [
+    pytest.mark.iris,
+    pytest.mark.skipif(
+        not (OM_HOST_PORT and OM_JWT),
+        reason="OM_HOST_PORT and OM_JWT are not set: needs a server built from the overlay (make om-image)",
+    ),
+]
 
 SERVICE_NAME = "iris_test_000"
-USERNAME, PASSWORD = "_SYSTEM", "SYS"
 
 
 @pytest.fixture(scope="module")
 def om_client():
-    host_port, token = os.environ.get("OM_HOST_PORT"), os.environ.get("OM_JWT")
-    if not (host_port and token):
-        pytest.skip("OM_HOST_PORT and OM_JWT are not set: needs a server built from the overlay (make om-image)")
     client = OpenMetadata(
         OpenMetadataConnection(
-            hostPort=host_port,
+            hostPort=OM_HOST_PORT,
             authProvider=AuthProvider.openmetadata,
-            securityConfig=OpenMetadataJWTClientConfig(jwtToken=token),
+            securityConfig=OpenMetadataJWTClientConfig(jwtToken=OM_JWT),
         )
     )
     yield client
@@ -60,7 +66,7 @@ def om_client():
         client.delete(DatabaseService, service.id.root, recursive=True, hard_delete=True)
 
 
-def _config(host_port: str, token: str) -> dict:
+def _config(iris, password: str) -> dict:
     return {
         "source": {
             "type": "iris",
@@ -68,10 +74,10 @@ def _config(host_port: str, token: str) -> dict:
             "serviceConnection": {
                 "config": {
                     "type": "Iris",
-                    "hostPort": f"{os.environ.get('IRIS_HOST', '127.0.0.1')}:{os.environ.get('IRIS_PORT', '1972')}",
-                    "username": USERNAME,
-                    "authType": {"password": PASSWORD},
-                    "namespace": os.environ.get("IRIS_NAMESPACE", "USER"),
+                    "hostPort": iris.hostPort,
+                    "username": iris.username,
+                    "authType": {"password": password},
+                    "namespace": iris.namespace,
                 }
             },
             "sourceConfig": {
@@ -85,18 +91,22 @@ def _config(host_port: str, token: str) -> dict:
         "sink": {"type": "metadata-rest", "config": {}},
         "workflowConfig": {
             "openMetadataServerConfig": {
-                "hostPort": host_port,
+                "hostPort": OM_HOST_PORT,
                 "authProvider": "openmetadata",
-                "securityConfig": {"jwtToken": token},
+                "securityConfig": {"jwtToken": OM_JWT},
             }
         },
     }
 
 
-def test_workflow_creates_service_and_database_named_after_the_namespace(om_client, caplog):
+def test_workflow_creates_service_and_database_named_after_the_namespace(
+    om_client, iris_admin_service_connection, caplog
+):
     caplog.set_level(logging.DEBUG)
-    namespace = os.environ.get("IRIS_NAMESPACE", "USER")
-    workflow = MetadataWorkflow.create(_config(os.environ["OM_HOST_PORT"], os.environ["OM_JWT"]))
+    iris = iris_admin_service_connection
+    password = iris.authType.password.get_secret_value()
+    namespace = iris.namespace
+    workflow = MetadataWorkflow.create(_config(iris, password))
     workflow.execute()
     workflow.raise_from_status()
     workflow.stop()
@@ -107,7 +117,7 @@ def test_workflow_creates_service_and_database_named_after_the_namespace(om_clie
     database = om_client.get_by_name(Database, f"{SERVICE_NAME}.{namespace}")
     assert database is not None
     assert database.name.root == namespace
-    assert f":{PASSWORD}@" not in caplog.text
-    assert f"password={PASSWORD}" not in caplog.text
+    assert f":{password}@" not in caplog.text
+    assert f"password={password}" not in caplog.text
     stored = service.connection.config.authType.password.get_secret_value()
-    assert stored != PASSWORD, "the server must return the password masked"
+    assert stored != password, "the server must return the password masked"

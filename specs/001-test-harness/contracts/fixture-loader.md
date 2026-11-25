@@ -17,7 +17,7 @@ runs. It prints which copy ran.
 Python API (used by the integration conftest fallback):
 
 ```python
-from .data.seed import load, self_check, CATALOG_VERSION  # from the iris integration package; import-safe (no side effects)
+from tests.integration.iris.data.seed import load, self_check, CATALOG_VERSION  # import-safe (no side effects)
 load(host, port, namespace="USER", admin_user="_SYSTEM", admin_password="SYS")  # runs cleanup → create → rows → grants → self_check
 self_check(host, port, namespace="USER", admin_user=..., admin_password=..., expected=None)  # expected overridable for tests
 ```

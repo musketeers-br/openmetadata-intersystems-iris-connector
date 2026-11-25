@@ -40,8 +40,8 @@ Implements FR-008..FR-015. File: `.github/workflows/iris-matrix.yml`.
 | 6 | `pytest fixtures -q -rs` (fixture tests, gap-report format, repo rules, the cell's login) |
 | 7 | `make om-import && make om-test-deps` |
 | 8 | `.om/env/bin/python fixtures/iris/check_dialect.py` |
-| 9 | unit: `.om/env/bin/python -m pytest .om/ingestion/tests/unit/topology/database/test_iris.py -rs` |
-| 10 | integration: `.om/env/bin/python -m pytest .om/ingestion/tests/integration/iris -m iris -rs` |
+| 9 | unit, from `.om/ingestion`: `../env/bin/python -m pytest tests/unit/topology/database/test_iris.py -rs` |
+| 10 | integration, from `.om/ingestion`: `../env/bin/python -m pytest tests/integration/iris -m iris -rs` |
 | 11 | summary (always): cell name, digest, `$ZVERSION`, step timings, pytest summary lines, skip reasons → `$GITHUB_STEP_SUMMARY` |
 | 12 | on failure: `docker logs --tail 200 iris` |
 
