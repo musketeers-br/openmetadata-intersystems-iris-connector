@@ -10,12 +10,12 @@ Metadata ingestion, the profiler, tests and documentation all need the IRIS → 
 ## Decision
 
 - A single module, `iris/types.py`, holds the IRIS SQL type → OpenMetadata `DataType` table. It registers the types into the dialect's `ischema_names` / `ColumnTypeParser` the way other connectors do.
-- Unknown types map to `UNKNOWN`, with **one warning per type per run** ([warnings contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/warnings.md)). They never fail the run.
+- Unknown types map to `UNKNOWN`, with **one warning per type per run** (status warning `IRIS-UNKNOWN-TYPE: IRIS type '<type>' is not mapped; cataloged as UNKNOWN (first seen on <Schema>.<Table>.<Column>)`). They never fail the run.
 - Both of these are generated from or asserted against this module:
   - the docs type table (spec 008);
   - the type tests (spec 003).
 
-The draft table is in the [type-mapping contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/type-mapping.md).
+Starting point for the table (spec 003 replaces it with what the catalog reports on the three tracks): `bigint`→`BIGINT`, `integer`→`INT`, `smallint`→`SMALLINT`, `tinyint`→`TINYINT`, `bit`→`BOOLEAN`, `numeric`/`decimal`→`NUMERIC`/`DECIMAL` (precision, scale), `double`→`DOUBLE`, `varchar`→`VARCHAR` (length), `longvarchar`→`TEXT`, `varbinary`→`VARBINARY`, `longvarbinary`→`BLOB`, `date`→`DATE`, `time`→`TIME`, `timestamp`/`posixtime`→`TIMESTAMP`, anything else → `UNKNOWN`. The map reads the raw `INFORMATION_SCHEMA.COLUMNS.DATA_TYPE`, because the dialect reflects `LONGVARCHAR` as `VARCHAR(1)` and `VARCHAR(1)` as `CHAR` (GAP-008).
 
 ## Consequences
 

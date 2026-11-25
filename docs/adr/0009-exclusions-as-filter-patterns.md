@@ -28,7 +28,7 @@ If generated or deprecated classes cannot be expressed as a name pattern, they a
 
 ## Consequences
 
-The defaults are part of the [connection contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/connection.md). Spec 000 creates them, and spec 002 may only add patterns to them.
+The defaults live in `irisConnection.json` (`schemaFilterPattern.default.excludes`). Spec 000 creates them, and spec 002 may only add patterns to them.
 
 ## Validation
 

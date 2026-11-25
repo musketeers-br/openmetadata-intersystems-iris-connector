@@ -1,8 +1,6 @@
 # Architecture Decision Records
 
-Each ADR records one decision from the [architecture spine](https://github.com/musketeers-br/is-omd/blob/main/docs/architecture.md) (AD-n) with its context, alternatives and how it is validated. ADR numbers match the AD numbers (ADR-0001 = AD-1). ADR-0014 and ADR-0015 were added after the spine (AD-14, AD-15).
-
-ADRs live in this repository (moved from the analysis repository `is-omd` on 2026-11-25). Contracts, PRD, architecture spine and spike findings stay in `is-omd` and are linked from here.
+Each ADR records one architecture decision (AD-n) with its context, alternatives and how it is validated. ADR numbers match the AD numbers (ADR-0001 = AD-1). ADR-0014 and ADR-0015 were added after the spine (AD-14, AD-15).
 
 | ADR | Decision | Status | Validated by | Used by specs |
 |---|---|---|---|---|
@@ -20,8 +18,8 @@ ADRs live in this repository (moved from the analysis repository `is-omd` on 202
 | [0012](0012-shared-fixtures-and-matrix.md) | Test matrix and fixtures are shared contracts | Accepted | spec 001 | all |
 | [0013](0013-gap-report.md) | Limitations go to the Gap Report, never into workarounds | Accepted | spec 009 | all |
 | [0015](0015-dialect-state-presets.md) | Preset the official dialect's version and dictionary-access state so least-privilege logins work (narrow exception to 0013) | Accepted | SPIKE-01 → spec 000 | 000, 002, 005 |
-| [0014](0014-repository-topology.md) | `is-omd` for analysis and spikes; a clean dev repo for specs and code (overlay on OpenMetadata); fork only for the PR | Proposed | spec 000, 001 | all |
+| [0014](0014-repository-topology.md) | Repository layout: overlay on a pinned OpenMetadata release; fork only for the upstream PR | Accepted | spec 000, 001 | all |
 
-**Status values:** *Proposed* (to be confirmed in the first spec that uses it), *Accepted*, *Accepted, … pending* (decision stands; one detail is settled by the named spike, run in `is-omd` before its spec), *Superseded by ADR-NNNN*.
+**Status values:** *Proposed* (to be confirmed in the first spec that uses it), *Accepted*, *Accepted, … pending* (decision stands; one detail is settled by the named spike before its spec), *Superseded by ADR-NNNN*.
 
-**Changing a decision:** write a new ADR that supersedes the old one, update the spine's AD entry and the affected [contracts](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/README.md) in the same change, and tell the other developer (constitution, Governance).
+**Changing a decision:** write a new ADR that supersedes the old one, update the affected specs and docs in the same change, and tell the other developer (constitution, Governance).

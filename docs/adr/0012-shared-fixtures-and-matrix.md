@@ -14,13 +14,13 @@ OpenMetadata's REVIEW.md asks for a test with every change.
 
 ## Decision
 
-- **One fixture set.** It is promoted from is-omd's `spikes/docker/iris/seed.py` into the dev repo's `fixtures/iris/` by spec 001 and creates:
+- **One fixture set.** Spec 001 creates it in `fixtures/iris/seed.py` (idempotent, official driver only, self-check at the end), in the `USER` Namespace:
   - the sample schemas;
   - the `omd_reader` and `omd_reader_dict` logins;
   - the grants.
 
-  See the [fixtures contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/fixtures.md). Specs **must not** create their own users or datasets. A spec that needs a new case adds it to the shared fixture, in a change reviewed by the fixture owner (Henrique).
-- **One matrix.** Integration tests run against `containers.intersystems.com/intersystems/iris-community` with tags `latest-em`, `latest-cd` and `latest-preview`. Each tag runs as `admin`, `reader` and `reader_dict`, which covers both logins and the grant toggle. See the [test-matrix contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/test-matrix.md).
+  Objects: `Clinic.Patient` (PK, table and column descriptions, mixed case), `Clinic.Encounter` (FK to `Clinic.Patient`, `LONGVARCHAR`, `BIT`), `Billing.Patient` (same table name, unique constraint), `AI.Embedding` (`VECTOR(DOUBLE, 3)`), view `Clinic.ActivePatient`, and an empty `Scratch` schema for tests that create and drop objects. Logins: `admin` = `_SYSTEM`; `reader` = `omd_reader` with `SELECT` on the sample schemas; `reader_dict` = `omd_reader_dict` with the same plus `SELECT` on `%Dictionary.PropertyDefinition` and `%Dictionary.CompiledProperty`. Test-only passwords, throwaway containers. Specs **must not** create their own users or datasets. A spec that needs a new case adds it to the shared fixture, in a change reviewed by the fixture owner (Henrique).
+- **One matrix.** Integration tests run against `containers.intersystems.com/intersystems/iris-community` with tags `latest-em`, `latest-cd` and `latest-preview`. Each tag runs as `admin`, `reader` and `reader_dict`, which covers both logins and the grant toggle. Tests read the cell from `IRIS_HOST`, `IRIS_PORT`, `IRIS_NAMESPACE`, `IRIS_TAG` and `IRIS_LOGIN`; when `IRIS_HOST` is unset, the integration `conftest.py` starts `latest-em` with testcontainers. Pytest fixtures: `iris_cell`, `iris_engine`, `iris_admin_engine`, `iris_service_connection`, `seeded`; marker `iris`.
 - **`latest-preview` is informative:** a failure there is reported but does not block merging. The other two tracks block.
 - **Every new behavior adds a test to this matrix.**
 

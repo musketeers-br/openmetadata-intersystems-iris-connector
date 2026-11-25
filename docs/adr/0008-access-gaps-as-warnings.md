@@ -12,7 +12,7 @@ Objects the catalog does not show to the login at all cannot be detected from in
 ## Decision
 
 - **Catch at the smallest scope:** any privilege or read failure is caught at the smallest scope first (one object, then one feature of it: columns, keys, view definition, description, sample, profile).
-- **Record and continue:** each failure is recorded as a **warning in OpenMetadata's ingestion status**, with the object FQN, the failed feature and the SQL error ([warnings contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/warnings.md)), and the run continues.
+- **Record and continue:** each failure is recorded as a **warning in OpenMetadata's ingestion status**, with the object FQN, the failed feature and the SQL error (status warning key = object FQN, message `IRIS-ACCESS: cannot read <feature> of <Schema>.<Object>: <first line of SQL error>`, where `<feature>` is columns, keys, view definition, description, sample data or profile), and the run continues.
 - **Never debug-only:** nothing about an access gap is reported only in debug logs.
 - **Invisible objects:** objects invisible to the login are a documented limitation in the docs and the Gap Report. They are not guessed at. If SPIKE-03 finds a catalog view a non-admin can query to detect them, the decision is revisited.
 

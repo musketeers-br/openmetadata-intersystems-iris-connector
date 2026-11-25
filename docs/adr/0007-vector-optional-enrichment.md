@@ -22,7 +22,7 @@ OpenMetadata has no VECTOR `DataType`:
 
 - **Never a prerequisite:** core ingestion never requires `%Dictionary` access (constitution IV).
 - **One probe per run:** on the first VECTOR need in a run, the connector probes `%Dictionary.CompiledProperty` once and caches the result for the run.
-  - **On `SQLCODE -99`:** log **one** warning naming `GRANT SELECT ON %Dictionary.CompiledProperty TO <user>` ([warnings contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/warnings.md)). VECTOR columns are then cataloged as their SQL type (`VARCHAR`).
+  - **On `SQLCODE -99`:** log **one** warning naming `GRANT SELECT ON %Dictionary.CompiledProperty TO <user>`, as the status warning `IRIS-VECTOR-GRANT: VECTOR element type and dimension not available. Optional: GRANT SELECT ON %Dictionary.CompiledProperty TO <username>`. VECTOR columns are then cataloged as their SQL type (`VARCHAR`).
   - **With access:** columns whose `Type` is `%Library.Vector` are enriched from `Parameters` (`DATATYPE`, `LEN`).
 - **Native metadata wins:** if a future IRIS release reports VECTOR in SQL metadata, that source is used and the dictionary probe is skipped (FR-13).
 - **Representation (default, unless SPIKE-03 shows OpenMetadata renders it badly):**
@@ -32,7 +32,7 @@ OpenMetadata has no VECTOR `DataType`:
   - **Fallback:** `dataType = BINARY` with the same `dataTypeDisplay`, as Snowflake does.
 
   The choice and the evidence are recorded in spec 004's `research.md`, and this ADR is updated.
-- **Test Connection:** includes the dictionary check as a **non-mandatory** step ([test-connection contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/test-connection.md)).
+- **Test Connection:** includes the dictionary check as a **non-mandatory** step (`GetClassDictionary`, probing `SELECT TOP 1 Name FROM %Dictionary.PropertyDefinition`; a failure is reported as an optional hint, not a failed connection).
 
 ## Consequences
 

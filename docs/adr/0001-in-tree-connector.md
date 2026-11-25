@@ -10,7 +10,7 @@ OpenMetadata offers two ways to add a database source:
 1. **In-tree:** a package under `ingestion/src/metadata/ingestion/source/database/<name>/` that subclasses `CommonDbSourceService` and is registered through `DefaultDatabaseSpec`. It comes with its own connection JSON schema, test-connection definition and UI form.
 2. **Out-of-tree:** a pip package loaded through the generic `CustomDatabase` service with `sourcePythonClass`.
 
-The out-of-tree path has a light dev loop, but it has no dedicated UI form, no IRIS icon and no typed Test Connection. It likely has no profiler, data-quality or dbt support either, because Custom Database only exposes `supportsMetadataExtraction`. It cannot become the upstream PR without a rewrite. See [research](https://github.com/musketeers-br/is-omd/blob/main/docs/research/openmetadata-connector-patterns.md).
+The out-of-tree path has a light dev loop, but it has no dedicated UI form, no IRIS icon and no typed Test Connection. It likely has no profiler, data-quality or dbt support either, because Custom Database only exposes `supportsMetadataExtraction`. It cannot become the upstream PR without a rewrite. The reference connectors studied were SQLite (4 files: `connection.py`, `metadata.py`, `lineage.py`, `service_spec.py`), MySQL and Postgres; the out-of-tree reference is OpenMetadata's `openmetadata-demo/custom-connector`.
 
 ## Decision
 
@@ -32,4 +32,4 @@ The connector lives in `ingestion/src/metadata/ingestion/source/database/iris/` 
 
 ## Validation
 
-SPIKE-01 (findings in is-omd `spikes/findings/SPIKE-01.md`), then spec 000: the scaffold (`metadata scaffold-connector`) produces `iris/`, and `metadata ingest` runs against IRIS Community. The plan's Constitution Check of every spec verifies no framework behavior is reimplemented.
+SPIKE-01 (OpenMetadata 2.1.1, IRIS 2026.1) confirmed the scaffold path; spec 000: the scaffold (`metadata scaffold-connector`) produces `iris/`, and `metadata ingest` runs against IRIS Community. The plan's Constitution Check of every spec verifies no framework behavior is reimplemented.

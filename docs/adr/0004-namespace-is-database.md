@@ -13,14 +13,14 @@ If one unit names the Database `IRIS` or after the host while another (dbt, test
 
 ## Decision
 
-- One IRIS service connects to exactly one Namespace, through the `namespace` connection field ([connection contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/connection.md)).
+- One IRIS service connects to exactly one Namespace, through the required `namespace` connection field (default `USER`; `databaseName` and `databaseSchema` are not used).
 - The OpenMetadata Database name is the Namespace name, verbatim. Each SQL schema is a Database Schema.
 - **FQN:** `<service>.<Namespace>.<Schema>.<Table>`, with names in the case IRIS stores them ([ADR-0005](0005-identity-schema-name.md)).
 - `IrisSource` overrides only the database-name hooks of `CommonDbSourceService` to return the Namespace.
 
 ## Consequences
 
-- The fixture FQNs are fixed now. Example: `iris_test.USER.Clinic.Patient` ([fixtures contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/fixtures.md)).
+- The fixture FQNs are fixed now. For the test service `iris_test` on Namespace `USER`: Database `iris_test.USER`; schemas `iris_test.USER.Clinic`, `.Billing`, `.AI`; tables such as `iris_test.USER.Clinic.Patient` and `iris_test.USER.Billing.Patient`.
 - More than one Namespace means more than one service in v1. A multi-Namespace service is deferred and could later follow OpenMetadata's multi-database pattern.
 - The dbt-iris fixture project must produce `database = <Namespace>` and `schema = <Schema>` in its artifacts.
 

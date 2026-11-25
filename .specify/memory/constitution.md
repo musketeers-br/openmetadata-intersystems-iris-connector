@@ -1,14 +1,16 @@
 <!--
 Sync Impact Report
-- Version change: 1.2.0 → 1.2.1 (PATCH: ADRs moved to this repository's docs/adr/; paths updated)
+- Version change: 1.2.1 → 1.2.2 (PATCH: the repository is self-contained; references to external
+  planning documents replaced by the decisions themselves)
+- Previous: 1.2.0 → 1.2.1 (PATCH: ADRs moved to this repository's docs/adr/; paths updated)
 - Previous: 1.1.0 → 1.2.0 (MINOR: one narrow exception to Principle V; new licensing, image and
   overlay/patch constraints; workflow rules for attribution, issue tracking and spikes; canonical copy)
 - Modified principles: V. Nothing Silent, Nothing Hidden (dialect state-preset exception, ADR-0015).
   No principle renamed, renumbered or removed.
 - Modified sections: Technical Constraints (licensing; end-to-end image vs. tests; overlay/patch path
   notation and `make om-export` gate); Development Workflow (no AI attribution; one issue per spec on
-  the "IRIS connector" Project with fixed statuses; spikes and planning decisions live in is-omd);
-  Governance (this repository's copy is canonical; amendments mirrored back to is-omd)
+  the "IRIS connector" Project with fixed statuses; spike outcomes recorded in research.md);
+  Governance (this repository's copy is canonical)
 - Added sections: none
 - Removed sections: none
 - Templates:
@@ -116,11 +118,11 @@ Private correspondence with third parties MUST NOT be quoted or referenced in an
 
 ## Development Workflow
 
-- Two repositories: `is-omd` holds planning (PRD, architecture, contracts, demands) and spikes;
-  the public dev repository holds the ADRs (`docs/adr/`), Spec Kit specs, code, fixtures, CI, demo
-  and the Gap Report. A changed decision gets a new or updated ADR here.
-- A spec starts only after the spikes it depends on have reviewed findings in `is-omd`; the spec's
-  `research.md` records the decisions and links the findings instead of repeating the experiment.
+- This repository holds the ADRs (`docs/adr/`), Spec Kit specs, code, fixtures, CI, demo and the Gap
+  Report, and is self-contained: documents state the decisions they depend on instead of pointing to
+  external planning material. A changed decision gets a new or updated ADR here.
+- A spec starts only after the spikes it depends on have reviewed findings; the spec's `research.md`
+  records the decisions and the evidence that matters, instead of repeating the experiment.
 - Planning artifacts (PRD, architecture, spec plan) come first; each spec references PRD `FR-n` and
   architecture `AD-n` IDs.
 - Each spec has exactly one owner (Henry Pereira or Henrique Dias), who drives it end to end, mainly
@@ -131,8 +133,6 @@ Private correspondence with third parties MUST NOT be quoted or referenced in an
   trailers); the developer is the author.
 - Each spec is tracked by one issue on the "IRIS connector" GitHub Project; the issue moves Backlog →
   Spike → Ready → Spec & plan → Implement → Review → Done.
-- Spikes and planning decisions live in `../is-omd` (the analysis repository); this repository's
-  `research.md` files link to them instead of repeating experiments.
 - A spec is done when its acceptance criteria pass on every matrix cell and the docs and gap report
   are updated.
 
@@ -144,7 +144,7 @@ follows semantic versioning: MAJOR for removed or redefined principles, MINOR fo
 materially expanded guidance, PATCH for clarifications. Every plan's Constitution Check and every
 review MUST verify compliance; deviations are justified in the plan's Complexity Tracking table.
 
-This repository's copy of the constitution is canonical; amendments are mirrored back to `is-omd`.
+This repository's copy of the constitution is canonical.
 Ratification of 1.1.0 and 1.2.0 is pending Henrique Dias's agreement.
 
-**Version**: 1.2.1 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-25
+**Version**: 1.2.2 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-25

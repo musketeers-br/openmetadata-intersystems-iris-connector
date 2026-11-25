@@ -2,7 +2,7 @@
 
 - **Status:** Accepted · **Date:** 2026-11-24 · **Deciders:** Henry Pereira, Henrique Dias
 - **Spine:** AD-15 (new) · **Binds:** FR-1, FR-2, FR-14, NFR-3 · **Constitution:** II, IV, V
-- **Refines:** [ADR-0013](0013-gap-report.md) (narrow, documented exception) · **Evidence:** is-omd `spikes/findings/SPIKE-01.md`
+- **Refines:** [ADR-0013](0013-gap-report.md) (narrow, documented exception) · **Evidence:** SPIKE-01 (IRIS 2026.1, OpenMetadata 2.1.1)
 
 ## Context
 

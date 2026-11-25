@@ -27,9 +27,12 @@ OpenMetadata builds SQLAlchemy connectors with `create_generic_db_connection`, w
 - Any gap in the official dialect becomes an entry in the Gap Report ([ADR-0013](0013-gap-report.md)). We do not patch it and we do not switch dialects. A direct `INFORMATION_SCHEMA` query in `queries.py` is allowed when it is documented.
 - dbt-iris (spec 007) may pull the community dialect into *its own* environment. It must stay isolated from the connector's environment (separate virtualenv in the fixture).
 
-## Open detail
+## Settled detail (SPIKE-01)
 
-The exact URL scheme (`iris://…` or a driver-qualified variant) and the connect arguments are confirmed in spec 000 (SPIKE-01) and recorded in the [connection contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/connection.md).
+- Entry point `iris = sqlalchemy_intersystems_iris.iris:IRISDialect_iris`, so the URL scheme is `iris`.
+- URL: `iris://<username>:<password>@<host>:<port>/<NAMESPACE>`. `create_connect_args` reads the Namespace from the database part of the URL (default `USER`), port default 1972, and sets `autoCommit=False`.
+- OpenMetadata 2.1.1 pins SQLAlchemy `>=2.0,<2.1`; the dialect needs `>=1.4`, so they are compatible.
+- Two dialect defects need the state presets of [ADR-0015](0015-dialect-state-presets.md).
 
 ## Validation
 

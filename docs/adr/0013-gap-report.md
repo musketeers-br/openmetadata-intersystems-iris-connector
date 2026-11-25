@@ -13,7 +13,7 @@ Hidden patches inside the connector, such as monkey-patching the dialect or post
 
 ## Decision
 
-- A missing or wrong behavior is documented in `GAP-REPORT.md` in the dev repository. The entry format is in the [gap-report contract](https://github.com/musketeers-br/is-omd/blob/main/docs/contracts/gap-report.md):
+- A missing or wrong behavior is documented in `GAP-REPORT.md` in the dev repository. Each entry has:
   - component;
   - IRIS release tracks affected;
   - reproduction;
