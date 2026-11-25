@@ -19,7 +19,9 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import OperationalError
 
+from metadata.generated.schema.entity.data.table import TableType
 from metadata.generated.schema.entity.services.connections.database.common.basicAuth import (
     BasicAuth,
 )
@@ -32,13 +34,17 @@ from metadata.generated.schema.entity.services.connections.database.mysqlConnect
 from metadata.generated.schema.metadataIngestion.workflow import (
     Source as WorkflowSource,
 )
+from metadata.generated.schema.type.filterPattern import FilterPattern
+from metadata.ingestion.api.status import Status
 from metadata.ingestion.api.steps import InvalidSourceException
 from metadata.ingestion.source.database.iris.connection import (
     IrisConnection,
     get_connection_url,
     preset_dialect_state,
 )
-from metadata.ingestion.source.database.iris.metadata import IrisSource
+from metadata.ingestion.source.database.iris.lineage import IrisLineageSource
+from metadata.ingestion.source.database.iris.metadata import IrisSource, apply_default_schema_filter
+from metadata.ingestion.source.database.iris.service_spec import ServiceSpec
 from metadata.utils.filters import filter_by_schema
 from metadata.utils.importer import MissingPluginException
 
@@ -281,3 +287,312 @@ class TestDialectPresets:
         assert installed == REVIEWED_DIALECT_VERSION, (
             "The dialect changed: check whether GAP-004 / GAP-005 are fixed and drop the presets if so"
         )
+
+
+# --- 002: catalog ---
+
+
+def _db_error(message="[SQLCODE: <-99>:<Privilege violation>]\nsecond line with detail"):
+    return OperationalError("SELECT 1", {}, Exception(message))
+
+
+def _source(connection=None):
+    source = IrisSource.__new__(IrisSource)
+    source.status = Status()
+    source.metadata = None
+    source.context = SimpleNamespace(
+        get=lambda: SimpleNamespace(database_service="iris_test", database="USER"),
+        get_current_thread_id=lambda: 1,
+    )
+    source._connection_map = {1: connection}
+    return source
+
+
+class _Inspector:
+    """Stub of the dialect inspector; every method can be told to raise."""
+
+    def __init__(self, columns=None, fail=()):
+        self.columns = columns if columns is not None else []
+        self.fail = set(fail)
+        self.calls = []
+
+    def _call(self, name, table, schema, value):
+        self.calls.append((name, schema, table))
+        if name in self.fail:
+            raise _db_error()
+        return value
+
+    def get_columns(self, table, schema, **kw):
+        return self._call("get_columns", table, schema, [dict(c) for c in self.columns])
+
+    def get_pk_constraint(self, table, schema):
+        return self._call("get_pk_constraint", table, schema, {"constrained_columns": ["Id"]})
+
+    def get_unique_constraints(self, table, schema):
+        return self._call("get_unique_constraints", table, schema, [{"column_names": ["Code"]}])
+
+    def get_foreign_keys(self, table, schema):
+        return self._call(
+            "get_foreign_keys",
+            table,
+            schema,
+            [{"constrained_columns": ["PatientId"], "referred_schema": "Clinic", "referred_table": "Patient"}],
+        )
+
+    def get_table_comment(self, table, schema):
+        return self._call("get_table_comment", table, schema, {"text": f"about {schema}.{table}"})
+
+    def get_view_definition(self, table, schema):
+        return self._call("get_view_definition", table, schema, "  SELECT 1  ")
+
+
+class _Connection:
+    def __init__(self, rows=(), fail=False):
+        self.rows, self.fail, self.params = rows, fail, None
+
+    def execute(self, statement, params):
+        self.params = params
+        if self.fail:
+            raise _db_error()
+        return iter(self.rows)
+
+
+class Test002AccessGap:
+    def test_database_error_becomes_one_warning_and_the_run_continues(self):
+        source = _source()
+        after = []
+        with source.report_access_gap("iris_test.USER.Restricted.Secret", "columns", "Restricted", "Secret"):
+            raise _db_error()
+        after.append("continued")
+        assert after == ["continued"]
+        assert source.status.warnings == [
+            {
+                "iris_test.USER.Restricted.Secret": (
+                    "IRIS-ACCESS: cannot read columns of Restricted.Secret: [SQLCODE: <-99>:<Privilege violation>]"
+                )
+            }
+        ]
+
+    def test_only_the_first_line_of_the_error_is_kept(self):
+        source = _source()
+        with source.report_access_gap("k", "keys", "S", "T"):
+            raise _db_error("first\nsecond\nthird")
+        assert source.status.warnings[0]["k"].endswith(": first")
+
+    def test_non_database_errors_propagate(self):
+        source = _source()
+        with pytest.raises(ValueError), source.report_access_gap("k", "keys", "S", "T"):
+            raise ValueError("bug")
+        assert source.status.warnings == []
+
+    def test_one_warning_per_object_and_feature(self):
+        source = _source()
+        for _ in range(3):
+            with source.report_access_gap("k", "keys", "S", "T"):
+                raise _db_error()
+        with source.report_access_gap("k", "columns", "S", "T"):
+            raise _db_error()
+        assert len(source.status.warnings) == 2
+
+    def test_no_warning_without_an_error(self):
+        source = _source()
+        with source.report_access_gap("k", "keys", "S", "T"):
+            pass
+        assert source.status.warnings == []
+
+
+class Test002Hierarchy:
+    def test_same_name_tables_in_two_schemas_keep_their_own_columns_and_descriptions(self):
+        columns = {
+            "Clinic": [{"name": "PatientId"}, {"name": "FullName"}],
+            "Billing": [{"name": "Code"}],
+        }
+        rows = {("Clinic", "Patient", "PatientId"): "Patient identifier"}
+
+        class Connection(_Connection):
+            def execute(self, statement, params):
+                self.params = params
+                return iter(
+                    [(s, t, c, d) for (s, t, c), d in rows.items() if (s, t) == (params["schema"], params["table"])]
+                )
+
+        source = _source(Connection())
+        clinic = source._get_columns_internal("Clinic", "Patient", "USER", _Inspector(columns["Clinic"]))
+        billing = source._get_columns_internal("Billing", "Patient", "USER", _Inspector(columns["Billing"]))
+        assert [c["name"] for c in clinic] == ["PatientId", "FullName"]
+        assert [c["name"] for c in billing] == ["Code"]
+        assert clinic[0]["comment"] == "Patient identifier"
+        assert all("comment" not in c for c in billing)
+
+    def test_column_names_keep_their_case(self):
+        source = _source(_Connection([("Clinic", "Patient", "PatientId", "id")]))
+        columns = source._get_columns_internal("Clinic", "Patient", "USER", _Inspector([{"name": "PatientId"}]))
+        assert columns[0]["name"] == "PatientId"
+        assert columns[0]["comment"] == "id"
+
+    def test_description_query_is_bound_on_schema_and_table(self):
+        connection = _Connection()
+        _source(connection)._get_columns_internal("Clinic", "Patient", "USER", _Inspector([{"name": "A"}]))
+        assert connection.params == {"schema": "Clinic", "table": "Patient"}
+
+    def test_unreadable_columns_warn_and_return_nothing(self):
+        source = _source(_Connection())
+        result = source._get_columns_internal("S", "T", "USER", _Inspector([{"name": "A"}], fail={"get_columns"}))
+        assert result == []
+        assert list(source.status.warnings[0]) == ["iris_test.USER.S.T"]
+        assert "cannot read columns of S.T" in source.status.warnings[0]["iris_test.USER.S.T"]
+
+    def test_unreadable_descriptions_warn_but_keep_the_columns(self):
+        source = _source(_Connection(fail=True))
+        result = source._get_columns_internal("S", "T", "USER", _Inspector([{"name": "A"}]))
+        assert [c["name"] for c in result] == ["A"]
+        assert "cannot read description of S.T" in source.status.warnings[0]["iris_test.USER.S.T"]
+
+    def test_table_description_comes_from_the_inspector(self):
+        assert _source().get_table_description("Clinic", "Patient", _Inspector()) == "about Clinic.Patient"
+
+    def test_unreadable_table_description_warns_and_returns_none(self):
+        source = _source()
+        assert source.get_table_description("S", "T", _Inspector(fail={"get_table_comment"})) is None
+        assert "cannot read description of S.T" in source.status.warnings[0]["iris_test.USER.S.T"]
+
+    def test_view_definition_only_for_views(self):
+        source = _source()
+        assert source.get_schema_definition(TableType.Regular, "T", "S", _Inspector()) is None
+        assert source.get_schema_definition(TableType.View, "V", "S", _Inspector()) == "SELECT 1"
+
+    def test_unreadable_view_definition_warns(self):
+        source = _source()
+        inspector = _Inspector(fail={"get_view_definition"})
+        assert source.get_schema_definition(TableType.View, "V", "S", inspector) is None
+        assert "cannot read view definition of S.V" in source.status.warnings[0]["iris_test.USER.S.V"]
+
+
+class Test002Keys:
+    def test_keys_are_read_for_the_exact_schema_and_table(self):
+        inspector = _Inspector()
+        connection = _Connection([("UqBillingCode", "Code"), ("UqPair", "A"), ("UqPair", "B")])
+        pk, unique, foreign = _source(connection)._get_columns_with_constraints("Clinic", "Encounter", inspector)
+        assert pk == ["Id"]
+        assert unique == [["Code"], ["A", "B"]]
+        assert connection.params == {"schema": "Clinic", "table": "Encounter"}
+        assert foreign[0]["referred_schema"] == "Clinic"
+        assert {(schema, table) for _, schema, table in inspector.calls} == {("Clinic", "Encounter")}
+
+    def test_one_unreadable_kind_of_key_does_not_hide_the_others(self):
+        source = _source(_Connection([("Uq", "Code")]))
+        pk, unique, foreign = source._get_columns_with_constraints("S", "T", _Inspector(fail={"get_foreign_keys"}))
+        assert pk == ["Id"] and unique == [["Code"]] and foreign == []
+        assert len(source.status.warnings) == 1
+        assert "cannot read keys of S.T" in source.status.warnings[0]["iris_test.USER.S.T"]
+
+    def test_unreadable_unique_constraints_warn_once_for_keys(self):
+        source = _source(_Connection(fail=True))
+        pk, unique, foreign = source._get_columns_with_constraints("S", "T", _Inspector(fail={"get_foreign_keys"}))
+        assert pk == ["Id"] and unique == [] and foreign == []
+        assert len(source.status.warnings) == 1
+
+
+class Test002Lineage:
+    def test_the_service_spec_registers_the_lineage_source(self):
+        assert ServiceSpec.lineage_source_class == f"{IrisLineageSource.__module__}.{IrisLineageSource.__name__}"
+
+    def test_create_accepts_an_iris_connection(self, monkeypatch):
+        def init(self, config, metadata):
+            self.source_config = config.sourceConfig.config
+            self.service_connection = config.serviceConnection.root.config
+
+        monkeypatch.setattr(IrisLineageSource, "__init__", init)
+        config = {
+            "type": "iris",
+            "serviceName": "iris_test",
+            "serviceConnection": {"config": _config().model_dump(mode="json")},
+            "sourceConfig": {"config": {"type": "DatabaseLineage"}},
+        }
+        assert isinstance(IrisLineageSource.create(config, metadata=None), IrisLineageSource)
+
+    def test_create_rejects_another_connection(self):
+        config = {
+            "type": "iris",
+            "serviceName": "wrong",
+            "serviceConnection": {
+                "config": MysqlConnection(
+                    username="u", authType=BasicAuth(password="p"), hostPort="localhost:3306"
+                ).model_dump(mode="json")
+            },
+            "sourceConfig": {"config": {"type": "DatabaseLineage"}},
+        }
+        with pytest.raises(InvalidSourceException):
+            IrisLineageSource.create(config, metadata=None)
+
+
+class Test002IdentityRegression:
+    """ADR-0005: a map keyed on the table name alone would merge Clinic.Patient and Billing.Patient."""
+
+    ROWS = (
+        ("Clinic", "Patient", "PatientId", "clinic id"),
+        ("Billing", "Patient", "Code", "billing code"),
+    )
+
+    def _descriptions_for(self, schema, table):
+        source = _source()
+        source._connection_map = {1: _Connection([r for r in self.ROWS if (r[0], r[1]) == (schema, table)])}
+        inspector = _Inspector([{"name": "PatientId"}, {"name": "Code"}])
+        return {c["name"]: c.get("comment") for c in source._get_columns_internal(schema, table, "USER", inspector)}
+
+    def test_each_schema_gets_only_its_own_descriptions(self):
+        assert self._descriptions_for("Clinic", "Patient") == {"PatientId": "clinic id", "Code": None}
+        assert self._descriptions_for("Billing", "Patient") == {"PatientId": None, "Code": "billing code"}
+
+    def test_the_lookup_key_includes_the_schema(self):
+        # If the key were (table, column) the Billing row would answer for Clinic.Patient.Code.
+        source = _source(_Connection([("Billing", "Patient", "Code", "billing code")]))
+        columns = source._get_columns_internal("Clinic", "Patient", "USER", _Inspector([{"name": "Code"}]))
+        assert "comment" not in columns[0]
+
+    def test_mixed_case_names_are_not_normalized(self):
+        source = _source(
+            _Connection([("Clinic", "Patient", "PatientId", "x"), ("CLINIC", "PATIENT", "PATIENTID", "y")])
+        )
+        columns = source._get_columns_internal("Clinic", "Patient", "USER", _Inspector([{"name": "PatientId"}]))
+        assert columns[0]["comment"] == "x"
+
+
+class Test002DefaultSchemaFilter:
+    """ADR-0009: the connection's default applies when the pipeline has no schema pattern; a pipeline pattern wins."""
+
+    @staticmethod
+    def _source(pipeline_pattern):
+        return SimpleNamespace(
+            source_config=SimpleNamespace(schemaFilterPattern=pipeline_pattern),
+            service_connection=_config(),
+        )
+
+    @staticmethod
+    def _kept(source, name):
+        return not filter_by_schema(source.source_config.schemaFilterPattern, name)
+
+    @pytest.mark.parametrize("pipeline_pattern", [None, FilterPattern(), FilterPattern(includes=[], excludes=[])])
+    def test_an_empty_pipeline_pattern_gets_the_connection_defaults(self, pipeline_pattern):
+        source = self._source(pipeline_pattern)
+        apply_default_schema_filter(source)
+        assert [self._kept(source, n) for n in ("Clinic", "%SYS", "INFORMATION_SCHEMA", "EnsLib", "Ens")] == [
+            True,
+            False,
+            False,
+            False,
+            False,
+        ]
+
+    def test_a_pipeline_pattern_replaces_the_defaults_completely(self):
+        pattern = FilterPattern(includes=["^INFORMATION_SCHEMA$"])
+        source = self._source(pattern)
+        apply_default_schema_filter(source)
+        assert source.source_config.schemaFilterPattern is pattern
+        assert self._kept(source, "INFORMATION_SCHEMA")
+        assert not self._kept(source, "Clinic")
+
+    def test_a_pipeline_exclude_only_pattern_is_not_merged_with_the_defaults(self):
+        source = self._source(FilterPattern(excludes=["^Billing$"]))
+        apply_default_schema_filter(source)
+        assert self._kept(source, "%SYS") and self._kept(source, "Clinic") and not self._kept(source, "Billing")

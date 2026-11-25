@@ -13,8 +13,13 @@ Iris source module
 """
 
 from collections.abc import Iterable
+from contextlib import contextmanager
 from typing import cast
 
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+
+from metadata.generated.schema.entity.data.table import Table, TableType
 from metadata.generated.schema.entity.services.connections.database.irisConnection import (
     IrisConnection,
 )
@@ -24,6 +29,21 @@ from metadata.generated.schema.metadataIngestion.workflow import (
 from metadata.ingestion.api.steps import InvalidSourceException
 from metadata.ingestion.ometa.ometa_api import OpenMetadata
 from metadata.ingestion.source.database.common_db_source import CommonDbSourceService
+from metadata.ingestion.source.database.iris.queries import (
+    IRIS_COLUMN_DESCRIPTIONS,
+    IRIS_UNIQUE_CONSTRAINTS,
+)
+from metadata.utils import fqn as fqn_utils
+
+
+def apply_default_schema_filter(source) -> None:
+    """
+    ADR-0009: the framework filters with the pipeline's schemaFilterPattern only. When the pipeline has none,
+    use the connection's default (irisConnection.json); a pipeline pattern replaces it completely, never merged.
+    """
+    pattern = source.source_config.schemaFilterPattern
+    if pattern is None or not (pattern.includes or pattern.excludes):
+        source.source_config.schemaFilterPattern = source.service_connection.schemaFilterPattern
 
 
 class IrisSource(CommonDbSourceService):
@@ -33,7 +53,9 @@ class IrisSource(CommonDbSourceService):
         connection = cast("IrisConnection", config.serviceConnection.root.config)
         if not isinstance(connection, IrisConnection):
             raise InvalidSourceException(f"Expected IrisConnection, but got {connection}")
-        return cls(config, metadata)
+        source = cls(config, metadata)
+        apply_default_schema_filter(source)
+        return source
 
     def get_database_names(self) -> Iterable[str]:
         # One service connects to one Namespace, which is the Database (ADR-0004).
@@ -41,5 +63,84 @@ class IrisSource(CommonDbSourceService):
         yield self.service_connection.namespace
 
     # --- 002: catalog ---
+
+    @contextmanager
+    def report_access_gap(self, fqn: str, feature: str, schema: str, name: str):
+        """Record one IRIS-ACCESS status warning (ADR-0008) for a failed read of one object feature, then go on."""
+        try:
+            yield
+        except SQLAlchemyError as exc:
+            reason = str(getattr(exc, "orig", None) or exc).strip()
+            first_line = reason.splitlines()[0] if reason else type(exc).__name__
+            # Once per object and feature: keys are read in three steps but count as one feature.
+            reported = self.__dict__.setdefault("_access_gaps_reported", set())
+            if (fqn, feature) not in reported:
+                reported.add((fqn, feature))
+                self.status.warning(fqn, f"IRIS-ACCESS: cannot read {feature} of {schema}.{name}: {first_line}")
+
+    def _table_fqn(self, schema_name: str, table_name: str) -> str:
+        return fqn_utils.build(
+            metadata=self.metadata,
+            entity_type=Table,
+            service_name=self.context.get().database_service,
+            database_name=self.context.get().database,
+            schema_name=schema_name,
+            table_name=table_name,
+            skip_es_search=True,
+        )
+
+    def get_table_description(self, schema_name: str, table_name: str, inspector) -> str | None:  # type: ignore[override]
+        with self.report_access_gap(self._table_fqn(schema_name, table_name), "description", schema_name, table_name):
+            return inspector.get_table_comment(table_name, schema_name).get("text")
+        return None
+
+    def get_schema_definition(self, table_type, table_name: str, schema_name: str, inspector) -> str | None:
+        if table_type != TableType.View:
+            return None
+        with self.report_access_gap(
+            self._table_fqn(schema_name, table_name), "view definition", schema_name, table_name
+        ):
+            definition = inspector.get_view_definition(table_name, schema_name)
+            return str(definition).strip() if definition is not None else None
+        return None
+
+    def _get_columns_with_constraints(self, schema_name: str, table_name: str, inspector):  # type: ignore[override]
+        # Keys: PK, unique and foreign keys are read one by one so one unreadable kind does not hide the others.
+        table_fqn = self._table_fqn(schema_name, table_name)
+        pk_columns, unique_columns, foreign_columns = [], [], []
+        with self.report_access_gap(table_fqn, "keys", schema_name, table_name):
+            pk_columns = inspector.get_pk_constraint(table_name, schema_name).get("constrained_columns") or []
+        with self.report_access_gap(table_fqn, "keys", schema_name, table_name):
+            by_constraint: dict[str, list[str]] = {}
+            for constraint_name, column_name in self.connection.execute(
+                text(IRIS_UNIQUE_CONSTRAINTS), {"schema": schema_name, "table": table_name}
+            ):
+                by_constraint.setdefault(constraint_name, []).append(column_name)
+            unique_columns = list(by_constraint.values())
+        with self.report_access_gap(table_fqn, "keys", schema_name, table_name):
+            foreign_columns = [
+                constraint
+                for constraint in inspector.get_foreign_keys(table_name, schema_name)
+                if constraint.get("constrained_columns")
+            ]
+        return pk_columns, unique_columns, foreign_columns
+
+    def _get_columns_internal(self, schema_name, table_name, db_name, inspector, table_type=None):
+        table_fqn = self._table_fqn(schema_name, table_name)
+        columns = []
+        with self.report_access_gap(table_fqn, "columns", schema_name, table_name):
+            columns = inspector.get_columns(table_name, schema_name, table_type=table_type, db_name=db_name)
+        descriptions = {}
+        if columns:
+            with self.report_access_gap(table_fqn, "description", schema_name, table_name):
+                rows = self.connection.execute(
+                    text(IRIS_COLUMN_DESCRIPTIONS), {"schema": schema_name, "table": table_name}
+                )
+                descriptions = {(row[0], row[1], row[2]): row[3] for row in rows}
+        for column in columns:
+            comment = descriptions.get((schema_name, table_name, column["name"]))
+            if comment:
+                column["comment"] = comment
+        return columns
 
     # --- 004: dictionary / VECTOR enrichment ---

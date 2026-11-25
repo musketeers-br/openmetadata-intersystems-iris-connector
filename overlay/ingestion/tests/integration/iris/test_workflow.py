@@ -119,5 +119,7 @@ def test_workflow_creates_service_and_database_named_after_the_namespace(
     assert database.name.root == namespace
     assert f":{password}@" not in caplog.text
     assert f"password={password}" not in caplog.text
+    # The ingestion-bot token (OM_JWT) gets secrets unmasked by design, so this checks the stored value round-trips.
+    # Masking for a regular user needs a non-bot token, which this test does not have.
     stored = service.connection.config.authType.password.get_secret_value()
-    assert stored != password, "the server must return the password masked"
+    assert stored == password, "the bot must read back the stored password unmasked"

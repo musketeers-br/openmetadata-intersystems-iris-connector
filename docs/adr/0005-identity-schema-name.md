@@ -21,9 +21,12 @@ IRIS also keeps mixed-case names (`Clinic.Patient`, `PatientId`). Upper- or lowe
 - Any helper that returns `dict[str, …]` keyed by table name is a review blocker.
 - Where the inspector is wrong or incomplete for IRIS (keys, view definitions, descriptions), the fix is a documented direct query in `queries.py` plus a Gap Report entry ([ADR-0013](0013-gap-report.md)). It is never a post-processing patch.
 
-## Open detail
+## Outcome (spec 002)
 
-Which facts come from the inspector and which from direct queries is decided in spec 002 from the SPIKE-02 comparison, and recorded in that spec's `research.md`.
+Compared on `latest-em` as `admin`, `omd_reader` and `omd_reader_dict`; the table is in `specs/002-metadata-core/research.md`. The other tracks are checked by the matrix (spec 001).
+
+- **Inspector:** schemas, tables, views, columns (name, nullability, length, precision, scale), primary keys, foreign keys (with the referenced schema), table descriptions and view definitions.
+- **Direct query in `queries.py`:** column descriptions (`IRIS_COLUMN_DESCRIPTIONS`, GAP-006) and unique constraints (`IRIS_UNIQUE_CONSTRAINTS`, GAP-007). Both are keyed on `(schema, name[, column])`.
 
 ## Validation
 
