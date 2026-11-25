@@ -1,0 +1,20 @@
+diff --git a/openmetadata-ui/src/main/resources/ui/src/utils/ServiceIconUtils.ts b/openmetadata-ui/src/main/resources/ui/src/utils/ServiceIconUtils.ts
+index cce2b122..8d9add78 100644
+--- a/openmetadata-ui/src/main/resources/ui/src/utils/ServiceIconUtils.ts
++++ b/openmetadata-ui/src/main/resources/ui/src/utils/ServiceIconUtils.ts
+@@ -33,6 +33,7 @@ import greenplum from '../assets/img/service-icon-greenplum.webp';
+ import hive from '../assets/img/service-icon-hive.webp';
+ import ibmdb2 from '../assets/img/service-icon-ibmdb2.webp';
+ import impala from '../assets/img/service-icon-impala.webp';
++import iris from '../assets/img/service-icon-iris.svg';
+ import iomete from '../assets/img/service-icon-iomete.webp';
+ import mariadb from '../assets/img/service-icon-mariadb.svg';
+ import mongodb from '../assets/img/service-icon-mongodb.webp';
+@@ -150,6 +151,7 @@ const SERVICE_ICON_LOADERS: Record<string, string> = {
+   bigtable: bigtable,
+   hive: hive,
+   impala: impala,
++  iris: iris,
+   postgres: postgres,
+   oracle: oracle,
+   snowflake: snowflake,

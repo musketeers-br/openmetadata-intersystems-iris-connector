@@ -1,0 +1,8 @@
+# Written to .om/.git/info/exclude by om-import: build and tooling output that must never be exported.
+.venv/
+.nox/
+.cache/
+**/node_modules/
+**/target/
+**/__pycache__/
+*.egg-info/

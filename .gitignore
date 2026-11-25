@@ -1,6 +1,9 @@
 # OpenMetadata working tree rebuilt by `make om-import` (ADR-0014)
 .om/
 
+# Downloaded build helpers and export scratch space (scripts/)
+.cache/
+
 # Local agent tooling (each developer installs Spec Kit skills locally)
 .claude/
 CLAUDE.local.md

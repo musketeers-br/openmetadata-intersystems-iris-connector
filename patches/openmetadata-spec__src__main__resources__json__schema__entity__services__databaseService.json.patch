@@ -1,0 +1,32 @@
+diff --git a/openmetadata-spec/src/main/resources/json/schema/entity/services/databaseService.json b/openmetadata-spec/src/main/resources/json/schema/entity/services/databaseService.json
+index 0ce3ff55..3755fc0f 100644
+--- a/openmetadata-spec/src/main/resources/json/schema/entity/services/databaseService.json
++++ b/openmetadata-spec/src/main/resources/json/schema/entity/services/databaseService.json
+@@ -56,6 +56,7 @@
+         "Cassandra",
+         "Couchbase",
+         "Greenplum",
++        "Iris",
+         "Doris",
+         "StarRocks",
+         "UnityCatalog",
+@@ -199,6 +200,9 @@
+         {
+           "name": "Greenplum"
+         },
++        {
++          "name": "Iris"
++        },
+         {
+           "name": "Doris"
+         },
+@@ -391,6 +395,9 @@
+             {
+               "$ref": "./connections/database/greenplumConnection.json"
+             },
++            {
++              "$ref": "./connections/database/irisConnection.json"
++            },
+             {
+               "$ref": "./connections/database/dorisConnection.json"
+             },

@@ -1,0 +1,12 @@
+diff --git a/openmetadata-ui/src/main/resources/ui/src/utils/EntityUtils.interface.ts b/openmetadata-ui/src/main/resources/ui/src/utils/EntityUtils.interface.ts
+index fca3ef24..f92cdb23 100644
+--- a/openmetadata-ui/src/main/resources/ui/src/utils/EntityUtils.interface.ts
++++ b/openmetadata-ui/src/main/resources/ui/src/utils/EntityUtils.interface.ts
+@@ -96,6 +96,7 @@ export enum FormattedDatabaseServiceType {
+   Hive = 'Hive',
+   Iceberg = 'Iceberg',
+   Impala = 'Impala',
++  Iris = 'InterSystems IRIS',
+   MariaDB = 'Maria DB',
+   MicrosoftAccess = 'Microsoft Access',
+   MicrosoftFabric = 'Microsoft Fabric',
