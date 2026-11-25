@@ -1,6 +1,7 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.0 → 1.2.0 (MINOR: one narrow exception to Principle V; new licensing, image and
+- Version change: 1.2.0 → 1.2.1 (PATCH: ADRs moved to this repository's docs/adr/; paths updated)
+- Previous: 1.1.0 → 1.2.0 (MINOR: one narrow exception to Principle V; new licensing, image and
   overlay/patch constraints; workflow rules for attribution, issue tracking and spikes; canonical copy)
 - Modified principles: V. Nothing Silent, Nothing Hidden (dialect state-preset exception, ADR-0015).
   No principle renamed, renumbered or removed.
@@ -66,7 +67,7 @@ documented grants MUST be read-only.
   ingestion status with the object's full name and the reason; the run continues.
 - Limitations of IRIS or the driver MUST be recorded in `GAP-REPORT.md` with a reproduction, and
   the connector degrades gracefully. Hidden workarounds or patches are forbidden.
-- Sole exception (ADR-0015, `../is-omd/docs/adr/0015-dialect-state-presets.md`): the connector MAY
+- Sole exception (ADR-0015, `docs/adr/0015-dialect-state-presets.md`): the connector MAY
   preset state attributes the official dialect already defines (`server_version_info`,
   `_dictionary_access`) so least-privilege logins work. Conditions: no SQL rewriting; no
   monkey-patching or subclassing of the dialect; one function in `iris/connection.py`; unit-tested;
@@ -115,8 +116,9 @@ Private correspondence with third parties MUST NOT be quoted or referenced in an
 
 ## Development Workflow
 
-- Two repositories: `is-omd` holds planning (PRD, architecture, ADRs, contracts, demands) and spikes;
-  the public dev repository holds Spec Kit specs, code, fixtures, CI, demo and the Gap Report.
+- Two repositories: `is-omd` holds planning (PRD, architecture, contracts, demands) and spikes;
+  the public dev repository holds the ADRs (`docs/adr/`), Spec Kit specs, code, fixtures, CI, demo
+  and the Gap Report. A changed decision gets a new or updated ADR here.
 - A spec starts only after the spikes it depends on have reviewed findings in `is-omd`; the spec's
   `research.md` records the decisions and links the findings instead of repeating the experiment.
 - Planning artifacts (PRD, architecture, spec plan) come first; each spec references PRD `FR-n` and
@@ -145,4 +147,4 @@ review MUST verify compliance; deviations are justified in the plan's Complexity
 This repository's copy of the constitution is canonical; amendments are mirrored back to `is-omd`.
 Ratification of 1.1.0 and 1.2.0 is pending Henrique Dias's agreement.
 
-**Version**: 1.2.0 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-25
+**Version**: 1.2.1 | **Ratified**: 2026-11-18 | **Last Amended**: 2026-11-25
