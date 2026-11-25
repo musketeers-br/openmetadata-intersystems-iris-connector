@@ -61,7 +61,10 @@ plus OpenMetadata-tree files under `overlay/`.
 - Tests never create users or datasets (VI).
 - CI needs no secrets (OpenMetadata `REVIEW.md`).
 - Overlay Python files carry the Collate Community License header.
-- `make om-export` before every commit touching `overlay/`.
+- `make om-export` before every commit touching `overlay/` once 000's tooling is on `main`; until
+  then, see Complexity Tracking.
+- `overlay/ingestion/LICENSE` (ingestion's license text) present before any overlay file reaches
+  `main`; delivery A adds it (coordinated with 000).
 - No AI attribution in commits or PRs.
 
 **Scale/Scope**: 9 cells per run (3 tracks × 3 logins) plus 1 round-trip job. Fixture catalog v1 has
@@ -116,6 +119,7 @@ fixtures/iris/
 ├── requirements.txt         # plain-venv pins: intersystems-irispython 5.4.1, pytest 9.0.3 (CI and quickstart)
 ├── conftest.py              # plain-venv fixtures for the self-check tests
 ├── test_seed.py             # fixture tests: catalog, idempotency, toggle, write refusal, self-check can fail
+├── test_cell_login.py       # delivery A cell check: the cell's login, via the driver (until B's placeholder)
 ├── test_check_dialect.py    # guard tests (simulated community dialect and entry-point clash)
 ├── test_gap_report.py       # GAP-REPORT.md format: entry fields, sequential ids, GAP-001..009
 └── test_repo_rules.py       # SC-008: no IRIS user or dataset creation outside the loader
@@ -126,6 +130,7 @@ README.md                    # "Running tests" section (stub from 000)
 Makefile                     # section "# --- 001: test harness ---": iris-up, iris-seed, iris-down, test-cell (Phase B)
 
 # OpenMetadata-tree files (overlay/, Collate Community License header)
+overlay/ingestion/LICENSE    # ingestion's LICENSE, byte for byte from tag 2.1.1 (constitution, Licensing; whoever of 000/001 merges first)
 overlay/ingestion/tests/integration/iris/
 ├── __init__.py
 ├── conftest.py              # iris_cell, iris_engine, iris_admin_engine, iris_service_connection, seeded, marker
@@ -148,7 +153,7 @@ else follows the repository-layout contract's ownership table (001 owns `fixture
 | A1 | `data/seed.py` loader + self-check; `fixtures/iris/seed.py` entry point | no |
 | A2 | `start-iris.sh`; `fixtures/iris/test_seed.py` | no |
 | A3 | `iris-matrix.yml`: 9 cells running start → seed → fixture tests → guard | no |
-| A4 | `GAP-REPORT.md` (GAP-001..009); `.gitattributes` | no |
+| A4 | `GAP-REPORT.md` (GAP-001..009); `.gitattributes`; `overlay/ingestion/LICENSE` | no |
 | B1 | `Makefile` section with `test-cell` (rebased on 000's Makefile; owner merges first) | yes |
 | B2 | `overlay-roundtrip` job (`make om-import && make om-export && git diff --exit-code overlay patches`), `.om/` cache | yes |
 | B3 | integration `conftest.py` + `test_harness.py`; unit and integration steps in each cell; guard in the `.om/` env | yes |
@@ -161,4 +166,5 @@ Phase A can merge first. Phase B lands once 000 is on `main`.
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |---|---|---|
 | Spec started before SPIKE-06 review (Development Workflow) | Wave 0 is on the critical path (every spec's acceptance needs the matrix). The findings exist and CI evidence is public in Actions; the user authorized starting in parallel on 2026-11-25 | Waiting idles the fixture owner for the duration of the review. Mitigation: no merge to `main` until Henry has reviewed SPIKE-06 |
+| Overlay files committed in delivery A without `make om-export` / `make py_format` (Technical Constraints; VII) | 000's tooling is not on `main` yet; without `.om/` there is nothing to export, so the rule cannot be applied literally | Waiting for 000 blocks the loader, which every spec needs. Mitigation: delivery A formats overlay files with the same tools and versions as OpenMetadata 2.1.1's `make py_format` (task T020); the first delivery B task runs `make om-import && make om-export && git diff --exit-code overlay patches` (T035), and CI enforces it from then on (T028) |
 | Loader source under `overlay/` instead of `fixtures/iris/` (fixtures contract wording) | Upstream must be able to seed IRIS from inside the OpenMetadata tree (FR-020) | Keeping it only in `fixtures/` breaks the upstream fallback. Two copies would break "one loader" (FR-001). The contract is updated in B4 |

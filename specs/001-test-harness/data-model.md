@@ -109,18 +109,20 @@ Each adds its objects to the catalog and its expectations to the self-check in t
 
 ## Gap entry
 
-| Field | Rule |
-|---|---|
-| `id` | `GAP-NNN`, sequential, never reused |
-| `title` | short, states the behavior |
-| `component` | IRIS SQL catalog · class dictionary · official driver · official dialect · dbt-iris · OpenMetadata |
-| `tracks` | the tags that reproduce it (evidence-based; mark untested tags as such) |
-| `found_in` | spec or spike id |
-| `reproduction` | copy-paste runnable against the fixture catalog, or "pending <spike>" |
-| `expected` / `actual` | one line each |
-| `connector_behavior` | what the connector does instead, with ADR reference |
-| `workaround` | grant, option, or "none" |
-| `upstream` | link to an issue, or "not raised" |
+Written with the template of `is-omd/docs/contracts/gap-report.md`, used verbatim: heading
+`### GAP-NNN — <title>` and the bold labels below, in this order.
+
+| Field | Label in `GAP-REPORT.md` | Rule |
+|---|---|---|
+| `id`, `title` | heading `### GAP-NNN — <title>` | id sequential, never reused; title short and states the behavior |
+| `component` | `Component` | IRIS SQL catalog · class dictionary · official driver · official dialect · dbt-iris · OpenMetadata |
+| `tracks` | `IRIS tracks` | the tags that reproduce it (evidence-based; mark untested tags as such) |
+| `found_in` | `Found in spec` | spec or spike id |
+| `reproduction` | `Reproduction` | copy-paste runnable against the fixture catalog, or "pending <spike>" |
+| `expected` / `actual` | `Expected` / `Actual` | one line each |
+| `connector_behavior` | `Connector behavior` | what the connector does instead, with ADR reference |
+| `workaround` | `User workaround` | grant, option, or "none" |
+| `upstream` | `Upstream` | link to an issue, or "not raised" |
 
 Seed entries: GAP-001..008 (gap-report contract), plus GAP-009 (a schema without tables is not listed
 in `INFORMATION_SCHEMA.SCHEMATA`; component IRIS SQL catalog; tracks `latest-em`, `latest-cd`; found in

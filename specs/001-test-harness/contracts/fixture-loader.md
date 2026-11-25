@@ -29,13 +29,16 @@ self_check(host, port, namespace="USER", admin_user=..., admin_password=..., exp
 | `IRIS_PORT` | `1972` | CI default; local Makefile targets pass `11972` |
 | `IRIS_NAMESPACE` | `USER` | |
 | `IRIS_ADMIN_USER` / `IRIS_ADMIN_PASSWORD` | `_SYSTEM` / `SYS` | after the unexpire step |
+| `IRIS_WAIT_SECONDS` | `60` | how long to retry the admin login while the superserver refuses or times out |
 
 There are no other inputs. The test-login credentials are part of the catalog.
 
 ## Behavior
 
-1. Connect as admin. On failure, exit `2` with a message that names the host and port. When the
-   error says the password must change, the message says "run the unexpire step (fixtures/iris/start-iris.sh)".
+1. Connect as admin. While the connection is refused or times out, retry every 2 s for up to
+   `IRIS_WAIT_SECONDS`. Then exit `2` with a message that names the host, the port and the time
+   waited. An error saying the password must change is never retried: exit `2` at once with "run
+   the unexpire step (fixtures/iris/start-iris.sh)".
 2. Cleanup (idempotent): drop the view, the tables, any table in `Scratch`, the `Scratch` schema and
    both users, ignoring "does not exist" errors (including `SQLCODE -473`).
 3. Create the objects, insert the rows, create the users, grant. Commit.

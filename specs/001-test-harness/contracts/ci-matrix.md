@@ -1,7 +1,13 @@
 # Contract: CI matrix
 
-Implements FR-008..FR-015. File: `.github/workflows/iris-matrix.yml`. Triggers: `push`, `pull_request`.
-`permissions: contents: read`. No secrets.
+Implements FR-008..FR-015. File: `.github/workflows/iris-matrix.yml`.
+
+- Triggers: `pull_request`, `push` on `main` only, `workflow_dispatch`. `workflow_dispatch` works only
+  once the workflow is on `main`; until then, runs come from a draft pull request.
+- `permissions: contents: read`. No secrets.
+- `concurrency: { group: iris-matrix-${{ github.event.pull_request.number || github.ref }},
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }} }`, so a new commit on a pull request
+  cancels the previous run.
 
 ## Jobs
 

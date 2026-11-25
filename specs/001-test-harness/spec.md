@@ -45,9 +45,9 @@ fails and names it.
 
 ---
 
-### User Story 2 - See every matrix cell on every push and pull request (Priority: P1)
+### User Story 2 - See every matrix cell on every pull request and every push to main (Priority: P1)
 
-On every push and pull request, CI rebuilds the connector onto the pinned OpenMetadata release, then
+On every pull request and every push to `main`, CI rebuilds the connector onto the pinned OpenMetadata release, then
 runs the test suite in nine separately reported cells: three IRIS release tracks × three logins.
 The reviewer sees which cell failed without opening logs. A failure on `latest-preview` is visible
 but does not block the merge.
@@ -61,7 +61,7 @@ cell and confirm only that cell fails and the other eight still report.
 
 **Acceptance Scenarios**:
 
-1. **Given** a push or pull request, **When** CI runs, **Then** it reports the rebuild check and nine
+1. **Given** a pull request or a push to `main`, **When** CI runs, **Then** it reports the rebuild check and nine
    independent results named `iris-latest-em-admin` … `iris-latest-preview-reader_dict`.
 2. **Given** a failure in one cell, **When** CI runs, **Then** the remaining cells still run to
    completion and report their own result.
@@ -190,7 +190,8 @@ known entries, each with a reproduction runnable against the shared fixtures.
 
 **CI matrix**
 
-- **FR-008**: CI MUST run on every push and every pull request.
+- **FR-008**: CI MUST run on every pull request and on every push to `main`, and MUST be startable
+  by hand once the workflow is on `main`. A pull request commit runs the matrix once, not twice.
 - **FR-009**: CI MUST first check that the connector's overlay and patches rebuild cleanly onto the
   pinned OpenMetadata release and that the rebuild changes nothing in the repository.
 - **FR-010**: CI MUST then run nine cells, one per combination of track (`latest-em`, `latest-cd`,
@@ -257,8 +258,8 @@ known entries, each with a reproduction runnable against the shared fixtures.
 - **SC-001**: On a fresh IRIS instance of each of the three tracks, the fixture set is loaded and
   verified in under 2 minutes from instance start (image download excluded), and a second run
   produces the same verified state.
-- **SC-002**: 100% of pushes and pull requests show the rebuild check and nine separately named cell
-  results.
+- **SC-002**: 100% of pull requests and pushes to `main` show the rebuild check and nine separately
+  named cell results.
 - **SC-003**: The placeholder test passes on all six blocking cells; the three informative cells
   report a result.
 - **SC-004**: A full CI run, rebuild included, finishes in under 15 minutes of wall-clock time.

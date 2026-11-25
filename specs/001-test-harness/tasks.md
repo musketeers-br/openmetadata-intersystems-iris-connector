@@ -46,6 +46,7 @@ phase from the plan:
 - [ ] T002 [P] [A] Add `.gitattributes` at the repository root with `* text=auto eol=lf` and explicit `*.sh text eol=lf`, `*.py text eol=lf`, `*.yml text eol=lf` (research R14, SPIKE-06 surprise 6). Then run `git add --renormalize . && git status`, which must show no unexpected changes. This file is not in the ownership table, so tell Henry before merging
 - [ ] T003 [P] [A] Create `fixtures/iris/requirements.txt` pinning `intersystems-irispython==5.4.1` and `pytest==9.0.3`. This is the only place these pins live for the plain venv (contracts/ci-matrix.md step 2, quickstart prerequisites)
 - [ ] T004 [P] [A] Create `overlay/ingestion/tests/integration/iris/__init__.py` and `overlay/ingestion/tests/integration/iris/data/__init__.py`, each holding only the Collate Community License header
+- [ ] T005 [P] [A] Add `overlay/ingestion/LICENSE`, copied byte for byte from `ingestion/LICENSE` at OpenMetadata tag 2.1.1 (constitution, Licensing). Coordinate with Henry: whichever of 000 or 001 merges first adds it, and the other drops its copy when rebasing
 
 ---
 
@@ -53,9 +54,9 @@ phase from the plan:
 
 **Purpose**: the start script and the catalog definitions that US1, US2 and US3 all use.
 
-**⚠️ CRITICAL**: US1 tests, US2 cells and US3 fallback all depend on T005 and T006.
+**⚠️ CRITICAL**: US1 tests, US2 cells and US3 fallback all depend on T006 and T007.
 
-- [ ] T005 [A] Write `fixtures/iris/start-iris.sh TAG [PORT=1972] [NAME=iris]` per research R2, with `set -euo pipefail`. It must:
+- [ ] T006 [A] Write `fixtures/iris/start-iris.sh TAG [PORT=1972] [NAME=iris]` per research R2, with `set -euo pipefail`. It must:
   - run `docker rm -f NAME` (ignore a missing container);
   - run `docker run -d --name NAME -p 127.0.0.1:PORT:1972 containers.intersystems.com/intersystems/iris-community:TAG --check-caps false`;
   - poll `docker exec NAME iris qlist` until the state field is `running`, up to 180 s;
@@ -66,7 +67,7 @@ phase from the plan:
   - honor `IRIS_ADMIN_USER`/`IRIS_ADMIN_PASSWORD` (default `_SYSTEM`/`SYS`), and never echo the password.
 
   Run `shellcheck fixtures/iris/start-iris.sh` (for example `docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable fixtures/iris/start-iris.sh`), which must report nothing
-- [ ] T006 [A] Write the catalog definitions at the top of `overlay/ingestion/tests/integration/iris/data/seed.py` (Collate header), as pure data with no side effects on import (contracts/fixture-loader.md, data-model.md):
+- [ ] T007 [A] Write the catalog definitions at the top of `overlay/ingestion/tests/integration/iris/data/seed.py` (Collate header), as pure data with no side effects on import (contracts/fixture-loader.md, data-model.md):
   - `CATALOG_VERSION = 1`;
   - `LOGINS`: `admin`/`reader`/`reader_dict` → user, password, `is_admin`, `has_dict_grant`;
   - `DDL`: the ordered create statements for `Clinic.Patient`, `Clinic.Encounter`, `Billing.Patient`, `AI.Embedding`, the view `Clinic.ActivePatient` and `CREATE SCHEMA Scratch`, with table and column descriptions as `%DESCRIPTION`/`COMMENT` per data-model;
@@ -92,23 +93,24 @@ expect `FIXTURES OK v1` both times. Drop `Billing.Patient` and expect the self-c
 
 > Write these first and see them fail (the loader functions do not exist yet).
 
-- [ ] T007 [US1] [A] Write `fixtures/iris/conftest.py` with these session fixtures:
+- [ ] T008 [US1] [A] Write `fixtures/iris/conftest.py` with these session fixtures:
   - `seed_module`: loads the canonical module by path with `importlib.util.spec_from_file_location`. It prefers `.om/ingestion/tests/integration/iris/data/seed.py` when that file exists, and falls back to `overlay/ingestion/tests/integration/iris/data/seed.py`;
   - `iris_env`: a dict with host, port, namespace and admin credentials from env, using the fixture-loader contract defaults;
   - `admin_conn`: an `iris.connect` connection as admin.
 
   Fixtures that need a live IRIS raise `pytest.UsageError("fixture tests need IRIS: run fixtures/iris/start-iris.sh … and set IRIS_HOST")` when `IRIS_HOST` is unset. They never skip, so CI cannot pass by skipping. Offline tests do not request these fixtures
-- [ ] T008 [US1] [A] Write the offline tests in `fixtures/iris/test_seed.py`. They need no IRIS and use `monkeypatch` on the module's `iris` import:
+- [ ] T009 [US1] [A] Write the offline tests in `fixtures/iris/test_seed.py`. They need no IRIS and use `monkeypatch` on the module's `iris` import:
   - (a) a connection error → `main()` returns 2 and stderr names `host:port`;
   - (b) an error whose text says the password must change → exit 2, and the message contains `start-iris.sh`;
   - (c) a cursor that raises on the 3rd DDL statement → exit 3, and stderr shows that statement's first 60 characters and the IRIS error;
   - (d) importing the module calls no `iris.connect` (import-safe);
-  - (e) with `IRIS_ADMIN_PASSWORD` set to a unique token, the token appears nowhere in stdout or stderr, and neither does `Reader123`
-- [ ] T009 [US1] [A] Write the live tests in `fixtures/iris/test_seed.py`. They use `admin_conn` and `seed_module` and connect as each reader with `iris.connect`:
+  - (e) with `IRIS_ADMIN_PASSWORD` set to a unique token, the token appears nowhere in stdout or stderr, and neither does `Reader123`;
+  - (f) `iris.connect` fails twice with "connection refused" and then succeeds → the load proceeds; refused past `IRIS_WAIT_SECONDS=1` → exit 2 and the message states the time waited; a password-change error is not retried (`iris.connect` called once). Patch `time.sleep` and `time.monotonic`, so no test really waits
+- [ ] T010 [US1] [A] Write the live tests in `fixtures/iris/test_seed.py`. They use `admin_conn` and `seed_module` and connect as each reader with `iris.connect`:
   - `test_load_reports_all_checks`: `load()` passes, and the output has `PASS C1`…`PASS C11` plus `FIXTURES OK v1`;
-  - `test_load_is_idempotent`: two `load()` calls give the same snapshot (row values per table, the users `omd_reader*` in `INFORMATION_SCHEMA.USERS` or `Security.Users`, and the grants);
+  - `test_load_is_idempotent`: after each of two `load()` calls, take a snapshot. It holds, per table, the rows ordered by primary key, plus the columns and constraints as read by C2/C3, plus the C8–C10 outcome per login (login ok, readable schemas, dictionary allowed or `-99`, write refused). The two snapshots must be equal. Users and grants are compared by behavior, because `Security.Users` is only in `%SYS`;
   - `test_dictionary_toggle`: `omd_reader` gets `SQLCODE -99` on `%Dictionary.CompiledProperty` and `%Dictionary.PropertyDefinition`, and `omd_reader_dict` reads both;
-  - `test_readers_cannot_write`: both readers get `-99` on `INSERT INTO Clinic.Patient` and on `CREATE TABLE Scratch.T001`;
+  - `test_readers_cannot_write`: both readers get `-99` on `INSERT INTO Clinic.Patient` and on `CREATE TABLE Scratch.ReaderProbe`;
   - `test_self_check_can_fail`: `self_check(expected=…)` with the `Clinic.Patient` row count set to 3 raises `SelfCheckError`, and its message has `C5`, `Clinic.Patient`, `expected 3` and `actual 2`;
   - `test_missing_object_is_named`: drop `Billing.Patient` as admin, then `self_check()` raises with `C1` and `Billing.Patient`. A `finally: load()` restores the state;
   - `test_scratch_is_emptied`: create `Scratch.Leftover` as admin, run `load()`, then `Scratch` has no tables and C7 passes
@@ -117,57 +119,65 @@ expect `FIXTURES OK v1` both times. Drop `Billing.Patient` and expect the self-c
 
 All of these edit `overlay/…/iris/data/seed.py`, so they run in order.
 
-- [ ] T010 [US1] [A] Implement `_connect(host, port, namespace, user, password)` and the error classes in `overlay/ingestion/tests/integration/iris/data/seed.py`:
+- [ ] T011 [US1] [A] Implement `_connect(host, port, namespace, user, password)`, with bounded retry per the contract (`IRIS_WAIT_SECONDS`), and the error classes in `overlay/ingestion/tests/integration/iris/data/seed.py`:
   - `NotPreparedError` (exit 2): connection refused, timeout, or the password must change;
   - `LoadError` (exit 3): holds the statement head and the IRIS error;
   - `SelfCheckError` (exit 1): holds the check id, object, expected and actual.
 
-  Makes T008 (a), (b) pass
-- [ ] T011 [US1] [A] Implement `_cleanup(cursor)` in `overlay/ingestion/tests/integration/iris/data/seed.py`:
+  Makes T009 (a), (b), (f) pass
+- [ ] T012 [US1] [A] Implement `_cleanup(cursor)` in `overlay/ingestion/tests/integration/iris/data/seed.py`:
   - drop the view, then the four tables in FK-safe order;
   - drop every table listed in `INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'Scratch'`, then the `Scratch` schema;
   - drop both users;
   - tolerate only "does not exist" codes (`-30`, `-473`, the user-not-found code recorded while implementing), and re-raise anything else as `LoadError`
-- [ ] T012 [US1] [A] Implement `_create(cursor)` in `overlay/ingestion/tests/integration/iris/data/seed.py`. It runs `DDL`, inserts `ROWS` with bind parameters (`TO_VECTOR('0.1,0.2,0.3', DOUBLE)` for `AI.Embedding.Vec`), creates the users, runs the grants and commits. Any failure raises `LoadError` with the statement's first 60 characters. Makes T008 (c) pass
-- [ ] T013 [US1] [A] Implement admin checks C1–C7 and C11 in `self_check()` in `overlay/ingestion/tests/integration/iris/data/seed.py`, per research R9:
+- [ ] T013 [US1] [A] Implement `_create(cursor)` in `overlay/ingestion/tests/integration/iris/data/seed.py`. It runs `DDL`, inserts `ROWS` with bind parameters (`TO_VECTOR('0.1,0.2,0.3', DOUBLE)` for `AI.Embedding.Vec`), creates the users, runs the grants and commits. Any failure raises `LoadError` with the statement's first 60 characters. Makes T009 (c) pass
+- [ ] T014 [US1] [A] Implement admin checks C1–C7 and C11 in `self_check()` in `overlay/ingestion/tests/integration/iris/data/seed.py`, per research R9:
   - query `INFORMATION_SCHEMA.TABLES`, `COLUMNS` (ordered by `ORDINAL_POSITION`), `TABLE_CONSTRAINTS`, `KEY_COLUMN_USAGE`, `REFERENTIAL_CONSTRAINTS` and `VIEWS`, filtering by schema and name with bind parameters and comparing exact strings;
   - never use `GROUP BY` or `DISTINCT` on names;
   - assert constraints by type and columns, and by name only for `UqBillingCode`;
   - C7 creates and drops `Scratch.Probe` as admin;
   - `expected` defaults to `EXPECTED`;
   - return a list of `(check_id, object)` passes, and raise `SelfCheckError` on the first mismatch
-- [ ] T014 [US1] [A] Implement reader checks C8–C10 in `self_check()` in `overlay/ingestion/tests/integration/iris/data/seed.py`:
+- [ ] T015 [US1] [A] Implement reader checks C8–C10 in `self_check()` in `overlay/ingestion/tests/integration/iris/data/seed.py`:
   - connect as each reader from `LOGINS`;
   - `SELECT TOP 1 *` from each of the three schemas' tables;
   - query both dictionary tables, expecting `-99` for `omd_reader` and success for `omd_reader_dict`;
   - attempt the C10 writes and expect `-99`.
 
   Close the reader connections in `finally`
-- [ ] T015 [US1] [A] Implement `load(host, port, namespace="USER", admin_user="_SYSTEM", admin_password="SYS")` and `main()` in `overlay/ingestion/tests/integration/iris/data/seed.py`:
+- [ ] T016 [US1] [A] Implement `load(host, port, namespace="USER", admin_user="_SYSTEM", admin_password="SYS")` and `main()` in `overlay/ingestion/tests/integration/iris/data/seed.py`:
   - `load()` runs connect → cleanup → create → `self_check`;
-  - `main()` reads `IRIS_HOST`/`IRIS_PORT`/`IRIS_NAMESPACE`/`IRIS_ADMIN_USER`/`IRIS_ADMIN_PASSWORD` with the contract defaults (`127.0.0.1`, `1972`, `USER`, `_SYSTEM`, `SYS`);
+  - `main()` reads `IRIS_HOST`/`IRIS_PORT`/`IRIS_NAMESPACE`/`IRIS_ADMIN_USER`/`IRIS_ADMIN_PASSWORD`/`IRIS_WAIT_SECONDS` with the contract defaults (`127.0.0.1`, `1972`, `USER`, `_SYSTEM`, `SYS`, `60`);
   - print `PASS <id> <what> <object>` lines, then `FIXTURES OK v<CATALOG_VERSION> <$ZVERSION>`;
   - map the errors to exit codes 1, 2 and 3, writing messages to stderr;
   - end the file with `if __name__ == "__main__": sys.exit(main())`
-- [ ] T016 [US1] [A] Write `fixtures/iris/seed.py`. It picks `.om/ingestion/tests/integration/iris/data/seed.py` when that file exists, else `overlay/ingestion/tests/integration/iris/data/seed.py`, then runs it with `runpy.run_path(path, run_name="__main__")` and propagates its `SystemExit` code. It prints which copy ran, as its first line
-- [ ] T017 [US1] [A] Run the loader against `latest-em` (`fixtures/iris/start-iris.sh latest-em 11972 omd-test-iris-latest-em`). Record the catalog `DATA_TYPE` of every fixture column that the data-model does not yet list into `EXPECTED` in `overlay/…/iris/data/seed.py` and into the Objects table in `specs/001-test-harness/data-model.md` (C2)
-- [ ] T018 [US1] [A] Run `pytest fixtures -q` against `latest-em` until T008 and T009 pass. Then run quickstart Q1 on all three tracks (two loader runs per track, timing start → `FIXTURES OK`, target < 2 min, SC-001), Q2 and Q3. Record the timings and any track difference in `specs/001-test-harness/research.md` (new section "Implementation measurements"). A track difference also becomes a gap entry (T034)
+- [ ] T017 [US1] [A] Write `fixtures/iris/seed.py`. It picks `.om/ingestion/tests/integration/iris/data/seed.py` when that file exists, else `overlay/ingestion/tests/integration/iris/data/seed.py`, then runs it with `runpy.run_path(path, run_name="__main__")` and propagates its `SystemExit` code. It prints which copy ran, as its first line
+- [ ] T018 [US1] [A] Run the loader against `latest-em` (`fixtures/iris/start-iris.sh latest-em 11972 omd-test-iris-latest-em`). Record the catalog `DATA_TYPE` of every fixture column that the data-model does not yet list into `EXPECTED` in `overlay/…/iris/data/seed.py` and into the Objects table in `specs/001-test-harness/data-model.md` (C2)
+- [ ] T019 [US1] [A] Run `pytest fixtures -q` against `latest-em` until T009 and T010 pass. Then run quickstart Q1 on all three tracks (two loader runs per track, timing start → `FIXTURES OK`, target < 2 min, SC-001), Q2 and Q3. Record the timings and any track difference in `specs/001-test-harness/research.md` (new section "Implementation measurements"). A track difference also becomes a gap entry (T038)
+- [ ] T020 [US1] [A] Format the overlay Python files (`overlay/ingestion/tests/integration/iris/**/*.py`) with the tools and versions that the `py_format` target of OpenMetadata 2.1.1's root `Makefile` runs (read the target and the pins in `ingestion/pyproject.toml` / `setup.py` at tag 2.1.1). Running the formatters a second time must change nothing (plan, Complexity Tracking)
 
 **Checkpoint**: US1 is complete and usable by every other spec, even before CI exists.
 
 ---
 
-## Phase 4: User Story 2 — See every matrix cell on every push and pull request (Priority: P1)
+## Phase 4: User Story 2 — See every matrix cell on every pull request and every push to main (Priority: P1)
 
 **Goal**: nine separately reported cells, preview informative, guard and version identity in every
 cell (FR-008..015). The round-trip check comes in delivery B.
 
-**Independent Test**: quickstart Q7. A push shows 9 checks `iris-<tag>-<login>`, each summary shows
-digest and `$ZVERSION`, and a deliberately broken cell fails alone.
+**Independent Test**: quickstart Q7. A draft pull request shows 9 checks `iris-<tag>-<login>`, each
+summary shows digest and `$ZVERSION`, and a deliberately broken cell fails alone.
 
 ### Tests for User Story 2 (REQUIRED — Constitution VI) ⚠️
 
-- [ ] T019 [P] [US2] [A] Write `fixtures/iris/test_check_dialect.py`. These are offline tests that monkeypatch `importlib.metadata.distribution` and `importlib.metadata.entry_points`:
+- [ ] T021 [P] [US2] [A] Write `fixtures/iris/test_cell_login.py`, a live driver-level stand-in for the placeholder test until delivery B. Parametrize over `IRIS_LOGIN` when it is set, else over all three logins from `LOGINS`. For each login, connect with `iris.connect`, then check:
+  - `SELECT COUNT(*) FROM Clinic.Patient` returns 2;
+  - `SELECT TOP 1 Name FROM %Dictionary.CompiledProperty` succeeds iff `has_dict_grant`, otherwise the error carries `-99`;
+  - `INSERT INTO Clinic.Patient` is refused with `-99` unless `is_admin` (admin's insert runs in a transaction that is rolled back).
+
+  The test id contains the login, so the job summary shows which login ran
+
+- [ ] T022 [P] [US2] [A] Write `fixtures/iris/test_check_dialect.py`. These are offline tests that monkeypatch `importlib.metadata.distribution` and `importlib.metadata.entry_points`:
   - (a) distribution `sqlalchemy-iris` present → `main()` returns 1 and the message names `sqlalchemy-iris`;
   - (b) entry point `sqlalchemy.dialects:iris` → `sqlalchemy_iris.base:IRISDialect` → exit 1, and the message names the target;
   - (c) entry point → `sqlalchemy_intersystems_iris.iris:IRISDialect_iris` and no community distribution → exit 0;
@@ -175,35 +185,35 @@ digest and `$ZVERSION`, and a deliberately broken cell fails alone.
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] [A] Write `fixtures/iris/check_dialect.py` per research R6. It uses the standard library only, and exits 1 when the `sqlalchemy-iris` distribution is installed, when `importlib.util.find_spec("sqlalchemy_iris")` finds the module, or when the `iris` dialect entry point resolves to anything other than `sqlalchemy_intersystems_iris.iris:IRISDialect_iris`. It prints the offending package or target. Makes T019 pass
-- [ ] T021 [US2] [A] Write `.github/workflows/iris-matrix.yml`, delivery A, per contracts/ci-matrix.md:
-  - triggers `push` and `pull_request`; `permissions: contents: read`; no secrets;
-  - `concurrency: { group: iris-matrix-${{ github.ref }}, cancel-in-progress: ${{ github.event_name == 'pull_request' }} }`;
+- [ ] T023 [US2] [A] Write `fixtures/iris/check_dialect.py` per research R6. It uses the standard library only, and exits 1 when the `sqlalchemy-iris` distribution is installed, when `importlib.util.find_spec("sqlalchemy_iris")` finds the module, or when the `iris` dialect entry point resolves to anything other than `sqlalchemy_intersystems_iris.iris:IRISDialect_iris`. It prints the offending package or target. Makes T022 pass
+- [ ] T024 [US2] [A] Write `.github/workflows/iris-matrix.yml`, delivery A, per contracts/ci-matrix.md:
+  - triggers per contracts/ci-matrix.md (`pull_request`, `push` on `main` only, `workflow_dispatch`); `permissions: contents: read`; no secrets;
+  - `concurrency` exactly as in the contract (group keyed on the pull request number, cancel-in-progress on pull requests);
   - one job with `name: iris-${{ matrix.tag }}-${{ matrix.login }}`, `strategy.fail-fast: false`, matrix `tag: [latest-em, latest-cd, latest-preview]` × `login: [admin, reader, reader_dict]`, `continue-on-error: ${{ matrix.tag == 'latest-preview' }}`, `timeout-minutes: 20`, and the cell env from the contract;
   - steps 1–6 in contract order: `actions/checkout@v4` with `persist-credentials: false`, `actions/setup-python@v5` 3.11, `pip install -r fixtures/iris/requirements.txt`, `start-iris.sh` with `id: iris`, `python fixtures/iris/seed.py`, `python fixtures/iris/check_dialect.py`, and `pytest fixtures -q -rs | tee pytest.log` using `set -o pipefail`;
   - capture each exit status with `rc=0; cmd || rc=$?` (SPIKE-06 fix)
-- [ ] T022 [US2] [A] Add steps 11 and 12 to `.github/workflows/iris-matrix.yml`:
+- [ ] T025 [US2] [A] Add steps 11 and 12 to `.github/workflows/iris-matrix.yml`:
   - step 11, `if: always()`: write the cell name, `steps.iris.outputs.digest`, `steps.iris.outputs.zversion`, per-step durations (recorded with `date +%s` around each step into `$GITHUB_ENV`) and the pytest summary line from `pytest.log` to `$GITHUB_STEP_SUMMARY`;
   - step 12, `if: failure()`: `docker logs --tail 200 iris`.
 
   Then lint the workflow with `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:latest`, which must report nothing
-- [ ] T023 [US2] [A] Push `001-test-harness` to the dev repository. This needs `gh auth login` + `gh auth setup-git` in WSL, or a push from the Windows clone; confirm with the user first, because it is outward-facing and a run costs about 14 billed minutes while the repository is private. Confirm Q7 for delivery A: 9 checks with the exact names, and every summary shows digest + `$ZVERSION`. Record wall time and billed minutes (sum of per-job minutes rounded up) in `specs/001-test-harness/research.md` "Implementation measurements"
-- [ ] T024 [US2] [A] Prove the failure paths on a throwaway branch `ci/001-break-cells`, in one run:
+- [ ] T026 [US2] [A] Push `001-test-harness` and open it as a **draft** pull request to `main` in the dev repository. This needs `gh auth login` + `gh auth setup-git` in WSL, or a push from the Windows clone; confirm with the user first, because it is outward-facing and a run costs about 14 billed minutes while the repository is private. Confirm Q7 for delivery A: 9 checks with the exact names, and every summary shows digest + `$ZVERSION`. Record wall time and billed minutes (sum of per-job minutes rounded up) in `specs/001-test-harness/research.md` "Implementation measurements"
+- [ ] T027 [US2] [A] Prove the failure paths on a throwaway branch `ci/001-break-cells` opened as a draft pull request (confirm with the user first), in one run:
   - in `iris-latest-em-reader` only, a step that exits 1;
   - in `iris-latest-cd-admin` only, `pip install sqlalchemy-iris` before the guard;
   - in `iris-latest-preview-reader` only, a step that exits 1.
 
-  Expected: those three fail, the guard message names `sqlalchemy-iris` (SC-006), the other six pass, and the preview failure shows as "continue-on-error". Record the run URL in `research.md`, then delete the branch (local and remote)
-- [ ] T025 [US2] [B] Add job `overlay-roundtrip` to `.github/workflows/iris-matrix.yml` per contracts/ci-matrix.md: checkout with `persist-credentials: false`, setup-python 3.11, `actions/cache@v4` on `.om/` with key `om-${{ hashFiles('openmetadata.version','patches/**','Makefile') }}`, then `make om-import && make om-export && git diff --exit-code overlay patches`. Make the cell job `needs: overlay-roundtrip`
-- [ ] T026 [US2] [B] Add cell steps 7–10 to `.github/workflows/iris-matrix.yml`:
+  Expected: those three fail, the guard message names `sqlalchemy-iris` (SC-006), the other six pass, and the preview failure shows as "continue-on-error". Record the run URL in `research.md`, then close the pull request and delete the branch (local and remote)
+- [ ] T028 [US2] [B] Add job `overlay-roundtrip` to `.github/workflows/iris-matrix.yml` per contracts/ci-matrix.md: checkout with `persist-credentials: false`, setup-python 3.11, `actions/cache@v4` on `.om/` with key `om-${{ hashFiles('openmetadata.version','patches/**','Makefile') }}`, then `make om-import && make om-export && git diff --exit-code overlay patches`. Make the cell job `needs: overlay-roundtrip`
+- [ ] T029 [US2] [B] Add cell steps 7–10 to `.github/workflows/iris-matrix.yml`:
   - restore the `.om/` cache and run `make om-import`, using the install command spec 000 settles (research R7, `install_dev` vs `install_dev_env`, with the `iris` extra and the test profile);
   - run `check_dialect.py` with the `.om/` interpreter;
   - unit tests: `pytest .om/ingestion/tests/unit/topology/database/test_iris.py`;
   - integration tests: `pytest .om/ingestion/tests/integration/iris -m iris -rs`, appended to `pytest.log`
-- [ ] T027 [US2] [B] Push and measure delivery B: wall time (SC-004, < 15 min), `.om/` cache size and restore time, and billed minutes. Record them in `specs/001-test-harness/research.md` R7, and switch to the artifact fallback if the cache costs more than it saves
-- [ ] T028 [US2] [B] After the repository is public, ask the repository admin to set branch protection on `main` with the required checks listed in contracts/ci-matrix.md (`overlay-roundtrip` + the six em/cd cells; never `latest-preview`). Then verify scenario 3: a PR failing only a preview cell is mergeable
+- [ ] T030 [US2] [B] Push delivery B to the pull request and measure it: wall time (SC-004, < 15 min), `.om/` cache size and restore time, and billed minutes. Record them in `specs/001-test-harness/research.md` R7, and switch to the artifact fallback if the cache costs more than it saves
+- [ ] T031 [US2] [B] After the repository is public, ask the repository admin to set branch protection on `main` with the required checks listed in contracts/ci-matrix.md (`overlay-roundtrip` + the six em/cd cells; never `latest-preview`). Then verify scenario 3: a PR failing only a preview cell is mergeable
 
-**Checkpoint**: every push shows the 9 cells (A) plus the round-trip check (B).
+**Checkpoint**: every pull request and push to `main` shows the 9 cells (A) plus the round-trip check (B).
 
 ---
 
@@ -218,7 +228,7 @@ skips, and the same tests pass with no `IRIS_HOST` and leave no container behind
 
 ### Tests for User Story 3 (REQUIRED — Constitution VI) ⚠️
 
-- [ ] T029 [P] [US3] [B] Write `overlay/ingestion/tests/integration/iris/test_harness.py` (Collate header), per contracts/test-interface.md:
+- [ ] T032 [P] [US3] [B] Write `overlay/ingestion/tests/integration/iris/test_harness.py` (Collate header), per contracts/test-interface.md:
   - three tests marked `@pytest.mark.iris`:
     - `test_select_one`: `SELECT 1` via `iris_engine` returns 1;
     - `test_dictionary_toggle`: `SELECT TOP 1 Name FROM %Dictionary.CompiledProperty` succeeds iff `iris_cell.has_dict_grant`, otherwise the error text contains `-99`;
@@ -229,7 +239,7 @@ skips, and the same tests pass with no `IRIS_HOST` and leave no container behind
 
 ### Implementation for User Story 3
 
-- [ ] T030 [US3] [B] Write `overlay/ingestion/tests/integration/iris/conftest.py` (Collate header), per contracts/test-interface.md and research R4, R11, R12:
+- [ ] T033 [US3] [B] Write `overlay/ingestion/tests/integration/iris/conftest.py` (Collate header), per contracts/test-interface.md and research R4, R11, R12:
   - `pytest_configure` registers the `iris` marker;
   - the frozen dataclass `IrisCell` and `_cell_from_env(env)` build the cell from `IRIS_*` env and `data.seed.LOGINS`; `IRIS_LOGIN` defaults to `reader`, `IRIS_TAG` to `latest-em`;
   - `_iris_endpoint` (session):
@@ -240,14 +250,14 @@ skips, and the same tests pass with no `IRIS_HOST` and leave no container behind
   - `iris_engine` / `iris_admin_engine`: built via `metadata.ingestion.source.database.iris.connection.get_connection`, depend on `seeded`, and are disposed at session end.
 
   Confirm the `IrisConnection` field names against 000's generated model before writing
-- [ ] T031 [US3] [B] Add the `Makefile` section `# --- 001: test harness ---` on top of 000's `Makefile`, per research R13:
+- [ ] T034 [US3] [B] Add the `Makefile` section `# --- 001: test harness ---` on top of 000's `Makefile`, per research R13:
   - `iris-up TAG=latest-em PORT=11972` runs `fixtures/iris/start-iris.sh $(TAG) $(PORT) omd-test-iris-$(TAG)`;
   - `iris-seed` runs `IRIS_HOST=127.0.0.1 IRIS_PORT=$(PORT) python fixtures/iris/seed.py`;
   - `iris-down` runs `docker rm -f omd-test-iris-$(TAG)`;
   - `test-cell TAG=… LOGIN=… [PORT=11972]` depends on `iris-up iris-seed`, then runs `IRIS_HOST=127.0.0.1 IRIS_PORT=$(PORT) IRIS_TAG=$(TAG) IRIS_LOGIN=$(LOGIN) <.om python> -m pytest .om/ingestion/tests/integration/iris -m iris -rs`, using the interpreter path 000 defines;
   - add all four to `.PHONY` and `make help`, if 000 has one
-- [ ] T032 [US3] [B] Run `make om-export`, then `make py_format` on the overlay files. `make om-import && make om-export && git diff --exit-code overlay patches` must be clean (same as T025's job)
-- [ ] T033 [US3] [B] Validate quickstart Q4 (`make test-cell TAG=latest-em LOGIN=reader`, `TAG=latest-cd LOGIN=reader_dict`: all pass, and `-rs` shows no skips) and Q6 (no `IRIS_HOST`: the fallback starts, seeds, passes, and `docker ps -a` shows no leftover container). Record the fallback time in `research.md`
+- [ ] T035 [US3] [B] Run `make om-export`, then `make py_format` on the overlay files. `make om-import && make om-export && git diff --exit-code overlay patches` must be clean (same as T028's job)
+- [ ] T036 [US3] [B] Validate quickstart Q4 (`make test-cell TAG=latest-em LOGIN=reader`, `TAG=latest-cd LOGIN=reader_dict`: all pass, and `-rs` shows no skips) and Q6 (no `IRIS_HOST`: the fallback starts, seeds, passes, and `docker ps -a` shows no leftover container). Record the fallback time in `research.md`
 
 **Checkpoint**: any spec can write `@pytest.mark.iris` tests against `iris_cell` and the engines.
 
@@ -262,23 +272,24 @@ reproduction runs against a Q1 container.
 
 ### Tests for User Story 4 (REQUIRED — Constitution VI) ⚠️
 
-- [ ] T034 [P] [US4] [A] Write `fixtures/iris/test_gap_report.py`. It is offline and parses `GAP-REPORT.md`:
-  - entries are headed `## GAP-NNN — <title>`, with ids sequential from 001 and none skipped or repeated;
+- [ ] T037 [P] [US4] [A] Write `fixtures/iris/test_gap_report.py`. It is offline and parses `GAP-REPORT.md`:
+  - entries are headed `### GAP-NNN — <title>`, with ids sequential from 001 and none skipped or repeated;
   - there are at least 9 entries;
-  - every entry has the data-model Gap-entry fields (component from the allowed list, tracks, found_in, reproduction, expected, actual, connector_behavior, workaround, upstream);
-  - `reproduction` is a fenced code block or the text `pending SPIKE-NN`.
+  - every entry has the bold labels of `is-omd/docs/contracts/gap-report.md` in this order: `Component`, `IRIS tracks`, `Found in spec`, `Reproduction`, `Expected`, `Actual`, `Connector behavior`, `User workaround`, `Upstream` (data-model, Gap entry);
+  - `Component` is one of the contract's values;
+  - `Reproduction` is a fenced code block or the text `pending SPIKE-NN`.
 
   It must fail on the current tree, which has no file yet
 
 ### Implementation for User Story 4
 
-- [ ] T035 [US4] [A] Write `GAP-REPORT.md` at the repository root:
-  - the entry format from `is-omd/docs/contracts/gap-report.md`;
+- [ ] T038 [US4] [A] Write `GAP-REPORT.md` at the repository root:
+  - the entry format from `is-omd/docs/contracts/gap-report.md`, using the contract's entry template verbatim (heading level and labels);
   - GAP-001..008 from the same contract, with tracks from evidence: SPIKE-01 for `latest-em`, SPIKE-06 for all three tracks on GAP-001/002, and untested tracks marked "not tested";
   - GAP-009 per research R10 (component IRIS SQL catalog, tracks `latest-em` + `latest-cd`, found in 001, connector behavior "decided in spec 002").
 
-  GAP-003's reproduction reads "pending SPIKE-03". Makes T034 pass
-- [ ] T036 [US4] [A] Run every GAP reproduction except GAP-003 against `latest-em` and `latest-cd` containers loaded by `fixtures/iris/seed.py`. Fix any reproduction that does not show the stated "actual" behavior, and add `latest-preview` to an entry's tracks when it reproduces there too
+  GAP-003's reproduction reads "pending SPIKE-03". Makes T037 pass
+- [ ] T039 [US4] [A] Run every GAP reproduction except GAP-003 against `latest-em` and `latest-cd` containers loaded by `fixtures/iris/seed.py`. Fix any reproduction that does not show the stated "actual" behavior, and add `latest-preview` to an entry's tracks when it reproduces there too
 
 **Checkpoint**: later specs append entries in the fixed format.
 
@@ -286,22 +297,26 @@ reproduction runs against a Q1 container.
 
 ## Phase 7: Polish & cross-cutting concerns
 
-- [ ] T037 [P] [A] Write `fixtures/iris/test_repo_rules.py` (SC-008, offline). It fails if any file under `overlay/ingestion/tests/` other than `overlay/…/iris/data/seed.py` contains `CREATE USER`, `GRANT ` or `Security.Users` (case-insensitive), and prints each offending file and line
-- [ ] T038 [P] [A] Add the README section `## Running tests` (delivery A part) to `README.md`, rebased on 000's stub if it exists. Cover: plain venv from `fixtures/iris/requirements.txt`, `fixtures/iris/start-iris.sh TAG 11972 NAME`, `IRIS_PORT=11972 python fixtures/iris/seed.py`, `pytest fixtures`, the guard, and the loader's exit codes
-- [ ] T039 [B] Extend `README.md` "Running tests" (FR-024) with `make test-cell TAG=… LOGIN=…`, `make iris-down`, automatic single-instance mode (no `IRIS_HOST`), and the one-time setup (`make om-import`, using 000's install command)
-- [ ] T040 [P] [A] In `is-omd`, on branch `spike/06-findings`, add an "Addendum: planning and implementation probes" to `spikes/findings/SPIKE-06.md`. It covers:
+- [ ] T040 [P] [A] Write `fixtures/iris/test_repo_rules.py` (FR-018, SC-008, offline). It scans every file under `overlay/ingestion/tests/` except `overlay/…/iris/data/seed.py` and fails, printing each offending file and line, on:
+  - `CREATE USER`, `GRANT `, `Security.Users` (case-insensitive);
+  - `CREATE TABLE`, `CREATE VIEW`, `INSERT INTO`, `DROP TABLE` whose target is not `Scratch.<name>`.
+
+  Include one self-test that feeds a temporary file with `CREATE TABLE Clinic.X` and expects a failure, so the rule can be shown to fail
+- [ ] T041 [P] [A] Add the README section `## Running tests` (delivery A part) to `README.md`, rebased on 000's stub if it exists. Cover: plain venv from `fixtures/iris/requirements.txt`, `fixtures/iris/start-iris.sh TAG 11972 NAME`, `IRIS_PORT=11972 python fixtures/iris/seed.py`, `pytest fixtures`, the guard, and the loader's exit codes
+- [ ] T042 [B] Extend `README.md` "Running tests" (FR-024) with `make test-cell TAG=… LOGIN=…`, `make iris-down`, automatic single-instance mode (no `IRIS_HOST`), and the one-time setup (`make om-import`, using 000's install command)
+- [ ] T043 [P] [A] In `is-omd`, on branch `spike/06-findings`, add an "Addendum: planning and implementation probes" to `spikes/findings/SPIKE-06.md`. It covers:
   - the entry-point clash (R6);
   - `GROUP BY` upper-casing (R9);
   - Scratch not listed while empty and `-473` (R10);
-  - the measurements from T018/T023/T024.
+  - the measurements from T019/T026/T027.
 
   Pushing needs write access to `is-omd` or a fork (pending)
-- [ ] T041 [B] Open the `is-omd` contract PR (FR-025):
+- [ ] T044 [B] Open the `is-omd` contract PR (FR-025):
   - `docs/contracts/fixtures.md`: entry point `fixtures/iris/seed.py`, source `overlay/…/iris/data/seed.py`, catalog v1 table, version history, `Scratch` defined by behavior;
-  - `docs/contracts/test-matrix.md`: dated track versions and digests, `latest-cd` = 2026.3 (not 2026.2), the step order install → start, and no remaining `[VERIFY]` markers.
+  - `docs/contracts/test-matrix.md`: dated track versions and digests, `latest-cd` = 2026.3 (not 2026.2), the triggers (pull request, push to `main`, manual), the step order install → start, `127.0.0.1` instead of `localhost`, and no remaining `[VERIFY]` markers.
 
   Confirm with the user before opening the PR
-- [ ] T042 Run quickstart Q1–Q8 end to end on the final branch. Tick SC-001..SC-008 in `specs/001-test-harness/checklists/requirements.md`, or list what remains open, and confirm Henry has reviewed SPIKE-06 before the merge to `main` (plan, Complexity Tracking)
+- [ ] T045 Run quickstart Q1–Q8 end to end on the final branch. Tick SC-001..SC-008 in `specs/001-test-harness/checklists/requirements.md`, or list what remains open, and confirm Henry has reviewed SPIKE-06 before the merge to `main` (plan, Complexity Tracking)
 
 ---
 
@@ -309,64 +324,65 @@ reproduction runs against a Q1 container.
 
 ### Phase dependencies
 
-- **Setup (T001–T004)**: none.
-- **Foundational (T005–T006)**: after Setup. They block US1, US2 and US3.
-- **US1 (T007–T018)**: after Foundational. Needed by US2's seed step and by US4's reproductions.
-- **US2 A (T019–T024)**: T021–T024 need T015–T016 (the cells run the loader). T019–T020 can run alongside US1.
-- **US4 (T034–T036)**: T034–T035 can run any time after Setup. T036 needs US1.
-- **Delivery B (T025–T033, T039, T041)**: needs spec 000 on `main`. Within B: T030 → T029 passes → T031 → T032 → T033. T025–T026 → T027.
-- **Polish**: T037, T038 and T040 after US1. T042 last.
+- **Setup (T001–T005)**: none.
+- **Foundational (T006–T007)**: after Setup. They block US1, US2 and US3.
+- **US1 (T008–T020)**: after Foundational. Needed by US2's seed step and by US4's reproductions.
+- **US2 A (T021–T027)**: T024–T027 need T016–T017 (the cells run the loader). T021–T023 can be written alongside US1; T021 runs against a loaded instance.
+- **US4 (T037–T039)**: T037–T038 can run any time after Setup. T039 needs US1.
+- **Delivery B (T028–T036, T042, T044)**: needs spec 000 on `main`. Within B: T033 → T032 passes → T034 → T035 → T036. T028–T029 → T030.
+- **Polish**: T040, T041 and T043 after US1. T045 last.
 
 ### Order mapped to the demand
 
 The demand's order is "fixtures loader → `test-cell` → conftest + placeholder → CI workflow (IRIS
 service + seed first, then om-import + tests) → GAP-REPORT → README". It runs as follows:
 
-1. Loader: T005–T018.
-2. CI, IRIS + seed part: T019–T024.
-3. GAP-REPORT: T034–T036.
-4. README, A part: T038.
-5. After 000 merges: `test-cell` T031, conftest + placeholder T029–T030, CI om-import + tests T025–T027, README B part T039.
+1. Loader: T006–T020.
+2. CI, IRIS + seed part: T021–T027.
+3. GAP-REPORT: T037–T039.
+4. README, A part: T041.
+5. After 000 merges: `test-cell` T034, conftest + placeholder T032–T033, CI om-import + tests T028–T030, README B part T042.
 
 `test-cell` and the conftest move behind the CI's IRIS part because they need 000.
 
 ### Within each story
 
-- Tests first, seen failing (T008/T009 before T010–T015; T019 before T020; T029 before T030; T034 before T035).
-- `seed.py` tasks T010–T015 edit one file, so they run in order.
-- `iris-matrix.yml` tasks T021, T022, T025 and T026 edit one file, so they run in order.
+- Tests first, seen failing (T009/T010 before T011–T016; T022 before T023; T032 before T033; T037 before T038).
+- `seed.py` tasks T011–T016 edit one file, so they run in order.
+- `iris-matrix.yml` tasks T024, T025, T028 and T029 edit one file, so they run in order.
 
 ## Parallel opportunities
 
 ```text
-Setup:            T002 ∥ T003 ∥ T004
-After T006:       T007–T009 (US1 tests) ∥ T019 (guard tests) ∥ T034 (gap-report test)
-After T009:       T020 (guard) ∥ T035 (GAP-REPORT.md) ∥ T010… (loader, sequential)
-After US1:        T021 (workflow) ∥ T036 (gap reproductions) ∥ T037 ∥ T038 ∥ T040
-Delivery B:       T029 (placeholder test) ∥ T025 (round-trip job)
+Setup:            T002 ∥ T003 ∥ T004 ∥ T005
+After T007:       T008–T010 (US1 tests) ∥ T021 (cell-login test) ∥ T022 (guard tests) ∥ T037 (gap-report test)
+After T010:       T023 (guard) ∥ T038 (GAP-REPORT.md) ∥ T011… (loader, sequential)
+After US1:        T024 (workflow) ∥ T039 (gap reproductions) ∥ T040 ∥ T041 ∥ T043
+Delivery B:       T032 (placeholder test) ∥ T028 (round-trip job)
 ```
 
 ## Implementation strategy
 
 ### MVP (US1)
 
-T001–T018. One command loads and verifies the fixtures on all three tracks. This already unblocks
+T001–T020. One command loads and verifies the fixtures on all three tracks. This already unblocks
 fixture-dependent work in other specs locally.
 
 ### Incremental delivery
 
 1. **A1, MVP**: Setup + Foundational + US1. Commit; no push needed.
-2. **A2**: US2 delivery A (T019–T024). First push, and 9 cells are visible.
-3. **A3**: US4 + T037/T038/T040. Delivery A is complete, and it is opened as a PR after Henry's SPIKE-06 review.
-4. **B**, after 000 merges: rebase on `main`, then T025–T033, T039, T041, T042.
+2. **A2**: US2 delivery A (T021–T027). First draft pull request, and 9 cells are visible.
+3. **A3**: US4 + T040/T041/T043. Delivery A is complete, and it is opened as a PR after Henry's SPIKE-06 review.
+4. **B**, after 000 merges: rebase on `main`, then T028–T036, T042, T044, T045.
 
 ### Cost note
 
-Each push runs 9 cells, which is about 14 billed minutes while the repository is private
-(SPIKE-06). Batch commits before pushing (T023, T024 and T027 are the planned runs).
+Each pull request commit runs 9 cells once (no duplicate push run), which is about 14 billed
+minutes while the repository is private (SPIKE-06). Batch commits before pushing to the pull
+request (T026, T027 and T030 are the planned runs).
 
 ## Notes
 
 - [P] = different files and no dependency on an unfinished task.
 - Commit after each task or logical group, with no AI attribution.
-- Do not create IRIS users or data in any test; only the loader does (SC-008, T037).
+- Do not create IRIS users or data in any test; only the loader does (SC-008, T040).

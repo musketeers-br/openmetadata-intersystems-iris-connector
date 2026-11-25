@@ -73,12 +73,12 @@ is left behind (`docker ps -a`).
 
 ## Q7 — CI matrix (FR-008..015, SC-002..004)
 
-Push a branch, then open the run:
+Open a draft pull request (or push to `main`), then open the run:
 
 - Phase A: 9 checks `iris-<tag>-<login>`, each with digest and `$ZVERSION` in its summary.
 - Phase B: plus `overlay-roundtrip`.
-- Break one cell on purpose (for example, set a wrong expected row count in a throwaway branch): only
-  that cell fails, and the other 8 report.
+- Break one cell on purpose (for example, a failing step in one cell of a throwaway draft pull
+  request): only that cell fails, and the other 8 report.
 - A failure only on `iris-latest-preview-*` leaves the PR mergeable (required checks list,
   ci-matrix contract).
 
