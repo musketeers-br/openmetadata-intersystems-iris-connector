@@ -45,10 +45,10 @@ must be able to fail ("a test that cannot fail is a finding", OpenMetadata `REVI
 
 **Purpose**: the `.om/` tree, line endings and pinned plain-venv dependencies.
 
-- [ ] T001 Build `.om/` once with `OM_SKIP_UI_CODEGEN=1 make om-import`, and confirm that `.om/env/bin/python -m pytest .om/ingestion/tests/unit/topology/database/test_iris.py` passes. On Linux, until spec 000 fixes research R16, a second `om-import` needs the root-owned `.om/ingestion/src/metadata/generated/antlr` handed back to the user (for example `docker run --rm -v "$PWD/.om:/om" alpine chown -R "$(id -u):$(id -g)" /om/ingestion/src/metadata/generated`). Do not commit a fix to spec 000's scripts from this branch
-- [ ] T002 [P] Add `.gitattributes` at the repository root with `* text=auto eol=lf` and explicit `*.sh text eol=lf`, `*.py text eol=lf`, `*.yml text eol=lf` (research R14). Then run `git add --renormalize . && git status`, which must show no unexpected changes (agreed with Henry, 2026-11-25)
-- [ ] T003 [P] Create `fixtures/iris/requirements.txt` pinning `intersystems-irispython==5.4.1` and `pytest==9.0.3`. This is the only place these pins live for the plain venv (contracts/ci-matrix.md step 2, quickstart prerequisites)
-- [ ] T004 [P] Create `.om/ingestion/tests/integration/iris/data/__init__.py` holding only the license header (`overlay/…/iris/__init__.py` already exists from spec 000)
+- [X] T001 Build `.om/` once with `OM_SKIP_UI_CODEGEN=1 make om-import`, and confirm that `.om/env/bin/python -m pytest .om/ingestion/tests/unit/topology/database/test_iris.py` passes. On Linux, until spec 000 fixes research R16, `om-import` fails even on its first run; apply spec 000's one-line `-u "$(id -u):$(id -g)"` fix to `scripts/antlr4` locally, hand any root-owned files back first (`docker run --rm -v "$PWD/.om:/om" alpine chown -R "$(id -u):$(id -g)" /om`), and never commit that file from this branch
+- [X] T002 [P] Add `.gitattributes` at the repository root with `* text=auto eol=lf` and explicit `*.sh text eol=lf`, `*.py text eol=lf`, `*.yml text eol=lf` (research R14). Then run `git add --renormalize . && git status`, which must show no unexpected changes (agreed with Henry, 2026-11-25)
+- [X] T003 [P] Create `fixtures/iris/requirements.txt` pinning `intersystems-irispython==5.4.1` and `pytest==9.0.3`. This is the only place these pins live for the plain venv (contracts/ci-matrix.md step 2, quickstart prerequisites)
+- [X] T004 [P] Create `.om/ingestion/tests/integration/iris/data/__init__.py` holding only the license header (`overlay/…/iris/__init__.py` already exists from spec 000)
 
 ---
 
@@ -59,7 +59,7 @@ US3 all use.
 
 **⚠️ CRITICAL**: US1 tests, US2 cells and US3 all depend on T005–T007.
 
-- [ ] T005 Write `fixtures/iris/start-iris.sh TAG [PORT=1972] [NAME=iris]` per research R2, with `set -euo pipefail`. It must:
+- [X] T005 Write `fixtures/iris/start-iris.sh TAG [PORT=1972] [NAME=iris]` per research R2, with `set -euo pipefail`. It must:
   - run `docker rm -f NAME` (ignore a missing container);
   - run `docker run -d --name NAME -p 127.0.0.1:PORT:1972 containers.intersystems.com/intersystems/iris-community:TAG --check-caps false`;
   - poll `docker exec NAME iris qlist` until the state field is `running`, up to 180 s;
@@ -70,7 +70,7 @@ US3 all use.
   - honor `IRIS_ADMIN_USER`/`IRIS_ADMIN_PASSWORD` (default `_SYSTEM`/`SYS`), and never echo the password.
 
   Run `shellcheck fixtures/iris/start-iris.sh` (for example `docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable fixtures/iris/start-iris.sh`), which must report nothing
-- [ ] T006 Write the catalog definitions at the top of `.om/ingestion/tests/integration/iris/data/seed.py` (license header), as pure data with no side effects on import (contracts/fixture-loader.md, data-model.md):
+- [X] T006 Write the catalog definitions at the top of `.om/ingestion/tests/integration/iris/data/seed.py` (license header), as pure data with no side effects on import (contracts/fixture-loader.md, data-model.md):
   - `CATALOG_VERSION = 1` and `VERSION_HISTORY = {1: "spec 001: Clinic, Billing, AI, Scratch (sentinel Scratch.Keep); omd_reader, omd_reader_dict"}`;
   - `LOGINS`: `admin`/`reader`/`reader_dict` → user, password, `is_admin`, `has_dict_grant`;
   - `DDL`: the ordered create statements for `Clinic.Patient`, `Clinic.Encounter`, `Billing.Patient`, `AI.Embedding`, the view `Clinic.ActivePatient`, `CREATE SCHEMA Scratch` and the empty sentinel `Scratch.Keep (Id INT PRIMARY KEY)`, with table and column descriptions as `%DESCRIPTION`/`COMMENT` per data-model;
@@ -79,7 +79,7 @@ US3 all use.
   - `EXPECTED`: one structure per self-check C1–C11 (object names, column lists with `DATA_TYPE`, constraints by type and columns, descriptions, row counts, dictionary tables, refusal statements).
 
   `import iris` happens inside functions only, so the conftest can import `LOGINS` without the driver installed
-- [ ] T007 Add the `Makefile` section `# --- 001: test harness ---` with target `om-test-deps` (research R7): it installs into `.om/env` the `iris` extra at the versions in the `ingestion/setup.py` patch (`intersystems-irispython==5.4.1`, `sqlalchemy-intersystems-iris==1.0.2`) and `testcontainers` at the version OpenMetadata 2.1.1's `ingestion/uv.lock` pins, using `uv pip install --python .om/env/bin/python`. It is idempotent and prints the installed versions. Keep the target one line that calls `scripts/om-test-deps.sh`, as spec 000's targets do. Add it to `.PHONY`
+- [X] T007 Add the `Makefile` section `# --- 001: test harness ---` with target `om-test-deps` (research R7): it installs into `.om/env` the `iris` extra at the versions in the `ingestion/setup.py` patch (`intersystems-irispython==5.4.1`, `sqlalchemy-intersystems-iris==1.0.2`) and `testcontainers` at the version OpenMetadata 2.1.1's `ingestion/uv.lock` pins, using `uv pip install --python .om/env/bin/python`. It is idempotent and prints the installed versions. Keep the target one line that calls `scripts/om-test-deps.sh`, as spec 000's targets do. Add it to `.PHONY`
 
 **Checkpoint**: an IRIS of any track can be started and prepared with one command, the catalog is
 defined in one place, and `.om/env` can run IRIS tests.
@@ -97,20 +97,20 @@ expect `FIXTURES OK v1` both times. Drop `Billing.Patient` and expect the self-c
 
 > Write these first and see them fail (the loader functions do not exist yet).
 
-- [ ] T008 [US1] Write `fixtures/iris/conftest.py` with these session fixtures:
+- [X] T008 [US1] Write `fixtures/iris/conftest.py` with these session fixtures:
   - `seed_module`: loads the canonical module by path with `importlib.util.spec_from_file_location`. It prefers `.om/ingestion/tests/integration/iris/data/seed.py` when that file exists, and falls back to `overlay/ingestion/tests/integration/iris/data/seed.py`;
   - `iris_env`: a dict with host, port, namespace and admin credentials from env, using the fixture-loader contract defaults;
   - `admin_conn`: an `iris.connect` connection as admin.
 
   Fixtures that need a live IRIS raise `pytest.UsageError("fixture tests need IRIS: run fixtures/iris/start-iris.sh … and set IRIS_HOST")` when `IRIS_HOST` is unset. They never skip, so CI cannot pass by skipping. Offline tests do not request these fixtures
-- [ ] T009 [US1] Write the offline tests in `fixtures/iris/test_seed.py`. They need no IRIS and use `monkeypatch` on the module's `iris` import:
+- [X] T009 [US1] Write the offline tests in `fixtures/iris/test_seed.py`. They need no IRIS and use `monkeypatch` on the module's `iris` import:
   - (a) a connection error → `main()` returns 2 and stderr names `host:port`;
   - (b) an error whose text says the password must change → exit 2, and the message contains `start-iris.sh`;
   - (c) a cursor that raises on the 3rd DDL statement → exit 3, and stderr shows that statement's first 60 characters and the IRIS error;
   - (d) importing the module calls no `iris.connect` (import-safe);
   - (e) with `IRIS_ADMIN_PASSWORD` set to a unique token, the token appears nowhere in stdout or stderr, and neither does `Reader123`;
   - (f) `iris.connect` fails twice with "connection refused" and then succeeds → the load proceeds; refused past `IRIS_WAIT_SECONDS=1` → exit 2 and the message states the time waited; a password-change error is not retried (`iris.connect` called once). Patch `time.sleep` and `time.monotonic`, so no test really waits
-- [ ] T010 [US1] Write the live tests in `fixtures/iris/test_seed.py`. They use `admin_conn` and `seed_module` and connect as each reader with `iris.connect`:
+- [X] T010 [US1] Write the live tests in `fixtures/iris/test_seed.py`. They use `admin_conn` and `seed_module` and connect as each reader with `iris.connect`:
   - `test_load_reports_all_checks`: `load()` passes, and the output has `PASS C1`…`PASS C11` plus `FIXTURES OK v1`;
   - `test_load_is_idempotent`: after each of two `load()` calls, take a snapshot. It holds, per table, the rows ordered by primary key, plus the columns and constraints as read by C2/C3, plus the C8–C10 outcome per login (login ok, readable schemas, dictionary allowed or `-99`, write refused). The two snapshots must be equal. Users and grants are compared by behavior, because `Security.Users` is only in `%SYS`;
   - `test_dictionary_toggle`: `omd_reader` gets `SQLCODE -99` on `%Dictionary.CompiledProperty` and `%Dictionary.PropertyDefinition`, and `omd_reader_dict` reads both;
@@ -124,42 +124,42 @@ expect `FIXTURES OK v1` both times. Drop `Billing.Patient` and expect the self-c
 
 All of these edit `.om/…/iris/data/seed.py`, so they run in order.
 
-- [ ] T011 [US1] Implement `_connect(host, port, namespace, user, password)`, with bounded retry per the contract (`IRIS_WAIT_SECONDS`), and the error classes in `.om/ingestion/tests/integration/iris/data/seed.py`:
+- [X] T011 [US1] Implement `_connect(host, port, namespace, user, password)`, with bounded retry per the contract (`IRIS_WAIT_SECONDS`), and the error classes in `.om/ingestion/tests/integration/iris/data/seed.py`:
   - `NotPreparedError` (exit 2): connection refused, timeout, or the password must change;
   - `LoadError` (exit 3): holds the statement head and the IRIS error;
   - `SelfCheckError` (exit 1): holds the check id, object, expected and actual.
 
   Makes T009 (a), (b), (f) pass
-- [ ] T012 [US1] Implement `_cleanup(cursor)` in `.om/ingestion/tests/integration/iris/data/seed.py`:
+- [X] T012 [US1] Implement `_cleanup(cursor)` in `.om/ingestion/tests/integration/iris/data/seed.py`:
   - drop the view, then the four tables in FK-safe order;
   - drop every table listed in `INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'Scratch'` (including `Keep`), then the `Scratch` schema;
   - drop both users;
   - tolerate only "does not exist" codes (`-30`, `-473`, the user-not-found code recorded while implementing), and re-raise anything else as `LoadError`
-- [ ] T013 [US1] Implement `_create(cursor)` in `.om/ingestion/tests/integration/iris/data/seed.py`. It runs `DDL`, inserts `ROWS` with bind parameters (`TO_VECTOR('0.1,0.2,0.3', DOUBLE)` for `AI.Embedding.Vec`), creates the users, runs the grants and commits. Any failure raises `LoadError` with the statement's first 60 characters. Makes T009 (c) pass
-- [ ] T014 [US1] Implement admin checks C1–C7 and C11 in `self_check()` in `.om/ingestion/tests/integration/iris/data/seed.py`, per research R9:
+- [X] T013 [US1] Implement `_create(cursor)` in `.om/ingestion/tests/integration/iris/data/seed.py`. It runs `DDL`, inserts `ROWS` with bind parameters (`TO_VECTOR('0.1,0.2,0.3', DOUBLE)` for `AI.Embedding.Vec`), creates the users, runs the grants and commits. Any failure raises `LoadError` with the statement's first 60 characters. Makes T009 (c) pass
+- [X] T014 [US1] Implement admin checks C1–C7 and C11 in `self_check()` in `.om/ingestion/tests/integration/iris/data/seed.py`, per research R9:
   - query `INFORMATION_SCHEMA.TABLES`, `COLUMNS` (ordered by `ORDINAL_POSITION`), `TABLE_CONSTRAINTS`, `KEY_COLUMN_USAGE`, `REFERENTIAL_CONSTRAINTS` and `VIEWS`, filtering by schema and name with bind parameters and comparing exact strings;
   - never use `GROUP BY` or `DISTINCT` on names;
   - assert constraints by type and columns, and by name only for `UqBillingCode`;
   - C7 checks that `Keep` is the only `Scratch` table, with 0 rows, and that `Scratch` is in `SCHEMATA`, then creates and drops `Scratch.Probe` as admin;
   - `expected` defaults to `EXPECTED`;
   - return a list of `(check_id, object)` passes, and raise `SelfCheckError` on the first mismatch
-- [ ] T015 [US1] Implement reader checks C8–C10 in `self_check()` in `.om/ingestion/tests/integration/iris/data/seed.py`:
+- [X] T015 [US1] Implement reader checks C8–C10 in `self_check()` in `.om/ingestion/tests/integration/iris/data/seed.py`:
   - connect as each reader from `LOGINS`;
   - `SELECT TOP 1 *` from each of the three schemas' tables;
   - query both dictionary tables, expecting `-99` for `omd_reader` and success for `omd_reader_dict`;
   - attempt the C10 writes and expect `-99`.
 
   Close the reader connections in `finally`
-- [ ] T016 [US1] Implement `load(host, port, namespace="USER", admin_user="_SYSTEM", admin_password="SYS")` and `main()` in `.om/ingestion/tests/integration/iris/data/seed.py`:
+- [X] T016 [US1] Implement `load(host, port, namespace="USER", admin_user="_SYSTEM", admin_password="SYS")` and `main()` in `.om/ingestion/tests/integration/iris/data/seed.py`:
   - `load()` runs connect → cleanup → create → `self_check`;
   - `main()` reads `IRIS_HOST`/`IRIS_PORT`/`IRIS_NAMESPACE`/`IRIS_ADMIN_USER`/`IRIS_ADMIN_PASSWORD`/`IRIS_WAIT_SECONDS` with the contract defaults (`127.0.0.1`, `1972`, `USER`, `_SYSTEM`, `SYS`, `60`);
   - print `PASS <id> <what> <object>` lines, then `FIXTURES OK v<CATALOG_VERSION> <$ZVERSION>`;
   - map the errors to exit codes 1, 2 and 3, writing messages to stderr;
   - end the file with `if __name__ == "__main__": sys.exit(main())`
-- [ ] T017 [US1] Write `fixtures/iris/seed.py`. It picks `.om/ingestion/tests/integration/iris/data/seed.py` when that file exists, else `overlay/ingestion/tests/integration/iris/data/seed.py`, then runs it with `runpy.run_path(path, run_name="__main__")` and propagates its `SystemExit` code. It prints which copy ran, as its first line
-- [ ] T018 [US1] Run the loader against `latest-em` (`fixtures/iris/start-iris.sh latest-em 11972 omd-test-iris-latest-em`). Record the catalog `DATA_TYPE` of every fixture column that the data-model does not yet list into `EXPECTED` in `.om/…/iris/data/seed.py` and into the Objects table in `specs/001-test-harness/data-model.md` (C2)
-- [ ] T019 [US1] Run `pytest fixtures -q` against `latest-em` until T009 and T010 pass. Then run quickstart Q1 on all three tracks (two loader runs per track, timing start → `FIXTURES OK`, target < 2 min, SC-001), Q2 and Q3. Record the timings and any track difference in `specs/001-test-harness/research.md` (new section "Implementation measurements"). A track difference also becomes a gap entry (T036)
-- [ ] T020 [US1] Run `make py_format` in `.om/ingestion`, then `make om-export` and `make om-check` (no diff). Confirm `overlay/ingestion/tests/integration/iris/data/{__init__,seed}.py` exist and match `.om/`. Commit
+- [X] T017 [US1] Write `fixtures/iris/seed.py`. It picks `.om/ingestion/tests/integration/iris/data/seed.py` when that file exists, else `overlay/ingestion/tests/integration/iris/data/seed.py`, then runs it with `runpy.run_path(path, run_name="__main__")` and propagates its `SystemExit` code. It prints which copy ran, as its first line
+- [X] T018 [US1] Run the loader against `latest-em` (`fixtures/iris/start-iris.sh latest-em 11972 omd-test-iris-latest-em`). Record the catalog `DATA_TYPE` of every fixture column that the data-model does not yet list into `EXPECTED` in `.om/…/iris/data/seed.py` and into the Objects table in `specs/001-test-harness/data-model.md` (C2)
+- [X] T019 [US1] Run `pytest fixtures -q` against `latest-em` until T009 and T010 pass. Then run quickstart Q1 on all three tracks (two loader runs per track, timing start → `FIXTURES OK`, target < 2 min, SC-001), Q2 and Q3. Record the timings and any track difference in `specs/001-test-harness/research.md` (new section "Implementation measurements"). A track difference also becomes a gap entry (T036)
+- [X] T020 [US1] Run `make py_format` in `.om/ingestion`, then `make om-export` and `make om-check` (no diff). Confirm `overlay/ingestion/tests/integration/iris/data/{__init__,seed}.py` exist and match `.om/`. Commit
 
 **Checkpoint**: US1 is complete and usable by every other spec locally, before CI exists.
 

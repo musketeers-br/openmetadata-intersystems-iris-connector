@@ -1,0 +1,4 @@
+# Plain venv for the fixture loader, the readiness probe and the fixture tests (spec 001).
+# Connector tests run in .om/env instead (make om-import, make om-test-deps).
+intersystems-irispython==5.4.1
+pytest==9.0.3

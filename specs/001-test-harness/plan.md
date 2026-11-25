@@ -172,15 +172,15 @@ Each step ends with its tests passing locally; steps 1–3 need only Docker and 
 
 - 001 merges after 000. Until then, the 001 branch is rebased on `000-connector-foundation`.
 - Review findings on 000 that 001 depends on (reported in the PR #11 review, not fixed in 001):
-  - container steps write root-owned files into `.om/` on Linux, which breaks the second
-    `om-import` (`scripts/antlr4`) and leaves `node_modules` owned by root (`om-ui-codegen.sh`);
+  - container steps write root-owned files into `.om/` on Linux, which breaks `om-import` already on
+    a fresh clone (`scripts/antlr4`) and leaves `node_modules` owned by root (`om-ui-codegen.sh`);
   - `om-ui-codegen.sh` fails on a fresh clone, because `yarn install` runs the UI's `postinstall`
     (`js-antlr`) and there is no `antlr4` in the Node container.
 
-  The CI round-trip job runs `om-import` twice (`om-check`), so it catches the first one; cells run
-  with `OM_SKIP_UI_CODEGEN=1` (generated UI files are never exported). Consequence: until spec 000
-  runs its ANTLR container as the calling user, `overlay-roundtrip` fails on GitHub's Linux runners
-  and the 9 cells, which need it, are skipped. The first CI run (T026) waits for that fix.
+  Cells run with `OM_SKIP_UI_CODEGEN=1` (generated UI files are never exported). Consequence: until
+  spec 000 runs its ANTLR container as the calling user, `make om-import` fails on GitHub's Linux
+  runners, so `overlay-roundtrip` fails and the 9 cells, which need it, are skipped. The first CI run
+  (T026) waits for that fix.
 - Spec 002 (PR #12, stacked on 000) uses the fixtures and the `Scratch` schema: `Scratch.Keep` is in
   catalog v1 for its mark-deleted test (R10). Its `GAP-REPORT.md` entries currently reuse the ids
   GAP-006..009, which ADR-0006, ADR-0015 and this spec already give to other entries; the numbering

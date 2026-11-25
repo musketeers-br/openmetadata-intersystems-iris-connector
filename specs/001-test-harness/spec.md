@@ -147,8 +147,8 @@ known entries, each with a reproduction runnable against the shared fixtures.
 - **Leftover objects in the scratch schema** from an interrupted test: the loader resets the scratch
   schema to its sentinel table; tests clean up their own objects and never assert on objects they did not create.
 - **Linux Docker writes root-owned files**: container helpers that write into the working tree
-  (`.om/`) must run as the calling user, or a second rebuild on a Linux runner fails. CI runs on Linux,
-  so this is checked by running the rebuild twice in the same job.
+  (`.om/`) must run as the calling user, or the rebuild fails on a Linux runner. CI runs on Linux, and
+  the round-trip check runs the rebuild twice in the same job.
 - **A least-privilege login used for setup by mistake**: setup and assertions about fixture state use
   the administrator connection only; the behavior under test uses the cell's login.
 - **A test needs a new fixture case**: it is added to the shared fixture set (additive only) in that

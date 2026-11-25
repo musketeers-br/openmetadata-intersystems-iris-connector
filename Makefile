@@ -15,3 +15,9 @@ om-image:
 
 om-ui-codegen:
 	@scripts/om-ui-codegen.sh
+
+# --- 001: test harness ---
+.PHONY: om-test-deps
+
+om-test-deps:
+	@scripts/om-test-deps.sh

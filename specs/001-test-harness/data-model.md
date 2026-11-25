@@ -46,11 +46,11 @@ the fixture owner's review, and renames or removals need both developers.
 | Object | Kind | Columns (in order; IRIS DDL type → catalog `DATA_TYPE`) | Constraints | Descriptions | Rows |
 |---|---|---|---|---|---|
 | `Clinic.Patient` | table | `PatientId INT` → integer, `FullName VARCHAR(120) NOT NULL` → varchar, `BirthDate DATE` → date, `Weight NUMERIC(5,2)` → numeric | PK (`PatientId`) | table "Patients registered in the clinic"; `PatientId` "Patient identifier" | 2 |
-| `Clinic.Encounter` | table | `EncounterId INT`, `PatientId INT NOT NULL`, `StartedAt TIMESTAMP`, `Notes LONGVARCHAR`, `Active BIT` | PK (`EncounterId`); FK (`PatientId`) → `Clinic.Patient` PK | — | 1 |
-| `Billing.Patient` | table | `Code VARCHAR(20)`, `Balance DOUBLE` | PK (`Code`); UNIQUE `UqBillingCode` (`Code`) | — | 1 |
-| `AI.Embedding` | table | `Id INT`, `Content VARCHAR(500)`, `Vec VECTOR(DOUBLE, 3)` → **varchar** (GAP-001) | PK (`Id`) | — | 1 |
-| `Clinic.ActivePatient` | view | `PatientId`, `FullName` | — | — | (derived: 1) |
-| `Scratch.Keep` | table (sentinel) | `Id INT` | PK (`Id`) | — | 0; keeps `Scratch` listed in `SCHEMATA` (GAP-009); never dropped by tests |
+| `Clinic.Encounter` | table | `EncounterId INT` → integer, `PatientId INT NOT NULL` → integer, `StartedAt TIMESTAMP` → timestamp, `Notes LONGVARCHAR` → longvarchar, `Active BIT` → bit | PK (`EncounterId`); FK (`PatientId`) → `Clinic.Patient` PK | — | 1 |
+| `Billing.Patient` | table | `Code VARCHAR(20)` → varchar, `Balance DOUBLE` → double | PK (`Code`); UNIQUE `UqBillingCode` (`Code`) | — | 1 |
+| `AI.Embedding` | table | `Id INT` → integer, `Content VARCHAR(500)` → varchar, `Vec VECTOR(DOUBLE, 3)` → **varchar** (GAP-001) | PK (`Id`) | — | 1 |
+| `Clinic.ActivePatient` | view | `PatientId` → integer, `FullName` → varchar | — | — | (derived: 1) |
+| `Scratch.Keep` | table (sentinel) | `Id INT` → integer | PK (`Id`) | — | 0; keeps `Scratch` listed in `SCHEMATA` (GAP-009); never dropped by tests |
 
 Exact rows (deterministic):
 
@@ -79,8 +79,8 @@ The loader fails, naming the item, unless every row of this table holds:
 
 | # | Check | Expected |
 |---|---|---|
-| C1 | The five objects exist with the exact schema and name case | yes |
-| C2 | Column names, order and catalog `DATA_TYPE` per object | as in the Objects table. `DATA_TYPE` values not shown there are recorded from `latest-em` during implementation and must match on every track; a track that differs is a gap entry |
+| C1 | The six objects (five plus the sentinel `Scratch.Keep`) exist with the exact schema and name case | yes |
+| C2 | Column names, order and catalog `DATA_TYPE` per object | as in the Objects table. `DATA_TYPE` values not shown there were recorded from `latest-em` on 2026-11-25 and matched on all three tracks; a track that differs is a gap entry |
 | C3 | Constraints by type and columns (PK, UNIQUE `UqBillingCode`, FK → `Clinic.Patient`) | as listed |
 | C4 | Table and column descriptions | as listed |
 | C5 | Row counts | 2 · 1 · 1 · 1 |
