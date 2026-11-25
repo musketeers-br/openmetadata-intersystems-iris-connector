@@ -21,8 +21,8 @@ Implements FR-008..FR-015. File: `.github/workflows/iris-matrix.yml`. Triggers: 
 | # | Step | Phase |
 |---|---|---|
 | 1 | checkout (`persist-credentials: false`), setup-python 3.11 | A |
-| 2 | `fixtures/iris/start-iris.sh "$IRIS_TAG" 1972 iris`: pull, start, wait, unexpire, readiness, print digest + `$ZVERSION` | A |
-| 3 | `pip install intersystems-irispython==5.4.1 pytest==9.0.3` (plain venv) | A |
+| 2 | `pip install -r fixtures/iris/requirements.txt` (plain venv: `intersystems-irispython==5.4.1`, `pytest==9.0.3`); before step 3 because the readiness probe uses the driver | A |
+| 3 | `fixtures/iris/start-iris.sh "$IRIS_TAG" 1972 iris`: pull, start, wait, unexpire, readiness, print digest + `$ZVERSION` | A |
 | 4 | `python fixtures/iris/seed.py` (loads and self-checks) | A |
 | 5 | `python fixtures/iris/check_dialect.py` (plain venv) | A |
 | 6 | `pytest fixtures -q` | A |

@@ -8,7 +8,8 @@ Runnable checks that prove spec 001 works. Interfaces: [fixture-loader](contract
 
 - Linux or WSL2 with Docker, about 4 GB free for one IRIS image.
 - Python 3.11 (`uv` provides it).
-- A venv with `intersystems-irispython==5.4.1 pytest==9.0.3`.
+- A venv with `pip install -r fixtures/iris/requirements.txt` (`intersystems-irispython==5.4.1`,
+  `pytest==9.0.3`). `start-iris.sh` uses it for the readiness probe.
 - Phase B only: spec 000 merged, then `make om-import` once.
 - Local port 11972 free; another IRIS on 1972 is fine.
 

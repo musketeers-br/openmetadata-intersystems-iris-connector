@@ -113,8 +113,12 @@ fixtures/iris/
 ├── seed.py                  # CLI entry point: runs the canonical loader (R3)
 ├── start-iris.sh            # start + wait + unexpire + readiness probe; used by CI and make (R2)
 ├── check_dialect.py         # community-dialect guard: distribution + entry point (R6)
+├── requirements.txt         # plain-venv pins: intersystems-irispython 5.4.1, pytest 9.0.3 (CI and quickstart)
 ├── conftest.py              # plain-venv fixtures for the self-check tests
-└── test_seed.py             # fixture tests: catalog, idempotency, toggle, write refusal, self-check can fail
+├── test_seed.py             # fixture tests: catalog, idempotency, toggle, write refusal, self-check can fail
+├── test_check_dialect.py    # guard tests (simulated community dialect and entry-point clash)
+├── test_gap_report.py       # GAP-REPORT.md format: entry fields, sequential ids, GAP-001..009
+└── test_repo_rules.py       # SC-008: no IRIS user or dataset creation outside the loader
 .github/workflows/iris-matrix.yml
 .gitattributes               # LF for *.sh, *.py, *.yml (SPIKE-06 surprise 6; coordinate with 000)
 GAP-REPORT.md
