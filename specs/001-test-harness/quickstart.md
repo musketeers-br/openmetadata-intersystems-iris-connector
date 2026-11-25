@@ -11,7 +11,8 @@ Runnable checks that prove spec 001 works. Interfaces: [fixture-loader](contract
 - A venv with `pip install -r fixtures/iris/requirements.txt` (`intersystems-irispython==5.4.1`,
   `pytest==9.0.3`). `start-iris.sh` uses it for the readiness probe.
 - For Q4, Q6 and Q9: `make om-import` once (spec 000; about 2 minutes with the UI codegen,
-  less with `OM_SKIP_UI_CODEGEN=1`). The connector's interpreter is `.om/.venv/bin/python`.
+  less with `OM_SKIP_UI_CODEGEN=1`), then `make om-test-deps`. The connector's interpreter is
+  `.om/env/bin/python` (`.om/.venv` stays empty).
 - Local port 11972 free; another IRIS on 1972 is fine.
 
 ## Q1 — Fixtures on every track (FR-001..004, SC-001)
@@ -66,7 +67,7 @@ python fixtures/iris/check_dialect.py; echo "exit=$?"                    # clean
 
 ```bash
 unset IRIS_HOST IRIS_PORT
-IRIS_LOGIN=reader .om/.venv/bin/python -m pytest .om/ingestion/tests/integration/iris -m iris -rs
+IRIS_LOGIN=reader .om/env/bin/python -m pytest .om/ingestion/tests/integration/iris -m iris -rs
 ```
 
 Expected: the conftest starts `latest-em`, prepares and seeds it, runs, and removes it. No container

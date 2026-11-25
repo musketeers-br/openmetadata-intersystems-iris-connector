@@ -46,7 +46,7 @@ must be able to fail ("a test that cannot fail is a finding", OpenMetadata `REVI
 **Purpose**: the `.om/` tree, line endings and pinned plain-venv dependencies.
 
 - [ ] T001 Build `.om/` once with `OM_SKIP_UI_CODEGEN=1 make om-import`, and confirm that `.om/env/bin/python -m pytest .om/ingestion/tests/unit/topology/database/test_iris.py` passes. On Linux, until spec 000 fixes research R16, a second `om-import` needs the root-owned `.om/ingestion/src/metadata/generated/antlr` handed back to the user (for example `docker run --rm -v "$PWD/.om:/om" alpine chown -R "$(id -u):$(id -g)" /om/ingestion/src/metadata/generated`). Do not commit a fix to spec 000's scripts from this branch
-- [ ] T002 [P] Add `.gitattributes` at the repository root with `* text=auto eol=lf` and explicit `*.sh text eol=lf`, `*.py text eol=lf`, `*.yml text eol=lf` (research R14). Then run `git add --renormalize . && git status`, which must show no unexpected changes. Tell Henry before merging (spec 000 owns `.gitignore`)
+- [ ] T002 [P] Add `.gitattributes` at the repository root with `* text=auto eol=lf` and explicit `*.sh text eol=lf`, `*.py text eol=lf`, `*.yml text eol=lf` (research R14). Then run `git add --renormalize . && git status`, which must show no unexpected changes (agreed with Henry, 2026-11-25)
 - [ ] T003 [P] Create `fixtures/iris/requirements.txt` pinning `intersystems-irispython==5.4.1` and `pytest==9.0.3`. This is the only place these pins live for the plain venv (contracts/ci-matrix.md step 2, quickstart prerequisites)
 - [ ] T004 [P] Create `.om/ingestion/tests/integration/iris/data/__init__.py` holding only the license header (`overlay/…/iris/__init__.py` already exists from spec 000)
 
@@ -71,9 +71,9 @@ US3 all use.
 
   Run `shellcheck fixtures/iris/start-iris.sh` (for example `docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:stable fixtures/iris/start-iris.sh`), which must report nothing
 - [ ] T006 Write the catalog definitions at the top of `.om/ingestion/tests/integration/iris/data/seed.py` (license header), as pure data with no side effects on import (contracts/fixture-loader.md, data-model.md):
-  - `CATALOG_VERSION = 1` and `VERSION_HISTORY = {1: "spec 001: Clinic, Billing, AI, Scratch; omd_reader, omd_reader_dict"}`;
+  - `CATALOG_VERSION = 1` and `VERSION_HISTORY = {1: "spec 001: Clinic, Billing, AI, Scratch (sentinel Scratch.Keep); omd_reader, omd_reader_dict"}`;
   - `LOGINS`: `admin`/`reader`/`reader_dict` → user, password, `is_admin`, `has_dict_grant`;
-  - `DDL`: the ordered create statements for `Clinic.Patient`, `Clinic.Encounter`, `Billing.Patient`, `AI.Embedding`, the view `Clinic.ActivePatient` and `CREATE SCHEMA Scratch`, with table and column descriptions as `%DESCRIPTION`/`COMMENT` per data-model;
+  - `DDL`: the ordered create statements for `Clinic.Patient`, `Clinic.Encounter`, `Billing.Patient`, `AI.Embedding`, the view `Clinic.ActivePatient`, `CREATE SCHEMA Scratch` and the empty sentinel `Scratch.Keep (Id INT PRIMARY KEY)`, with table and column descriptions as `%DESCRIPTION`/`COMMENT` per data-model;
   - `ROWS`: the exact rows from the data-model;
   - `USERS` and `GRANTS`: per the data-model Grants table;
   - `EXPECTED`: one structure per self-check C1–C11 (object names, column lists with `DATA_TYPE`, constraints by type and columns, descriptions, row counts, dictionary tables, refusal statements).
@@ -117,7 +117,8 @@ expect `FIXTURES OK v1` both times. Drop `Billing.Patient` and expect the self-c
   - `test_readers_cannot_write`: both readers get `-99` on `INSERT INTO Clinic.Patient` and on `CREATE TABLE Scratch.ReaderProbe`;
   - `test_self_check_can_fail`: `self_check(expected=…)` with the `Clinic.Patient` row count set to 3 raises `SelfCheckError`, and its message has `C5`, `Clinic.Patient`, `expected 3` and `actual 2`;
   - `test_missing_object_is_named`: drop `Billing.Patient` as admin, then `self_check()` raises with `C1` and `Billing.Patient`. A `finally: load()` restores the state;
-  - `test_scratch_is_emptied`: create `Scratch.Leftover` as admin, run `load()`, then `Scratch` has no tables and C7 passes
+  - `test_scratch_is_emptied`: create `Scratch.Leftover` as admin, run `load()`, then `Keep` is the only table in `Scratch` and C7 passes
+  - `test_scratch_stays_listed`: as admin, create and drop `Scratch.Tmp`; `Scratch` is still in `INFORMATION_SCHEMA.SCHEMATA` and `Keep` still exists (the case spec 002's mark-deleted test relies on)
 
 ### Implementation for User Story 1
 
@@ -131,7 +132,7 @@ All of these edit `.om/…/iris/data/seed.py`, so they run in order.
   Makes T009 (a), (b), (f) pass
 - [ ] T012 [US1] Implement `_cleanup(cursor)` in `.om/ingestion/tests/integration/iris/data/seed.py`:
   - drop the view, then the four tables in FK-safe order;
-  - drop every table listed in `INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'Scratch'`, then the `Scratch` schema;
+  - drop every table listed in `INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'Scratch'` (including `Keep`), then the `Scratch` schema;
   - drop both users;
   - tolerate only "does not exist" codes (`-30`, `-473`, the user-not-found code recorded while implementing), and re-raise anything else as `LoadError`
 - [ ] T013 [US1] Implement `_create(cursor)` in `.om/ingestion/tests/integration/iris/data/seed.py`. It runs `DDL`, inserts `ROWS` with bind parameters (`TO_VECTOR('0.1,0.2,0.3', DOUBLE)` for `AI.Embedding.Vec`), creates the users, runs the grants and commits. Any failure raises `LoadError` with the statement's first 60 characters. Makes T009 (c) pass
@@ -139,7 +140,7 @@ All of these edit `.om/…/iris/data/seed.py`, so they run in order.
   - query `INFORMATION_SCHEMA.TABLES`, `COLUMNS` (ordered by `ORDINAL_POSITION`), `TABLE_CONSTRAINTS`, `KEY_COLUMN_USAGE`, `REFERENTIAL_CONSTRAINTS` and `VIEWS`, filtering by schema and name with bind parameters and comparing exact strings;
   - never use `GROUP BY` or `DISTINCT` on names;
   - assert constraints by type and columns, and by name only for `UqBillingCode`;
-  - C7 creates and drops `Scratch.Probe` as admin;
+  - C7 checks that `Keep` is the only `Scratch` table, with 0 rows, and that `Scratch` is in `SCHEMATA`, then creates and drops `Scratch.Probe` as admin;
   - `expected` defaults to `EXPECTED`;
   - return a list of `(check_id, object)` passes, and raise `SelfCheckError` on the first mismatch
 - [ ] T015 [US1] Implement reader checks C8–C10 in `self_check()` in `.om/ingestion/tests/integration/iris/data/seed.py`:
@@ -201,8 +202,8 @@ alone.
   - step 12, `if: failure()`: `docker logs --tail 200 iris`.
 
   Then lint the workflow with `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7`, which must report nothing
-- [ ] T026 [US2] Push `001-test-harness` and open it as a **draft** pull request to `000-connector-foundation` (to `main` once 000 has merged). Confirm with the user first: it is outward-facing, and a run costs at least 14 billed minutes while the repository is private. Confirm Q7: `overlay-roundtrip` plus 9 checks with the exact names, and every summary shows digest + `$ZVERSION`. Record wall time, cold `om-import` time per job and billed minutes (sum of per-job minutes rounded up) in `specs/001-test-harness/research.md` "Implementation measurements". If the run misses SC-004 (15 min), apply research R7's first optimization (cache `.om/`)
-- [ ] T027 [US2] Prove the failure paths on a throwaway branch `ci/001-break-cells` opened as a draft pull request (confirm with the user first), in one run:
+- [ ] T026 [US2] **Prerequisite**: spec 000's `scripts/antlr4` runs its container as the calling user (research R16, PR #11 review). Without it `overlay-roundtrip` fails on the runner and every cell is skipped; do not fix it from this branch. Then push `001-test-harness` and open it as a **draft** pull request to `000-connector-foundation` (to `main` once 000 has merged). Confirm with the user first: it is outward-facing, and a run costs at least 14 billed minutes while the repository is private. Confirm Q7: `overlay-roundtrip` plus 9 checks with the exact names, and every summary shows digest + `$ZVERSION`. Record wall time, cold `om-import` time per job and billed minutes (sum of per-job minutes rounded up) in `specs/001-test-harness/research.md` "Implementation measurements". If the run misses SC-004 (15 min), apply research R7's first optimization (cache `.om/`)
+- [ ] T027 [US2] Same prerequisite as T026. Prove the failure paths on a throwaway branch `ci/001-break-cells` opened as a draft pull request (confirm with the user first), in one run:
   - in `iris-latest-em-reader` only, a step that exits 1;
   - in `iris-latest-cd-admin` only, `pip install sqlalchemy-iris` before the guard;
   - in `iris-latest-preview-reader` only, a step that exits 1.
@@ -245,7 +246,7 @@ with no unexpected skips, the same tests pass with no `IRIS_HOST` and leave no c
   - `seeded`: `self_check` with an `IRIS_HOST`, `load` in fallback mode, failing the session on `SelfCheckError`;
   - `iris_service_connection`: the generated `IrisConnection` model (`hostPort`, `username`, `authType=BasicAuth(password=…)`, `namespace`) for the cell;
   - `iris_engine` / `iris_admin_engine`: `metadata.ingestion.source.database.iris.connection.IrisConnection(config).client`, depending on `seeded`, disposed at session end. Makes T029 pass
-- [ ] T031 [US3] Migrate `.om/ingestion/tests/integration/iris/test_connection.py` (spec 000) onto the conftest (FR-025, research R15): remove its `LOGINS` table, `_login()` and the `IRIS_*` reading; build connections from `iris_service_connection` (with `model_copy(update=…)` for the wrong-password, host, port and namespace cases) and branch on `iris_cell.has_dict_grant` instead of the login string; keep every assertion. Update its docstring. Leave `test_workflow.py` unchanged. Tell Henry, because the file is his
+- [ ] T031 [US3] Migrate `.om/ingestion/tests/integration/iris/test_connection.py` (spec 000) onto the conftest (FR-025, research R15): remove its `LOGINS` table, `_login()` and the `IRIS_*` reading; build connections from `iris_service_connection` (with `model_copy(update=…)` for the wrong-password, host, port and namespace cases) and branch on `iris_cell.has_dict_grant` instead of the login string; keep every assertion. Update its docstring. Then migrate `.om/…/iris/test_workflow.py` the same way (research R15): host, port and Namespace from `iris_service_connection`, admin user and password from `data.seed.LOGINS["admin"]`, and the `OM_HOST_PORT`/`OM_JWT` check as a module-level `skipif`; keep every assertion. Both files are Henry's; the change is agreed (2026-11-25). Spec 002 also edits `test_workflow.py`, so whichever branch merges second rebases
 - [ ] T032 [US3] Add to the `Makefile` section `# --- 001: test harness ---`, per research R13:
   - `iris-up TAG=latest-em PORT=11972` runs `fixtures/iris/start-iris.sh $(TAG) $(PORT) omd-test-iris-$(TAG)`;
   - `iris-seed` runs `IRIS_HOST=127.0.0.1 IRIS_PORT=$(PORT) python fixtures/iris/seed.py`;
@@ -296,13 +297,14 @@ reproduction runs against a Q1 container.
 
 ## Phase 7: Polish & cross-cutting concerns
 
-- [ ] T038 [P] Write `fixtures/iris/test_repo_rules.py` (FR-018, SC-008, offline). It scans every file under `overlay/ingestion/tests/` except `overlay/…/iris/data/seed.py` and fails, printing each offending file and line, on:
-  - `CREATE USER`, `GRANT `, `Security.Users` (case-insensitive);
-  - `CREATE TABLE`, `CREATE VIEW`, `INSERT INTO`, `DROP TABLE` whose target is not `Scratch.<name>`.
+- [ ] T038 [P] Write `fixtures/iris/test_repo_rules.py` (FR-018, SC-008, offline). It parses every `.py` file under `overlay/ingestion/tests/` except `overlay/…/iris/data/seed.py` with `ast`, and inspects only string constants passed as the first argument of `execute`, `exec_driver_sql` or `text` (so assertion messages such as `test_connection.py`'s `"GRANT SELECT ON %Dictionary…"` are not flagged). It fails, printing each offending file and line, on:
+  - `CREATE USER`, `GRANT`, `Security.Users` (case-insensitive);
+  - `CREATE TABLE`, `CREATE VIEW`, `INSERT INTO`, `DROP TABLE` whose target is not `Scratch.<name>`;
+  - any `CREATE TABLE` or `DROP TABLE` on `Scratch.Keep` (the loader owns it).
 
-  Include one self-test that feeds a temporary file with `CREATE TABLE Clinic.X` and expects a failure, so the rule can be shown to fail
-- [ ] T039 [P] Replace the integration-test paragraph of `README.md` with a `## Running tests` section (FR-024): plain venv from `fixtures/iris/requirements.txt`; `fixtures/iris/start-iris.sh TAG 11972 NAME`; `IRIS_PORT=11972 python fixtures/iris/seed.py` and its exit codes; `pytest fixtures`; the guard; `make om-test-deps`; `make test-cell TAG=… LOGIN=…`; `make iris-down`; automatic single-instance mode (no `IRIS_HOST`); `.om/env/bin/python` as the connector's interpreter. Tell Henry, because the README stub is his until spec 009
-- [ ] T040 [P] Update `docs/adr/0012-shared-fixtures-and-matrix.md` (FR-026): entry point `fixtures/iris/seed.py` with source `overlay/ingestion/tests/integration/iris/data/seed.py`; `Scratch` defined by behavior (GAP-009); CI on pull requests, pushes to `main` and by hand, plus the `overlay-roundtrip` check; a dated "Revised" note in the status line
+  Include self-tests on temporary files: `text("CREATE TABLE Clinic.X …")` and `text("DROP TABLE Scratch.Keep")` fail; `assert "GRANT SELECT ON X" in msg` passes. So the rule can be shown to fail, and to ignore assertion text
+- [ ] T039 [P] Replace the integration-test paragraph of `README.md` with a `## Running tests` section (FR-024): plain venv from `fixtures/iris/requirements.txt`; `fixtures/iris/start-iris.sh TAG 11972 NAME`; `IRIS_PORT=11972 python fixtures/iris/seed.py` and its exit codes; `pytest fixtures`; the guard; `make om-test-deps`; `make test-cell TAG=… LOGIN=…`; `make iris-down`; automatic single-instance mode (no `IRIS_HOST`); `.om/env/bin/python` as the connector's interpreter. The README stub is Henry's until spec 009; the change is agreed (2026-11-25)
+- [ ] T040 [P] Update `docs/adr/0012-shared-fixtures-and-matrix.md` (FR-026): entry point `fixtures/iris/seed.py` with source `overlay/ingestion/tests/integration/iris/data/seed.py`; `Scratch` with the sentinel `Scratch.Keep` (GAP-009, research R10); CI on pull requests, pushes to `main` and by hand, plus the `overlay-roundtrip` check; a dated "Revised" note in the status line
 - [ ] T041 Run quickstart Q1–Q9 end to end on the final branch. Tick SC-001..SC-008 in `specs/001-test-harness/checklists/requirements.md`, or list what remains open, and confirm Henry has reviewed SPIKE-06 before the merge (plan, Complexity Tracking)
 
 ---

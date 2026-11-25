@@ -144,8 +144,8 @@ known entries, each with a reproduction runnable against the shared fixtures.
   visible.
 - **Port already in use on a developer machine**: the IRIS address and port are configurable; the
   documented local command does not assume the default port is free.
-- **Leftover objects in the scratch schema** from an interrupted test: the loader empties the scratch
-  schema; tests clean up their own objects and never assert on objects they did not create.
+- **Leftover objects in the scratch schema** from an interrupted test: the loader resets the scratch
+  schema to its sentinel table; tests clean up their own objects and never assert on objects they did not create.
 - **Linux Docker writes root-owned files**: container helpers that write into the working tree
   (`.om/`) must run as the calling user, or a second rebuild on a Linux runner fails. CI runs on Linux,
   so this is checked by running the rebuild twice in the same job.
@@ -167,11 +167,11 @@ known entries, each with a reproduction runnable against the shared fixtures.
   (foreign key to `Clinic.Patient`, bit and long-text columns), `Billing.Patient` (same table name as
   `Clinic.Patient`, 2 columns, primary key and a named unique constraint), `AI.Embedding` (a
   `VECTOR(DOUBLE, 3)` column), the view `Clinic.ActivePatient` over `Clinic.Patient` and
-  `Clinic.Encounter`, and a schema `Scratch` that holds no objects after loading; with 2, 1, 1 and 1
-  rows in the four tables. Names keep their mixed case exactly. Because IRIS lists a schema in its SQL
-  catalog only while it contains at least one table (verified on `latest-em` and `latest-cd`,
-  GAP-009), `Scratch` is defined by "no objects, and the administrator can create and drop a table
-  in it", not by its presence in the catalog.
+  `Clinic.Encounter`, and a schema `Scratch` that holds only the empty sentinel table `Scratch.Keep`
+  after loading; with 2, 1, 1 and 1 rows in the four tables. Names keep their mixed case exactly.
+  IRIS lists a schema in its SQL catalog only while it contains at least one table (verified on
+  `latest-em` and `latest-cd`, GAP-009), so `Scratch.Keep` keeps `Scratch` listed while tests create
+  and drop their own tables there (spec 002's mark-deleted test). Tests never drop `Scratch.Keep`.
 - **FR-003**: The loader MUST create two least-privilege logins with test-only credentials:
   `omd_reader` with read access to schemas `Clinic`, `Billing` and `AI` only, and `omd_reader_dict`
   with the same access plus read access to the class dictionary tables the connector and the official
@@ -237,15 +237,16 @@ known entries, each with a reproduction runnable against the shared fixtures.
   found in this spec: a schema without tables is not listed in `INFORMATION_SCHEMA.SCHEMATA`, so a
   schema whose last table is dropped disappears from the catalog (input for spec 002's mark-deleted
   behavior). The affected tracks of every entry, GAP-004 and GAP-005 included, MUST be filled from
-  matrix evidence.
+  matrix evidence, except entries whose reproduction is pending a spike (GAP-003), which stay
+  "not tested" until that spike runs.
 - **FR-024**: The repository README MUST have a "Running tests" section covering the one-cell local
   command, the automatic single-instance mode, and the fixture loader. It replaces the integration-test
   paragraph of spec 000's README stub.
-- **FR-025**: Integration tests that already exist (spec 000's `test_connection.py`) MUST take their
-  cell, credentials and connections from the shared test fixture instead of reading the environment
-  themselves.
+- **FR-025**: Integration tests that already exist (spec 000's `test_connection.py` and
+  `test_workflow.py`) MUST take their cell, credentials and connections from the shared test fixture
+  instead of reading the IRIS environment themselves.
 - **FR-026**: ADR-0012 MUST be updated in the same change to match what was built: where the loader
-  source lives, how `Scratch` is defined, and when CI runs.
+  source lives, `Scratch` and its sentinel `Scratch.Keep`, and when CI runs.
 
 ### Key Entities
 
@@ -306,4 +307,5 @@ known entries, each with a reproduction runnable against the shared fixtures.
 - Feature tests themselves; each spec adds its own tests to the matrix.
 - End-to-end tests against an OpenMetadata server in CI (possible later).
 - Fixture cases owned by later specs (`Types.AllTypes` 003, second VECTOR column 004,
-  `Restricted.Secret` 005, ≥ 50 rows 006, query-log table 010); this spec only creates `Scratch`.
+  `Restricted.Secret` 005, ≥ 50 rows 006, query-log table 010); this spec only creates `Scratch`
+  and its sentinel `Scratch.Keep`.

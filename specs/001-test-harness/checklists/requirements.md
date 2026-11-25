@@ -43,9 +43,9 @@
   framework, CI product or file layout is prescribed in requirements; those go to `/speckit-plan`.
   Mentions of GitHub-hosted runners and Actions minutes are confined to Assumptions.
 - Finding while specifying (probe on `latest-em` and `latest-cd`): an IRIS schema without tables is
-  not listed in `INFORMATION_SCHEMA.SCHEMATA` (also after its last table is dropped). FR-002 defines
-  `Scratch` accordingly, and FR-023 adds GAP-009. Spec 002 (mark-deleted) needs to know this, and
-  ADR-0012 is updated (FR-026).
+  not listed in `INFORMATION_SCHEMA.SCHEMATA` (also after its last table is dropped). FR-023 adds
+  GAP-009. Revised with spec 002 (2026-11-25): FR-002 adds the sentinel `Scratch.Keep` so `Scratch`
+  stays listed for the mark-deleted test, and ADR-0012 is updated (FR-026).
 - `/speckit-clarify`: not needed. The likely questions (loader location, 9 cells, preview
   non-blocking, runners, no OpenMetadata server, testcontainers only as fallback, conftest location,
   dependency on spec 000) were settled before specifying.

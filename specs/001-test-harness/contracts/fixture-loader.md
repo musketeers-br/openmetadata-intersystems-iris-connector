@@ -40,9 +40,10 @@ There are no other inputs. The test-login credentials are part of the catalog.
    `IRIS_WAIT_SECONDS`. Then exit `2` with a message that names the host, the port and the time
    waited. An error saying the password must change is never retried: exit `2` at once with "run
    the unexpire step (fixtures/iris/start-iris.sh)".
-2. Cleanup (idempotent): drop the view, the tables, any table in `Scratch`, the `Scratch` schema and
-   both users, ignoring "does not exist" errors (including `SQLCODE -473`).
-3. Create the objects, insert the rows, create the users, grant. Commit.
+2. Cleanup (idempotent): drop the view, the tables, every table in `Scratch` (including the
+   sentinel `Keep`), the `Scratch` schema and both users, ignoring "does not exist" errors (including `SQLCODE -473`).
+3. Create the objects (with the empty sentinel `Scratch.Keep`), insert the rows, create the users,
+   grant. Commit.
 4. Run the self-check (C1–C11).
 5. Print one line per check (`PASS C3 constraints Billing.Patient`) and a final
    `FIXTURES OK v<CATALOG_VERSION> <ZVERSION>`. Never print passwords.

@@ -50,7 +50,7 @@ the fixture owner's review, and renames or removals need both developers.
 | `Billing.Patient` | table | `Code VARCHAR(20)`, `Balance DOUBLE` | PK (`Code`); UNIQUE `UqBillingCode` (`Code`) | — | 1 |
 | `AI.Embedding` | table | `Id INT`, `Content VARCHAR(500)`, `Vec VECTOR(DOUBLE, 3)` → **varchar** (GAP-001) | PK (`Id`) | — | 1 |
 | `Clinic.ActivePatient` | view | `PatientId`, `FullName` | — | — | (derived: 1) |
-| `Scratch` | schema | — | — | — | no tables after load; not listed in `SCHEMATA` while empty (GAP-009) |
+| `Scratch.Keep` | table (sentinel) | `Id INT` | PK (`Id`) | — | 0; keeps `Scratch` listed in `SCHEMATA` (GAP-009); never dropped by tests |
 
 Exact rows (deterministic):
 
@@ -85,14 +85,14 @@ The loader fails, naming the item, unless every row of this table holds:
 | C4 | Table and column descriptions | as listed |
 | C5 | Row counts | 2 · 1 · 1 · 1 |
 | C6 | View definition readable and joins `Patient` and `Encounter` | yes |
-| C7 | `Scratch`: no tables; the admin can create and drop a probe table | yes |
+| C7 | `Scratch`: only `Keep`, with 0 rows; `Scratch` is listed in `SCHEMATA`; the admin can create and drop a probe table | yes |
 | C8 | `omd_reader`: logs in, reads all three schemas, gets `SQLCODE -99` on both dictionary tables | yes |
 | C9 | `omd_reader_dict`: logs in, reads all three schemas and both dictionary tables | yes |
 | C10 | Both readers are refused (`-99`) on INSERT into `Clinic.Patient` and on CREATE TABLE in `Scratch` | yes |
 | C11 | `AI.Embedding.Vec` catalog `DATA_TYPE` is `varchar` (GAP-001 reproduces; if a future track reports VECTOR, the check reports it and spec 004 is told) | `varchar` |
 
-State transitions: the loader always goes through `cleanup` (drop view, tables, `Scratch` tables, the
-`Scratch` schema and users, tolerating "does not exist") → `create` → `load rows` → `grant` →
+State transitions: the loader always goes through `cleanup` (drop view, tables, every `Scratch` table
+including `Keep`, the `Scratch` schema and users, tolerating "does not exist") → `create` → `load rows` → `grant` →
 `self-check`. A second run gives the same end state.
 
 ## Planned additions (owned by later specs; not built here)
@@ -139,7 +139,7 @@ tracks from the matrix.
 | GAP-006 | Stray `print(...)` in `get_multi_columns` writes one stdout line per reflected column | official dialect 1.0.2 | none (cosmetic) | 001 |
 | GAP-007 | Composite primary keys reflected with repeated column names (e.g. `['ID','ID',…]`) | official dialect 1.0.2 | behavior settled in spec 002 | 001 |
 | GAP-008 | `LONGVARCHAR` reflected as `VARCHAR(1)`; `VARCHAR(1)` reflected as `CHAR` | official dialect 1.0.2 | the type map uses the raw `DATA_TYPE` (ADR-0006, spec 003) | 001 |
-| GAP-009 | A schema without tables is not listed in `INFORMATION_SCHEMA.SCHEMATA` | IRIS SQL catalog | decided in spec 002 (mark-deleted); `Scratch` is defined by behavior (FR-002) | 001 |
+| GAP-009 | A schema without tables is not listed in `INFORMATION_SCHEMA.SCHEMATA` | IRIS SQL catalog | none in the connector; the fixtures keep the sentinel `Scratch.Keep` so `Scratch` stays listed (FR-002) | 001 |
 
 GAP-006 to GAP-008 were found with SPIKE-01 on `latest-em`. Their reproductions run against the
 fixture catalog: `Billing.Patient` and `Clinic.Encounter` (`Notes LONGVARCHAR`) are enough for 006 and

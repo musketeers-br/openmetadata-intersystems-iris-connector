@@ -25,7 +25,9 @@ Implements FR-008..FR-015. File: `.github/workflows/iris-matrix.yml`.
 1. checkout, setup-uv, cache (above).
 2. `make om-import`.
 3. `make om-check` (a second `om-import`, then `om-export` and the diff; fails on any change to
-   `overlay/` or `patches/`, and on root-owned files left by the first import).
+   `overlay/` or `patches/`, and on root-owned files left by the first import). Until spec 000's
+   ANTLR container runs as the calling user (research R16), this step fails on GitHub's runners and
+   every cell is skipped.
 
 ## Cell steps
 

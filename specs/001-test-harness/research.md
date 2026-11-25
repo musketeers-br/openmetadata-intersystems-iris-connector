@@ -198,12 +198,14 @@ Environment: GitHub-hosted `ubuntu-latest`; local WSL2 Ubuntu 24.04 with Docker 
   use `%EXACT(...)` or avoid grouping, or names lose their case (Principle III). This is IRIS's
   documented collation behavior, not a defect, so it is not a gap entry.
 
-## R10 — `Scratch` schema: create explicitly, verify by behavior
+## R10 — `Scratch` schema with the sentinel table `Scratch.Keep`
 
-- **Decision**:
-  - the loader drops every table in `Scratch`, then runs `CREATE SCHEMA Scratch`;
-  - the self-check verifies that no table exists in `Scratch` and that the admin can create and drop
-    a probe table there;
+- **Decision** (revised 2026-11-25 with spec 002):
+  - the loader drops every table in `Scratch`, runs `CREATE SCHEMA Scratch`, then creates the empty
+    sentinel `Scratch.Keep (Id INT PRIMARY KEY)`;
+  - the self-check verifies that `Keep` is the only table in `Scratch`, has 0 rows, that `Scratch` is
+    listed in `SCHEMATA`, and that the admin can create and drop a probe table there;
+  - tests create and drop their own tables in `Scratch` and never drop `Keep`;
   - both least-privilege logins are refused when they INSERT into or create a table in `Scratch`.
 - **Rationale**: probes on `latest-em` and `latest-cd`:
   - `CREATE SCHEMA` succeeds and can be repeated;
@@ -213,8 +215,13 @@ Environment: GitHub-hosted `ubuntu-latest`; local WSL2 Ubuntu 24.04 with Docker 
   - `reader` and `reader_dict` get `SQLCODE -99` for both INSERT and CREATE TABLE.
 
   This becomes **GAP-009**.
-- **Alternatives**: a permanent placeholder table in `Scratch` so the schema stays listed — rejected.
-  It would be ingested by every metadata test, and "empty" is what ADR-0012 promises.
+- **Why the sentinel**: spec 002's mark-deleted test creates a table in `Scratch`, ingests, drops it
+  and ingests again. Without another table, `Scratch` disappears from the catalog with its last
+  table, so the second run cannot mark the dropped table deleted. `Keep` stays out of metadata tests
+  through their `schemaFilterPattern`, and no expected entity lists it.
+- **Alternatives**: an empty `Scratch` defined by behavior only (the first version of this decision)
+  — replaced, because of the mark-deleted case above. Each test creating its own sentinel — rejected:
+  two tests would race on it, and one would drop it under the other.
 
 ## R11 — Test interface in the integration conftest
 
@@ -281,8 +288,10 @@ Environment: GitHub-hosted `ubuntu-latest`; local WSL2 Ubuntu 24.04 with Docker 
 
 - **Decision**: `test_connection.py` (spec 000) drops its own `LOGINS` table and `IRIS_*` reading and
   uses `iris_cell` and `iris_service_connection`. Its assertions are unchanged.
-  `test_workflow.py` stays as it is: it needs an OpenMetadata server and skips with a reason when
-  `OM_HOST_PORT` / `OM_JWT` are unset.
+  `test_workflow.py` takes the IRIS host, port and Namespace from `iris_service_connection` and the
+  admin credentials from `data.seed.LOGINS["admin"]` (it runs as admin by design). Its server check
+  becomes a module-level `skipif` on `OM_HOST_PORT` / `OM_JWT`, so a run without a server skips it
+  before any IRIS fixture is set up. Both migrations were agreed with the file owner (2026-11-25).
 - **Rationale**: the file's docstring already says "spec 001's conftest replaces this ad-hoc
   environment reading". Two login tables would drift (FR-016, FR-025).
 

@@ -145,7 +145,7 @@ overlay/ingestion/tests/integration/iris/
 ├── data/seed.py             # canonical fixture catalog + loader + self-check (R3); runnable as a script
 ├── test_harness.py          # placeholder test (FR-022)
 ├── test_connection.py       # spec 000's file, moved onto the conftest fixtures (FR-025, R15)
-└── test_workflow.py         # spec 000's file, unchanged (skips without a server)
+└── test_workflow.py         # spec 000's file, IRIS settings from the conftest (FR-025, R15)
 ```
 
 **Structure Decision**: the canonical loader lives in `overlay/ingestion/tests/integration/iris/data/`
@@ -178,7 +178,13 @@ Each step ends with its tests passing locally; steps 1–3 need only Docker and 
     (`js-antlr`) and there is no `antlr4` in the Node container.
 
   The CI round-trip job runs `om-import` twice (`om-check`), so it catches the first one; cells run
-  with `OM_SKIP_UI_CODEGEN=1` (generated UI files are never exported).
+  with `OM_SKIP_UI_CODEGEN=1` (generated UI files are never exported). Consequence: until spec 000
+  runs its ANTLR container as the calling user, `overlay-roundtrip` fails on GitHub's Linux runners
+  and the 9 cells, which need it, are skipped. The first CI run (T026) waits for that fix.
+- Spec 002 (PR #12, stacked on 000) uses the fixtures and the `Scratch` schema: `Scratch.Keep` is in
+  catalog v1 for its mark-deleted test (R10). Its `GAP-REPORT.md` entries currently reuse the ids
+  GAP-006..009, which ADR-0006, ADR-0015 and this spec already give to other entries; the numbering
+  is agreed with spec 002's owner before either spec merges.
 
 ## Complexity Tracking
 

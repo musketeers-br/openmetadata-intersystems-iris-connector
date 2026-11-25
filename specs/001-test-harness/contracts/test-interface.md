@@ -36,15 +36,17 @@ Run selection: `-m iris`.
 2. A test that does not apply calls `pytest.skip(f"... ({iris_cell.name})")`. Never skip silently,
    never `return` early.
 3. Never create IRIS users or datasets. Create objects only in `Scratch`, drop them in a `finally` or
-   fixture teardown, and never assert on objects you did not create.
+   fixture teardown, and never assert on objects you did not create. Never create or drop
+   `Scratch.Keep`: the loader owns it, and it keeps `Scratch` listed in the catalog (GAP-009).
 4. Need a new shared case? Add it to the fixture catalog (additive) in your spec's PR; the fixture
    owner reviews it.
 5. OpenMetadata's root integration conftest applies unchanged: `xdist_group("iris_suite")` is
    automatic, and image pulls are retried on transient registry errors.
-6. Do not read `IRIS_*` variables in a test module. Spec 000's `test_connection.py` did this before
-   the conftest existed, and 001 migrates it to `iris_cell` and `iris_service_connection` (FR-025).
+6. Do not read `IRIS_*` variables in a test module. Spec 000's `test_connection.py` and
+   `test_workflow.py` did this before the conftest existed, and 001 migrates both to `iris_cell` and
+   `iris_service_connection` (FR-025, research R15).
 7. Tests that need an OpenMetadata server (spec 000's `test_workflow.py`) skip with a reason when
-   `OM_HOST_PORT` / `OM_JWT` are unset. The matrix has no server, so they skip in every cell; that is
+   `OM_HOST_PORT` / `OM_JWT` are unset, with a module-level `skipif` so no IRIS fixture is set up first. The matrix has no server, so they skip in every cell; that is
    expected and listed in each job summary.
 
 ## Placeholder test (`test_harness.py`)
