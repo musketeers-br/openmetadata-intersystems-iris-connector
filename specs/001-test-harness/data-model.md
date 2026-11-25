@@ -109,8 +109,8 @@ Each adds its objects to the catalog and its expectations to the self-check in t
 
 ## Gap entry
 
-Written with the template of `is-omd/docs/contracts/gap-report.md`, used verbatim: heading
-`### GAP-NNN — <title>` and the bold labels below, in this order.
+Written in the format ADR-0013 defines and spec 000 already uses in `GAP-REPORT.md` (GAP-004,
+GAP-005): heading `### GAP-NNN — <title>` and the bold labels below, in this order.
 
 | Field | Label in `GAP-REPORT.md` | Rule |
 |---|---|---|
@@ -122,8 +122,25 @@ Written with the template of `is-omd/docs/contracts/gap-report.md`, used verbati
 | `expected` / `actual` | `Expected` / `Actual` | one line each |
 | `connector_behavior` | `Connector behavior` | what the connector does instead, with ADR reference |
 | `workaround` | `User workaround` | grant, option, or "none" |
-| `upstream` | `Upstream` | link to an issue, or "not raised" |
+| `upstream` | `Upstream` | link to an issue, or "not raised yet". An upstream issue (OpenMetadata, InterSystems) is opened only after both developers agree |
 
-Seed entries: GAP-001..008 (gap-report contract), plus GAP-009 (a schema without tables is not listed
-in `INFORMATION_SCHEMA.SCHEMATA`; component IRIS SQL catalog; tracks `latest-em`, `latest-cd`; found in
-001; connector behavior decided in 002).
+### Known entries
+
+Spec 000 wrote GAP-004 and GAP-005. Spec 001 adds the others, in id order, and fills every entry's
+tracks from the matrix.
+
+| Id | Title | Component | Connector behavior | Written by |
+|---|---|---|---|---|
+| GAP-001 | VECTOR columns reported as `varchar` in `INFORMATION_SCHEMA.COLUMNS` | IRIS SQL catalog | enrichment from the class dictionary when readable (ADR-0007) | 001 |
+| GAP-002 | VECTOR element type and dimension need `SELECT` on `%Dictionary.CompiledProperty` | class dictionary | one `IRIS-VECTOR-GRANT` warning; cataloged as `VARCHAR` | 001 |
+| GAP-003 | Objects invisible to a login cannot be detected by that login | IRIS SQL catalog | documented limitation (ADR-0008); reproduction pending SPIKE-03 (spec 005) | 001 |
+| GAP-004 | Dialect reads the server version through the Native API | official dialect 1.0.2 | `server_version_info` preset (ADR-0015) | 000 |
+| GAP-005 | Dialect's dictionary-access probe is true for every login | official dialect 1.0.2 | `_dictionary_access` preset (ADR-0015) | 000 |
+| GAP-006 | Stray `print(...)` in `get_multi_columns` writes one stdout line per reflected column | official dialect 1.0.2 | none (cosmetic) | 001 |
+| GAP-007 | Composite primary keys reflected with repeated column names (e.g. `['ID','ID',…]`) | official dialect 1.0.2 | behavior settled in spec 002 | 001 |
+| GAP-008 | `LONGVARCHAR` reflected as `VARCHAR(1)`; `VARCHAR(1)` reflected as `CHAR` | official dialect 1.0.2 | the type map uses the raw `DATA_TYPE` (ADR-0006, spec 003) | 001 |
+| GAP-009 | A schema without tables is not listed in `INFORMATION_SCHEMA.SCHEMATA` | IRIS SQL catalog | decided in spec 002 (mark-deleted); `Scratch` is defined by behavior (FR-002) | 001 |
+
+GAP-006 to GAP-008 were found with SPIKE-01 on `latest-em`. Their reproductions run against the
+fixture catalog: `Billing.Patient` and `Clinic.Encounter` (`Notes LONGVARCHAR`) are enough for 006 and
+008. GAP-007 needs a composite key, so its reproduction creates a table in `Scratch` and drops it.

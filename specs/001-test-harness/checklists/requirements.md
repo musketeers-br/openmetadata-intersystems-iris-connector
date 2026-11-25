@@ -40,12 +40,16 @@
 - Audience and technical terms: this feature is test infrastructure whose users are developers,
   reviewers and upstream maintainers, so domain terms (IRIS release tracks, logins, class dictionary,
   CI cell, SQL catalog) are the user vocabulary, not implementation choices. No language, test
-  framework, CI product or file layout is prescribed in requirements; those go to `/speckit-plan`
-  (demand 001 §3). Mentions of GitHub-hosted runners and Actions minutes are confined to Assumptions.
+  framework, CI product or file layout is prescribed in requirements; those go to `/speckit-plan`.
+  Mentions of GitHub-hosted runners and Actions minutes are confined to Assumptions.
 - Finding while specifying (probe on `latest-em` and `latest-cd`): an IRIS schema without tables is
   not listed in `INFORMATION_SCHEMA.SCHEMATA` (also after its last table is dropped). FR-002 defines
-  `Scratch` accordingly, and FR-023 adds GAP-009. Spec 002 (mark-deleted) and the fixtures contract
-  need to know this.
-- `/speckit-clarify`: demand 001 §2 pre-answers the likely questions (loader location, 9 cells,
-  preview non-blocking, runners, no OpenMetadata server, testcontainers only as fallback, conftest
-  location, behavior before 000 merges). Optional; can go straight to `/speckit-plan`.
+  `Scratch` accordingly, and FR-023 adds GAP-009. Spec 002 (mark-deleted) needs to know this, and
+  ADR-0012 is updated (FR-026).
+- `/speckit-clarify`: not needed. The likely questions (loader location, 9 cells, preview
+  non-blocking, runners, no OpenMetadata server, testcontainers only as fallback, conftest location,
+  dependency on spec 000) were settled before specifying.
+- Revision 2026-11-25, after spec 000's PR: the spec builds on 000's tooling instead of waiting for
+  it (no two-phase delivery), completes the Gap Report 000 started, migrates 000's integration test
+  to the shared fixture (FR-025), updates ADR-0012 (FR-026), and no longer refers to planning
+  documents outside this repository (constitution 1.2.2).

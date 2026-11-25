@@ -10,7 +10,8 @@ Runnable checks that prove spec 001 works. Interfaces: [fixture-loader](contract
 - Python 3.11 (`uv` provides it).
 - A venv with `pip install -r fixtures/iris/requirements.txt` (`intersystems-irispython==5.4.1`,
   `pytest==9.0.3`). `start-iris.sh` uses it for the readiness probe.
-- Phase B only: spec 000 merged, then `make om-import` once.
+- For Q4, Q6 and Q9: `make om-import` once (spec 000; about 2 minutes with the UI codegen,
+  less with `OM_SKIP_UI_CODEGEN=1`). The connector's interpreter is `.om/.venv/bin/python`.
 - Local port 11972 free; another IRIS on 1972 is fine.
 
 ## Q1 — Fixtures on every track (FR-001..004, SC-001)
@@ -43,7 +44,7 @@ object, or a wrong expected row count, and asserts exit or raise with that objec
 Start a container **without** the unexpire step (`docker run …` directly), then run the loader.
 Expected: exit 2 with a message pointing to `start-iris.sh`, not a stack trace.
 
-## Q4 — One cell locally (FR-021, SC-005) — Phase B
+## Q4 — One cell locally (FR-021, SC-005)
 
 ```bash
 make test-cell TAG=latest-em LOGIN=reader          # iris-up (11972) → iris-seed → pytest -m iris
@@ -61,11 +62,11 @@ uv venv -p 3.11 /tmp/guard && uv pip install -p /tmp/guard/bin/python sqlalchemy
 python fixtures/iris/check_dialect.py; echo "exit=$?"                    # clean venv: exit=0
 ```
 
-## Q6 — Upstream mode, no IRIS address (FR-020) — Phase B
+## Q6 — Upstream mode, no IRIS address (FR-020)
 
 ```bash
 unset IRIS_HOST IRIS_PORT
-IRIS_LOGIN=reader <.om python> -m pytest .om/ingestion/tests/integration/iris -m iris -rs   # interpreter path set by spec 000 (research R7)
+IRIS_LOGIN=reader .om/.venv/bin/python -m pytest .om/ingestion/tests/integration/iris -m iris -rs
 ```
 
 Expected: the conftest starts `latest-em`, prepares and seeds it, runs, and removes it. No container
@@ -75,8 +76,8 @@ is left behind (`docker ps -a`).
 
 Open a draft pull request (or push to `main`), then open the run:
 
-- Phase A: 9 checks `iris-<tag>-<login>`, each with digest and `$ZVERSION` in its summary.
-- Phase B: plus `overlay-roundtrip`.
+- `overlay-roundtrip` (`make om-check`) plus 9 checks `iris-<tag>-<login>`, each with digest and
+  `$ZVERSION` in its summary.
 - Break one cell on purpose (for example, a failing step in one cell of a throwaway draft pull
   request): only that cell fails, and the other 8 report.
 - A failure only on `iris-latest-preview-*` leaves the PR mergeable (required checks list,
@@ -86,3 +87,13 @@ Open a draft pull request (or push to `main`), then open the run:
 
 `GAP-REPORT.md` has the entry format and GAP-001..009. Each reproduction runs against Q1's
 container, except GAP-003, which is marked "pending SPIKE-03".
+
+## Q9 — Overlay round trip with the harness files (FR-009)
+
+```bash
+make om-export && make om-check        # must print "om-check: no diff"
+make om-check                          # second run on the same tree: also no diff, no permission error
+```
+
+Expected: both pass on Linux/WSL. The second run proves that no container step left root-owned
+files in `.om/` (spec edge case).

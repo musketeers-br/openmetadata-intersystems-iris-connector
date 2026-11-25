@@ -11,7 +11,8 @@ python <tree>/ingestion/tests/integration/iris/data/seed.py   # same module, ins
 
 `fixtures/iris/seed.py` runs the canonical module
 `overlay/ingestion/tests/integration/iris/data/seed.py`. When `.om/` exists, it runs the copy in
-`.om/` instead, so the copy being tested is the one that runs.
+`.om/` instead, because developers edit there (ADR-0014) and the copy being tested is the one that
+runs. It prints which copy ran.
 
 Python API (used by the integration conftest fallback):
 
@@ -59,5 +60,5 @@ There are no other inputs. The test-login credentials are part of the catalog.
 
 - Running it twice gives the same end state (FR-001).
 - Only the official driver (`import iris`) is used (FR-006).
-- `CATALOG_VERSION` starts at `1`. Each additive change bumps it, and the fixtures contract lists
-  what each version added (FR-007).
+- `CATALOG_VERSION` starts at `1`. Each additive change bumps it, and the `VERSION_HISTORY` constant
+  in the module and the data-model's catalog section list what each version added (FR-007).

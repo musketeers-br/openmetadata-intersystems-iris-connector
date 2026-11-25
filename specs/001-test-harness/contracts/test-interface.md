@@ -18,8 +18,8 @@ New needs go through the fixture owner.
 | Fixture | Type | Contract |
 |---|---|---|
 | `iris_cell` | frozen dataclass `IrisCell(tag, login, host, port, namespace, username, password, is_admin, has_dict_grant)` + property `name` → `iris-<tag>-<login>` | values from env + catalog; invalid login → `pytest.UsageError` |
-| `iris_service_connection` | `IrisConnection` (spec 000 model) for the cell's login: `hostPort`, `username`, `authType.password`, `namespace` | skips with "spec 000 connector package not available (<cell>)" when the package is not importable |
-| `iris_engine` | SQLAlchemy `Engine` from the connector's `get_connection(iris_service_connection)` | ADR-0015 presets apply because the connector applies them; disposed at session end |
+| `iris_service_connection` | generated model `IrisConnection` (`metadata.generated.schema.entity.services.connections.database.irisConnection`) for the cell's login: `hostPort`, `username`, `authType=BasicAuth(password=…)`, `namespace` | built from `iris_cell`; no skip, because spec 000 is part of the tree |
+| `iris_engine` | SQLAlchemy `Engine`: `metadata.ingestion.source.database.iris.connection.IrisConnection(iris_service_connection).client` | ADR-0015 presets apply because the connector applies them; disposed at session end |
 | `iris_admin_engine` | same, for admin | **only** for setup and assertions, never for the behavior under test |
 | `seeded` | `None` | CI and Makefile: runs `self_check` as admin and fails the session if it does not pass. Fallback: `load` first. Every integration test depends on it, directly or through the engines |
 
@@ -41,6 +41,11 @@ Run selection: `-m iris`.
    owner reviews it.
 5. OpenMetadata's root integration conftest applies unchanged: `xdist_group("iris_suite")` is
    automatic, and image pulls are retried on transient registry errors.
+6. Do not read `IRIS_*` variables in a test module. Spec 000's `test_connection.py` did this before
+   the conftest existed, and 001 migrates it to `iris_cell` and `iris_service_connection` (FR-025).
+7. Tests that need an OpenMetadata server (spec 000's `test_workflow.py`) skip with a reason when
+   `OM_HOST_PORT` / `OM_JWT` are unset. The matrix has no server, so they skip in every cell; that is
+   expected and listed in each job summary.
 
 ## Placeholder test (`test_harness.py`)
 

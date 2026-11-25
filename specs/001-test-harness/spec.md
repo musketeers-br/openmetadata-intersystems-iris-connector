@@ -8,7 +8,7 @@
 
 **Input**: User description: "Provide the shared test environment that every other part of the IRIS connector for OpenMetadata is tested with. A single fixture set, loaded by one idempotent command, creates in the IRIS "USER" Namespace the sample schemas and objects every test relies on: the same table name in two schemas (Clinic.Patient and Billing.Patient), mixed-case names, primary, foreign and unique keys, table and column descriptions, a view, a table with a VECTOR(DOUBLE, 3) column, and an empty scratch schema for tests that must create and drop objects; plus two least-privilege logins: one with only SELECT on the sample schemas, and one that is also allowed to read the class dictionary. The loader ends by checking that everything it created is there. Public CI runs the test suite against the three IRIS Community release tracks (latest-em, latest-cd, latest-preview), each as administrator, as the plain least-privilege login and as the least-privilege login with the dictionary grant: nine cells, each reported separately. The latest-preview track is informative and does not block merging. CI first checks that the repository's connector files rebuild cleanly onto the pinned OpenMetadata release. Tests learn which cell they run in (release track, login, whether the login is admin, whether it can read the dictionary) from a shared test fixture, never by creating their own users or data. The same tests can run locally for one chosen cell with one command, and, when no IRIS address is given, start a single IRIS container themselves so the upstream project can run them too. A gap report file exists with its entry format and the known IRIS limitations."
 
-**Covers**: NFR-1 · **Architecture**: AD-12 · **ADRs**: [0012](../../docs/adr/0012-shared-fixtures-and-matrix.md), [0013](../../docs/adr/0013-gap-report.md), [0014](../../docs/adr/0014-repository-topology.md) · **Spike**: SPIKE-06 (`is-omd/spikes/findings/SPIKE-06.md`) · **Contracts** (`is-omd/docs/contracts/`): fixtures, test-matrix, gap-report, repository-layout
+**Covers**: NFR-1 · **Architecture**: AD-12 · **ADRs**: [0012](../../docs/adr/0012-shared-fixtures-and-matrix.md), [0013](../../docs/adr/0013-gap-report.md), [0014](../../docs/adr/0014-repository-topology.md), [0015](../../docs/adr/0015-dialect-state-presets.md) · **Spike**: SPIKE-06 (outcome in [research.md](research.md)) · **Builds on**: spec 000 (overlay tooling, `IrisConnection`, the `iris` extra, `GAP-REPORT.md` with GAP-004/005, the integration test package)
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -146,9 +146,9 @@ known entries, each with a reproduction runnable against the shared fixtures.
   documented local command does not assume the default port is free.
 - **Leftover objects in the scratch schema** from an interrupted test: the loader empties the scratch
   schema; tests clean up their own objects and never assert on objects they did not create.
-- **Rebuild tooling not available yet** (spec 000 not merged): the fixture loader, the IRIS part of
-  each cell and the fixture self-check run on their own; the rebuild check and connector tests are
-  added once the tooling lands.
+- **Linux Docker writes root-owned files**: container helpers that write into the working tree
+  (`.om/`) must run as the calling user, or a second rebuild on a Linux runner fails. CI runs on Linux,
+  so this is checked by running the rebuild twice in the same job.
 - **A least-privilege login used for setup by mistake**: setup and assertions about fixture state use
   the administrator connection only; the behavior under test uses the cell's login.
 - **A test needs a new fixture case**: it is added to the shared fixture set (additive only) in that
@@ -186,14 +186,16 @@ known entries, each with a reproduction runnable against the shared fixtures.
 - **FR-006**: The loader and all tests MUST connect only through the official InterSystems driver
   and dialect (Principle II).
 - **FR-007**: Changes to the fixture catalog MUST be additive; the catalog version and the objects
-  each later spec adds MUST be listed in the fixtures contract.
+  each later spec adds MUST be listed next to the catalog (version history in the loader module and
+  in [data-model.md](data-model.md)).
 
 **CI matrix**
 
 - **FR-008**: CI MUST run on every pull request and on every push to `main`, and MUST be startable
   by hand once the workflow is on `main`. A pull request commit runs the matrix once, not twice.
 - **FR-009**: CI MUST first check that the connector's overlay and patches rebuild cleanly onto the
-  pinned OpenMetadata release and that the rebuild changes nothing in the repository.
+  pinned OpenMetadata release and that the rebuild changes nothing in the repository
+  (`make om-check`, spec 000).
 - **FR-010**: CI MUST then run nine cells, one per combination of track (`latest-em`, `latest-cd`,
   `latest-preview`) and login (`admin`, `reader`, `reader_dict`), each reported as a separate result
   named `iris-<track>-<login>`; a failing cell MUST NOT cancel the others.
@@ -229,15 +231,21 @@ known entries, each with a reproduction runnable against the shared fixtures.
 
 **Gap report and documentation**
 
-- **FR-023**: The repository root MUST contain `GAP-REPORT.md` with the entry format, entries
-  GAP-001 to GAP-008 from the gap-report contract (affected tracks filled from SPIKE-01 and SPIKE-06
-  evidence), and GAP-009 found in this spec: a schema without tables is not listed in
-  `INFORMATION_SCHEMA.SCHEMATA`, so a schema whose last table is dropped disappears from the catalog
-  (input for spec 002's mark-deleted behavior).
+- **FR-023**: `GAP-REPORT.md`, which spec 000 created with GAP-004 and GAP-005, MUST be completed
+  with the known entries GAP-001 to GAP-003 and GAP-006 to GAP-008 (listed in
+  [data-model.md](data-model.md)), in id order and in the entry format of ADR-0013, and with GAP-009
+  found in this spec: a schema without tables is not listed in `INFORMATION_SCHEMA.SCHEMATA`, so a
+  schema whose last table is dropped disappears from the catalog (input for spec 002's mark-deleted
+  behavior). The affected tracks of every entry, GAP-004 and GAP-005 included, MUST be filled from
+  matrix evidence.
 - **FR-024**: The repository README MUST have a "Running tests" section covering the one-cell local
-  command, the automatic single-instance mode, and the fixture loader.
-- **FR-025**: The fixtures and test-matrix contracts in `is-omd` MUST be updated to match what was
-  built, with no open `[VERIFY]` markers in the test-matrix contract.
+  command, the automatic single-instance mode, and the fixture loader. It replaces the integration-test
+  paragraph of spec 000's README stub.
+- **FR-025**: Integration tests that already exist (spec 000's `test_connection.py`) MUST take their
+  cell, credentials and connections from the shared test fixture instead of reading the environment
+  themselves.
+- **FR-026**: ADR-0012 MUST be updated in the same change to match what was built: where the loader
+  source lives, how `Scratch` is defined, and when CI runs.
 
 ### Key Entities
 
@@ -278,17 +286,20 @@ known entries, each with a reproduction runnable against the shared fixtures.
   authentication (verified in SPIKE-06).
 - The dev repository becomes public as planned. While it is private, each full run costs about 14
   billed Actions minutes for the cells alone (SPIKE-06); the rebuild adds to that.
-- The rebuild tooling (`om-import` / `om-export`) and the connector package skeleton come from spec
-  000. Until they merge, the fixture loader, IRIS preparation and fixture self-check are built and run
-  first; the rebuild check and connector tests are wired in when 000 lands.
+- This spec builds on spec 000: `make om-import` / `om-export` / `om-check`, the `IrisConnection`
+  class (`.client` gives the SQLAlchemy engine with the ADR-0015 presets), the `iris` extra, the
+  `Makefile`, the README stub, `GAP-REPORT.md` and the integration test package. The 001 branch starts
+  from spec 000's branch until 000 merges, and then from `main`; 001 merges after 000.
+- Files under `overlay/` are edited inside `.om/` and written back with `make om-export`, and
+  `make om-check` passes before every commit (constitution, ADR-0014).
 - No OpenMetadata server is needed for this spec's tests; end-to-end tests against a server are out
   of scope.
-- The two least-privilege logins and their grants follow the fixtures contract as of 2026-11-25; the
+- The two least-privilege logins and their grants follow ADR-0012 as of 2026-11-25; the
   exact minimal dictionary grant is settled by SPIKE-03 (spec 004/005), and `omd_reader_dict` keeps
   both dictionary grants until then.
 - Credentials in the fixture catalog are for throwaway containers only and are never reused
   elsewhere.
-- Release tracks move over time; versions recorded in contracts are dated, not fixed.
+- Release tracks move over time; versions recorded in this spec's documents are dated, not fixed.
 
 ## Out of Scope
 
