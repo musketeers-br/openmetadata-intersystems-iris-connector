@@ -136,7 +136,7 @@ Requested order: Makefile → scaffold → schema + enum → `setup.py` extra �
 - [X] T039 Record the confirmed UI registration files and locale paths (open item V1) in `specs/000-connector-foundation/research.md`
 - [X] T040 Create `README.md` stub: what the repository is, `make om-import`, `make om-check`, `make om-image`, the icon source and licence, licensing summary (Apache-2.0 root, Collate Community License 1.0 for `overlay/ingestion/`, driver never vendored, optional `iris` extra)
 - [X] T042 [US2] (found during T024) Server-side password masking: add `openmetadata-service/src/main/java/org/openmetadata/service/secrets/converter/IrisConnectionClassConverter.java` and register it in `ClassConverterFactory.java`; without it the server returns the Iris password in clear while Postgres is masked. Verified with an Iris and a Postgres service created through the API
-- [ ] T041 Move the spec's issue on the "IRIS connector" GitHub Project to Review once T037–T040 are done
+- [x] T041 Move the spec's issue on the "IRIS connector" GitHub Project to Review once T037–T040 are done
 
 ---
 
