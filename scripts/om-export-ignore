@@ -1,0 +1,6 @@
+# Extended regular expressions (one per line), matched against paths in .om/. Matching files are never exported.
+# Generated UI files: OpenMetadata commits them, but `make om-import` regenerates them (scripts/om-ui-codegen.sh),
+# and `om-branch` (spec 009) regenerates them before the upstream PR.
+^openmetadata-ui/src/main/resources/ui/src/generated/
+^openmetadata-ui/src/main/resources/ui/src/jsons/ingestionSchemas/
+^openmetadata-ui/src/main/resources/ui/public/jsons/connectionSchemas/

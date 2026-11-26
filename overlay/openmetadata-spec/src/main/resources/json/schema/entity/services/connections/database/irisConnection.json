@@ -1,0 +1,122 @@
+{
+  "$id": "https://open-metadata.org/schema/entity/services/connections/database/irisConnection.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IrisConnection",
+  "description": "InterSystems IRIS Connection Config",
+  "type": "object",
+  "javaType": "org.openmetadata.schema.services.connections.database.IrisConnection",
+  "definitions": {
+    "irisType": {
+      "description": "Service type.",
+      "type": "string",
+      "enum": [
+        "Iris"
+      ],
+      "default": "Iris"
+    },
+    "irisScheme": {
+      "description": "SQLAlchemy driver scheme options.",
+      "type": "string",
+      "enum": [
+        "iris"
+      ],
+      "default": "iris"
+    }
+  },
+  "properties": {
+    "type": {
+      "title": "Service Type",
+      "description": "Service Type",
+      "$ref": "#/definitions/irisType",
+      "default": "Iris"
+    },
+    "scheme": {
+      "title": "Connection Scheme",
+      "description": "SQLAlchemy driver scheme options.",
+      "$ref": "#/definitions/irisScheme",
+      "default": "iris"
+    },
+    "username": {
+      "title": "Username",
+      "description": "Username to connect to InterSystems IRIS. A login with SELECT on the target schemas is enough.",
+      "type": "string"
+    },
+    "authType": {
+      "title": "Auth Configuration Type",
+      "description": "Choose Auth Config Type.",
+      "mask": true,
+      "oneOf": [
+        {
+          "$ref": "./common/basicAuth.json"
+        }
+      ]
+    },
+    "hostPort": {
+      "title": "Host and Port",
+      "description": "Host and superserver port of the InterSystems IRIS instance, as host:port (default port 1972).",
+      "type": "string"
+    },
+    "namespace": {
+      "title": "Namespace",
+      "description": "IRIS Namespace to connect to. One service connects to exactly one Namespace, and it becomes the Database name in OpenMetadata.",
+      "type": "string",
+      "default": "USER"
+    },
+    "sslConfig": {
+      "title": "SSL",
+      "description": "SSL Configuration details.",
+      "$ref": "../../../../security/ssl/verifySSLConfig.json#/definitions/sslConfig"
+    },
+    "connectionOptions": {
+      "title": "Connection Options",
+      "$ref": "../connectionBasicType.json#/definitions/connectionOptions"
+    },
+    "connectionArguments": {
+      "title": "Connection Arguments",
+      "$ref": "../connectionBasicType.json#/definitions/connectionArguments"
+    },
+    "schemaFilterPattern": {
+      "title": "Default Schema Filter Pattern",
+      "description": "Regex to only include/exclude schemas that matches the pattern.",
+      "$ref": "../../../../type/filterPattern.json#/definitions/filterPattern",
+      "default": {
+        "includes": [],
+        "excludes": ["^%", "^INFORMATION_SCHEMA$", "^Ens"]
+      }
+    },
+    "tableFilterPattern": {
+      "title": "Default Table Filter Pattern",
+      "description": "Regex to only include/exclude tables that matches the pattern.",
+      "$ref": "../../../../type/filterPattern.json#/definitions/filterPattern"
+    },
+    "databaseFilterPattern": {
+      "title": "Default Database Filter Pattern",
+      "description": "Regex to only include/exclude databases that matches the pattern.",
+      "$ref": "../../../../type/filterPattern.json#/definitions/filterPattern"
+    },
+    "supportsMetadataExtraction": {
+      "title": "Supports Metadata Extraction",
+      "$ref": "../connectionBasicType.json#/definitions/supportsMetadataExtraction"
+    },
+    "supportsDBTExtraction": {
+      "$ref": "../connectionBasicType.json#/definitions/supportsDBTExtraction"
+    },
+    "supportsProfiler": {
+      "title": "Supports Profiler",
+      "$ref": "../connectionBasicType.json#/definitions/supportsProfiler"
+    },
+    "supportsQueryComment": {
+      "title": "Supports Query Comment",
+      "$ref": "../connectionBasicType.json#/definitions/supportsQueryComment"
+    },
+    "supportsLineageExtraction": {
+      "$ref": "../connectionBasicType.json#/definitions/supportsLineageExtraction"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "username",
+    "hostPort",
+    "namespace"
+  ]
+}

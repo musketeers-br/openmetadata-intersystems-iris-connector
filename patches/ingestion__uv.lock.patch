@@ -1,0 +1,132 @@
+diff --git a/ingestion/uv.lock b/ingestion/uv.lock
+index c7fb8014..b1dfcd32 100644
+--- a/ingestion/uv.lock
++++ b/ingestion/uv.lock
+@@ -6481,6 +6481,18 @@ wheels = [
+     { url = "https://files.pythonhosted.org/packages/56/43/4ca9e49d27a1fcf6bece6f6aec0ea46bb9112489b93d4b688fb415457bdb/iniconfig-2.3.1-py3-none-any.whl", hash = "sha256:9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7", size = 7552, upload-time = "2026-10-06T22:48:36.959Z" },
+ ]
+ 
++[[package]]
++name = "intersystems-irispython"
++version = "5.4.1"
++source = { registry = "https://pypi.org/simple" }
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/5a/74/e7a5a74defab45f5e57f4c5de20104f684884339a524531492f392afea16/intersystems_irispython-5.4.1-cp39.cp310.cp311.cp312.cp313.cp314-cp39.cp310.cp311.cp312.cp313.cp314-macosx_10_9_universal2.whl", hash = "sha256:9305ac6f710c9416673ab58b06a2a097b653facb18b98e7539324540141d34b7", size = 7074297, upload-time = "2026-10-08T18:58:06.517Z" },
++    { url = "https://files.pythonhosted.org/packages/2e/e2/a50dabf87b39655cbaee618c1e601f30d3d9c959ee38c7629f2f4b516e53/intersystems_irispython-5.4.1-cp39.cp310.cp311.cp312.cp313.cp314-cp39.cp310.cp311.cp312.cp313.cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:d560b1e7d212f3cb3c3f927925a368b53a099de2444b955e703f003a670822a2", size = 15458426, upload-time = "2026-10-08T18:58:19.367Z" },
++    { url = "https://files.pythonhosted.org/packages/9c/53/e1271abcc2aa05d5792059b8355efcad29bf5180ec8c54daac85612ec11d/intersystems_irispython-5.4.1-cp39.cp310.cp311.cp312.cp313.cp314-cp39.cp310.cp311.cp312.cp313.cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:cec58a71c7ad84f399f56fcf2302fec6279c35335f878d092a8d059200404550", size = 15124488, upload-time = "2026-10-08T18:58:13.908Z" },
++    { url = "https://files.pythonhosted.org/packages/ac/15/6443e794c1383d7177ec8c41f2203e785c3b99be9562c27af93fc5e0942b/intersystems_irispython-5.4.1-cp39.cp310.cp311.cp312.cp313.cp314-cp39.cp310.cp311.cp312.cp313.cp314-win32.whl", hash = "sha256:2bcaa32a26d76647b49aaf423cd4152123e6a638b88592fde7df7678e5044ddb", size = 3051067, upload-time = "2026-10-08T18:58:03.501Z" },
++    { url = "https://files.pythonhosted.org/packages/1c/70/7179fecb933ed4fba22ee12c9f00bc3611cfd7cb430a0a535e450eda53fe/intersystems_irispython-5.4.1-cp39.cp310.cp311.cp312.cp313.cp314-cp39.cp310.cp311.cp312.cp313.cp314-win_amd64.whl", hash = "sha256:4911374ee8b8a2168ecd16545af4f64da788d3fe4cc2a9191a6c8cd210429a6b", size = 3700570, upload-time = "2026-10-08T18:58:08.926Z" },
++]
++
+ [[package]]
+ name = "invoke"
+ version = "3.0.3"
+@@ -8904,6 +8916,7 @@ all = [
+     { name = "ijson" },
+     { name = "importlib-metadata" },
+     { name = "impyla", extra = ["kerberos"] },
++    { name = "intersystems-irispython" },
+     { name = "iomete-sqlalchemy" },
+     { name = "jaraco-context" },
+     { name = "jaraco-functools" },
+@@ -8984,6 +8997,7 @@ all = [
+     { name = "sqlalchemy-exasol" },
+     { name = "sqlalchemy-hana", version = "4.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+     { name = "sqlalchemy-hana", version = "5.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
++    { name = "sqlalchemy-intersystems-iris" },
+     { name = "sqlalchemy-pgspider" },
+     { name = "sqlalchemy-pytds" },
+     { name = "sqlalchemy-redshift" },
+@@ -9071,6 +9085,7 @@ all-dev-env = [
+     { name = "ijson" },
+     { name = "importlib-metadata" },
+     { name = "impyla", extra = ["kerberos"] },
++    { name = "intersystems-irispython" },
+     { name = "iomete-sqlalchemy" },
+     { name = "jaraco-context" },
+     { name = "jaraco-functools" },
+@@ -9150,6 +9165,7 @@ all-dev-env = [
+     { name = "sqlalchemy-exasol" },
+     { name = "sqlalchemy-hana", version = "4.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+     { name = "sqlalchemy-hana", version = "5.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
++    { name = "sqlalchemy-intersystems-iris" },
+     { name = "sqlalchemy-pgspider" },
+     { name = "sqlalchemy-pytds" },
+     { name = "sqlalchemy-redshift" },
+@@ -9430,6 +9446,10 @@ iomete = [
+     { name = "adbc-driver-manager", version = "1.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+     { name = "iomete-sqlalchemy" },
+ ]
++iris = [
++    { name = "intersystems-irispython" },
++    { name = "sqlalchemy-intersystems-iris" },
++]
+ kafka = [
+     { name = "avro" },
+     { name = "confluent-kafka", extra = ["schemaregistry"] },
+@@ -9751,6 +9771,7 @@ slim = [
+     { name = "ijson" },
+     { name = "importlib-metadata" },
+     { name = "impyla", extra = ["kerberos"] },
++    { name = "intersystems-irispython" },
+     { name = "iomete-sqlalchemy" },
+     { name = "jaraco-context" },
+     { name = "jaraco-functools" },
+@@ -9829,6 +9850,7 @@ slim = [
+     { name = "sqlalchemy-exasol" },
+     { name = "sqlalchemy-hana", version = "4.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+     { name = "sqlalchemy-hana", version = "5.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
++    { name = "sqlalchemy-intersystems-iris" },
+     { name = "sqlalchemy-pgspider" },
+     { name = "sqlalchemy-pytds" },
+     { name = "sqlalchemy-redshift" },
+@@ -10560,6 +10582,10 @@ requires-dist = [
+     { name = "impyla", extras = ["kerberos"], marker = "extra == 'all-dev-env'", specifier = "~=0.24.0" },
+     { name = "impyla", extras = ["kerberos"], marker = "extra == 'impala'", specifier = "~=0.24.0" },
+     { name = "impyla", extras = ["kerberos"], marker = "extra == 'slim'", specifier = "~=0.24.0" },
++    { name = "intersystems-irispython", marker = "extra == 'all'", specifier = "==5.4.1" },
++    { name = "intersystems-irispython", marker = "extra == 'all-dev-env'", specifier = "==5.4.1" },
++    { name = "intersystems-irispython", marker = "extra == 'iris'", specifier = "==5.4.1" },
++    { name = "intersystems-irispython", marker = "extra == 'slim'", specifier = "==5.4.1" },
+     { name = "iomete-sqlalchemy", marker = "extra == 'all'", specifier = ">=1.0.22" },
+     { name = "iomete-sqlalchemy", marker = "extra == 'all-dev-env'", specifier = ">=1.0.22" },
+     { name = "iomete-sqlalchemy", marker = "extra == 'iomete'", specifier = ">=1.0.22" },
+@@ -11000,6 +11026,10 @@ requires-dist = [
+     { name = "sqlalchemy-hana", marker = "extra == 'all-dev-env'" },
+     { name = "sqlalchemy-hana", marker = "extra == 'sap-hana'" },
+     { name = "sqlalchemy-hana", marker = "extra == 'slim'" },
++    { name = "sqlalchemy-intersystems-iris", marker = "extra == 'all'", specifier = "==1.0.2" },
++    { name = "sqlalchemy-intersystems-iris", marker = "extra == 'all-dev-env'", specifier = "==1.0.2" },
++    { name = "sqlalchemy-intersystems-iris", marker = "extra == 'iris'", specifier = "==1.0.2" },
++    { name = "sqlalchemy-intersystems-iris", marker = "extra == 'slim'", specifier = "==1.0.2" },
+     { name = "sqlalchemy-pgspider", marker = "extra == 'all'" },
+     { name = "sqlalchemy-pgspider", marker = "extra == 'all-dev-env'" },
+     { name = "sqlalchemy-pgspider", marker = "extra == 'pgspider'" },
+@@ -11095,7 +11125,7 @@ requires-dist = [
+     { name = "werkzeug", marker = "extra == 'airflow'", specifier = ">=3.0.6" },
+     { name = "werkzeug", marker = "extra == 'playwright'", specifier = ">=3.0.6" },
+ ]
+-provides-extras = ["dev", "test", "test-unit", "e2e-test", "exasol-test", "data-insight", "airflow", "amundsen", "athena", "atlas", "azuresql", "azure-sso", "backup", "googledrive", "bigquery", "bigtable", "clickhouse", "clickzetta", "dagster", "dbt", "db2", "db2-ibmi", "databend", "databricks", "datalake-azure", "datalake-gcs", "datalake-s3", "s3", "gcs", "domo", "doris", "starrocks", "druid", "dynamodb", "elasticsearch", "opensearch", "exasol", "glue", "great-expectations", "greenplum", "cockroach", "hive", "iomete", "impala", "kafka", "kafkaconnect", "kinesis", "nats", "pubsub", "looker", "mlflow", "mongo", "cassandra", "couchbase", "mssql", "mssql-odbc", "mysql", "neo4j", "nifi", "openlineage", "oracle", "pgspider", "pinotdb", "postgres", "powerbi", "prefect", "qliksense", "presto", "pymssql", "questdb", "quicksight", "redash", "redpanda", "redshift", "sagemaker", "salesforce", "data360", "data360pipeline", "sample-data", "sap-hana", "sas", "sftp", "singlestore", "sklearn", "snowflake", "ssrs", "superset", "tableau", "tableaupipeline", "teradata", "trino", "vertica", "pandas", "pyarrow", "pii-processor", "presidio-analyzer", "all-dev-env", "all", "playwright", "slim", "docs"]
++provides-extras = ["dev", "test", "test-unit", "e2e-test", "exasol-test", "data-insight", "airflow", "amundsen", "athena", "atlas", "azuresql", "azure-sso", "backup", "googledrive", "bigquery", "bigtable", "clickhouse", "clickzetta", "dagster", "dbt", "db2", "db2-ibmi", "databend", "databricks", "datalake-azure", "datalake-gcs", "datalake-s3", "s3", "gcs", "domo", "doris", "starrocks", "druid", "dynamodb", "elasticsearch", "opensearch", "exasol", "glue", "great-expectations", "greenplum", "cockroach", "hive", "iomete", "impala", "iris", "kafka", "kafkaconnect", "kinesis", "nats", "pubsub", "looker", "mlflow", "mongo", "cassandra", "couchbase", "mssql", "mssql-odbc", "mysql", "neo4j", "nifi", "openlineage", "oracle", "pgspider", "pinotdb", "postgres", "powerbi", "prefect", "qliksense", "presto", "pymssql", "questdb", "quicksight", "redash", "redpanda", "redshift", "sagemaker", "salesforce", "data360", "data360pipeline", "sample-data", "sap-hana", "sas", "sftp", "singlestore", "sklearn", "snowflake", "ssrs", "superset", "tableau", "tableaupipeline", "teradata", "trino", "vertica", "pandas", "pyarrow", "pii-processor", "presidio-analyzer", "all-dev-env", "all", "playwright", "slim", "docs"]
+ 
+ [package.metadata.requires-dev]
+ bootstrap = [
+@@ -15795,6 +15825,18 @@ wheels = [
+     { url = "https://files.pythonhosted.org/packages/a3/ba/7729256041185552c25e8ef4f93a2cef9c81e6dc4050d04f8e5df01e3063/sqlalchemy_ibmi-0.9.3-py3-none-any.whl", hash = "sha256:28ef283d391133b8164fca86ecff95d40ee3b060357dc193c66f9481c990b48c", size = 24657, upload-time = "2023-12-14T19:15:37.37Z" },
+ ]
+ 
++[[package]]
++name = "sqlalchemy-intersystems-iris"
++version = "1.0.2"
++source = { registry = "https://pypi.org/simple" }
++dependencies = [
++    { name = "intersystems-irispython" },
++    { name = "sqlalchemy" },
++]
++wheels = [
++    { url = "https://files.pythonhosted.org/packages/d4/3a/6e63b4d4b224cc6120d2c171f598e2322a998118c04ffefce892fdb03026/sqlalchemy_intersystems_iris-1.0.2-py3-none-any.whl", hash = "sha256:70b8f58e91a3cf69ea8d17ddc649b57adf5d494c913585cb4990af87bbdf6985", size = 33106, upload-time = "2026-07-27T15:31:41.056Z" },
++]
++
+ [[package]]
+ name = "sqlalchemy-pgspider"
+ version = "0.1.0"

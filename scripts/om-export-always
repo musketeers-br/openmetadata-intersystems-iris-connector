@@ -1,0 +1,3 @@
+# Paths copied verbatim from .om/ into overlay/ on every export (one per line).
+# Collate Community License 1.0 text for everything under overlay/ingestion/ (constitution: Licensing).
+ingestion/LICENSE

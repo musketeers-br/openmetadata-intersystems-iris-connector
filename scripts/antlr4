@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# ANTLR 4.9.2 run in a Java 21 container, so no local JDK is needed (constitution: Technical Constraints).
+# The jar is downloaded once into .cache/ and verified against a pinned SHA-256.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+JAR="$ROOT/.cache/antlr-4.9.2-complete.jar"
+SHA256="bb117b1476691dc2915a318efd36f8957c0ad93447fb1dac01107eb15fe137cd"
+URL="https://www.antlr.org/download/antlr-4.9.2-complete.jar"
+
+if [ ! -f "$JAR" ]; then
+  mkdir -p "$ROOT/.cache"
+  curl -fsSL "$URL" -o "$JAR.part"
+  if ! echo "$SHA256  $JAR.part" | shasum -a 256 -c - >/dev/null; then
+    echo "ANTLR jar checksum mismatch ($JAR.part); remove that file and retry" >&2
+    exit 1
+  fi
+  mv "$JAR.part" "$JAR"
+fi
+# Run as the host user: files owned by root break the second generate pass on Linux.
+exec docker run --rm -u "$(id -u):$(id -g)" -v "$ROOT:$ROOT" -v "$PWD:$PWD" -w "$PWD" eclipse-temurin:21-jre java -jar "$JAR" "$@"

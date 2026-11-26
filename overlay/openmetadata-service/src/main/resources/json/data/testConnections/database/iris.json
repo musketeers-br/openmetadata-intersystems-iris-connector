@@ -1,0 +1,38 @@
+{
+  "name": "Iris",
+  "displayName": "InterSystems IRIS Test Connection",
+  "description": "This Test Connection validates the access against the IRIS Namespace and basic metadata extraction of schemas and tables.",
+  "steps": [
+    {
+      "name": "CheckAccess",
+      "description": "Validate that we can properly reach the IRIS Namespace and authenticate with the given credentials.",
+      "errorMessage": "Failed to connect to IRIS. Check host, superserver port, Namespace, username and password.",
+      "shortCircuit": true,
+      "mandatory": true
+    },
+    {
+      "name": "GetSchemas",
+      "description": "List all the schemas available to the user.",
+      "errorMessage": "Failed to fetch schemas. Grant SELECT on at least one schema to the user.",
+      "mandatory": true
+    },
+    {
+      "name": "GetTables",
+      "description": "From a given schema, list the tables belonging to it.",
+      "errorMessage": "Failed to fetch tables. Grant SELECT on the tables to ingest.",
+      "mandatory": true
+    },
+    {
+      "name": "GetViews",
+      "description": "From a given schema, list the views belonging to it.",
+      "errorMessage": "Failed to fetch views.",
+      "mandatory": false
+    },
+    {
+      "name": "GetClassDictionary",
+      "description": "Optional: read the class dictionary for calculated columns, index details and VECTOR element type and dimension.",
+      "errorMessage": "Optional: GRANT SELECT ON %Dictionary.PropertyDefinition TO <user> for full reflection and VECTOR detail. Ingestion works without it.",
+      "mandatory": false
+    }
+  ]
+}

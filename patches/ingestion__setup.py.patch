@@ -1,0 +1,15 @@
+diff --git a/ingestion/setup.py b/ingestion/setup.py
+index 2ab5cd54..4d1f353d 100644
+--- a/ingestion/setup.py
++++ b/ingestion/setup.py
+@@ -397,6 +397,10 @@ plugins: dict[str, set[str]] = {
+         "pure-sasl",
+         "thrift-sasl~=0.4",
+     },
++    "iris": {
++        "intersystems-irispython==5.4.1",
++        "sqlalchemy-intersystems-iris==1.0.2",
++    },
+     "kafka": {*COMMONS["kafka"]},
+     "kafkaconnect": {VERSIONS["kafka-connect"]},
+     "kinesis": {VERSIONS["boto3"]},

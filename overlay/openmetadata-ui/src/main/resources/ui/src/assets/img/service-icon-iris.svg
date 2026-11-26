@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="InterSystems IRIS">
+  <!-- Original placeholder drawn for this connector (Apache-2.0, same as the repository root).
+       It is not the InterSystems logo; replace it only with an asset whose licence permits redistribution. -->
+  <circle cx="16" cy="16" r="14" fill="#1b4f72"/>
+  <circle cx="16" cy="16" r="9" fill="#2e86c1"/>
+  <circle cx="16" cy="16" r="4" fill="#fdfefe"/>
+</svg>
