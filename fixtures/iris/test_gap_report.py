@@ -81,8 +81,8 @@ def problems(entries):
         if "```" not in reproduction and not re.search(r"pending SPIKE-\d{2}", reproduction):
             found.append(f"{gap}: Reproduction needs a fenced code block or 'pending SPIKE-NN'")
         upstream = fields["Upstream"].strip()
-        if not (upstream.startswith("not raised yet") or "https://" in upstream):
-            found.append(f"{gap}: Upstream must be an issue link or 'not raised yet'")
+        if not (upstream.startswith(("not raised yet", "not applicable")) or "https://" in upstream):
+            found.append(f"{gap}: Upstream must be an issue link, 'not raised yet' or 'not applicable'")
     return found
 
 
@@ -135,6 +135,12 @@ def test_the_check_can_fail(change, message):
     assert problems(parse(GOOD)) == []
     found = problems(parse(GOOD.replace(*change)))
     assert any(message in problem for problem in found), found
+
+
+def test_not_applicable_is_a_valid_upstream():
+    # For a limitation the connector handles itself, with nothing to report upstream (agreed 2026-11-26).
+    text = GOOD.replace("not raised yet.", "not applicable: the connector handles it.")
+    assert problems(parse(text)) == []
 
 
 def test_pending_spike_is_a_valid_reproduction():

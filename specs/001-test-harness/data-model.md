@@ -122,7 +122,7 @@ GAP-005): heading `### GAP-NNN — <title>` and the bold labels below, in this o
 | `expected` / `actual` | `Expected` / `Actual` | one line each |
 | `connector_behavior` | `Connector behavior` | what the connector does instead, with ADR reference |
 | `workaround` | `User workaround` | grant, option, or "none" |
-| `upstream` | `Upstream` | link to an issue, or "not raised yet". An upstream issue (OpenMetadata, InterSystems) is opened only after both developers agree |
+| `upstream` | `Upstream` | link to an issue, "not raised yet", or "not applicable" when the connector handles the limitation itself and there is nothing to report upstream. An upstream issue (OpenMetadata, InterSystems) is opened only after both developers agree |
 
 ### Known entries
 

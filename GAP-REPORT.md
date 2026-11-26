@@ -14,6 +14,9 @@ one names its login: `omd_reader` has `SELECT` only, `omd_reader_dict` adds the 
 `latest-preview` were the same image, 2026.3 (Build 212U). The matrix in spec 001 reruns the fixture
 checks on every pull request; the reproductions are rerun by hand when a tag moves.
 
+`Upstream` is an issue link, "not raised yet", or "not applicable" for a limitation the connector
+handles itself with nothing to report. An issue is opened only after both developers agree.
+
 ### GAP-001 — VECTOR columns reported as `varchar` in `INFORMATION_SCHEMA.COLUMNS`
 
 - **Component:** IRIS SQL catalog
