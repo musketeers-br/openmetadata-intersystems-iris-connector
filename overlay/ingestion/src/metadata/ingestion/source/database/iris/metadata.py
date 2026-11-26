@@ -17,11 +17,12 @@ from contextlib import contextmanager
 from typing import cast
 
 from sqlalchemy import text
+from sqlalchemy import types as sqltypes
 from sqlalchemy.exc import SQLAlchemyError
 
 from metadata.generated.schema.entity.data.database import Database
 from metadata.generated.schema.entity.data.databaseSchema import DatabaseSchema
-from metadata.generated.schema.entity.data.table import Table, TableType
+from metadata.generated.schema.entity.data.table import Column, Table, TableType
 from metadata.generated.schema.entity.services.connections.database.irisConnection import (
     IrisConnection,
 )
@@ -38,12 +39,18 @@ from metadata.ingestion.source.database.iris.queries import (
     IRIS_COLUMN_TYPES,
     IRIS_READ_PROBE,
     IRIS_UNIQUE_CONSTRAINTS,
+    IRIS_VECTOR_COLUMNS,
 )
 from metadata.ingestion.source.database.iris.types import (
     ColumnFacts,
     UnknownTypes,
+    parse_vector_parameters,
     resolve,
+    resolve_vector,
     unknown_type_message,
+    vector_element_message,
+    vector_grant_message,
+    vector_params_message,
 )
 from metadata.utils import fqn as fqn_utils
 
@@ -146,6 +153,7 @@ class IrisSource(CommonDbSourceService):
         with self.report_access_gap(self._table_fqn(schema_name, table_name), "columns", schema_name, table_name):
             columns = inspector.get_columns(table_name, schema_name, table_type=table_type, db_name=db_name)
         self.map_column_types(schema_name, table_name, columns)
+        self.enrich_vector_columns(schema_name, table_name, columns)
         return columns
 
     # --- 003: type map ---
@@ -184,6 +192,65 @@ class IrisSource(CommonDbSourceService):
         )
 
     # --- 004: dictionary / VECTOR enrichment ---
+
+    def enrich_vector_columns(self, schema_name: str, table_name: str, columns: list[dict]) -> None:
+        """
+        ADR-0007: the SQL catalog reports VECTOR as varchar, so spec 003 catalogs it as VARCHAR. Replace `type` and
+        `system_data_type` of the columns the class dictionary names as %Library.Vector with ARRAY of the element type
+        and VECTOR(<TYPE>, <dim>). Only varchar columns can be VECTOR; a table without one reads nothing.
+        """
+        candidates = [column for column in columns if isinstance(column.get("type"), sqltypes.VARCHAR)]
+        if not candidates:
+            return
+        vectors = self._vector_columns()
+        warned = self.__dict__.setdefault("_vector_params_reported", set())
+        for column in candidates:
+            parameters = vectors.get((schema_name, table_name, column["name"]))
+            if parameters is None:
+                continue
+            column_fqn = fqn_utils.build(
+                metadata=self.metadata,
+                entity_type=Column,
+                service_name=self.context.get().database_service,
+                database_name=self.context.get().database,
+                schema_name=schema_name,
+                table_name=table_name,
+                column_name=column["name"],
+            )
+            facts = parse_vector_parameters(parameters)
+            if facts is None:
+                if column_fqn not in warned:
+                    warned.add(column_fqn)
+                    self.status.warning(column_fqn, vector_params_message(parameters))
+                continue
+            resolved = resolve_vector(facts)
+            column["type"] = resolved.sqlalchemy_type
+            column["system_data_type"] = resolved.display
+            if not resolved.known and column_fqn not in warned:
+                warned.add(column_fqn)
+                self.status.warning(column_fqn, vector_element_message(facts.element))
+
+    def _vector_columns(self) -> dict[tuple[str, str, str], str]:
+        """
+        The run's VECTOR columns, {(schema, table, column): parameters}, read once. Without dictionary access (the
+        ADR-0015 preset) no query runs; then, or when the query fails, the run gets one IRIS-VECTOR-GRANT hint and an
+        empty result.
+        """
+        if "_vector_cache" in self.__dict__:
+            return self._vector_cache
+        self._vector_cache: dict[tuple[str, str, str], str] = {}
+        username = self.service_connection.username
+        if getattr(self.connection.dialect, "_dictionary_access", None) is False:
+            self.status.warning(self._database_fqn(), vector_grant_message(username))
+            return self._vector_cache
+        try:
+            rows = self.connection.execute(text(IRIS_VECTOR_COLUMNS))
+            self._vector_cache = {(schema, table, field or name): params for schema, table, field, name, params in rows}
+        except SQLAlchemyError as exc:
+            reason = str(getattr(exc, "orig", None) or exc).strip()
+            first_line = reason.splitlines()[0] if reason else type(exc).__name__
+            self.status.warning(self._database_fqn(), vector_grant_message(username, first_line))
+        return self._vector_cache
 
     # --- 005: access gaps ---
 

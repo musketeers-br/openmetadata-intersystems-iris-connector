@@ -169,7 +169,8 @@ class TestAccessGaps:
             ("AI", "Embedding"),
         ):
             _table(source, schema, table)
-        assert source.status.warnings == []
+        # Spec 004 adds one IRIS-VECTOR-GRANT hint for a login without the dictionary grant; it is not an access gap.
+        assert [w for w in source.status.warnings if "IRIS-ACCESS" in str(w)] == []
 
     def test_a_real_privilege_error_is_reported_not_raised(self, source, iris_cell):
         if iris_cell.has_dict_grant:

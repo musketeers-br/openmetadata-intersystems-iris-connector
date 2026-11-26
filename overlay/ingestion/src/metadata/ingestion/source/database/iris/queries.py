@@ -43,6 +43,16 @@ IRIS_COLUMN_TYPES = (
 
 # --- 004: dictionary / VECTOR enrichment ---
 
+# Every VECTOR column of the Namespace in one read (spec 004, research R2), run at most once per run and only when the
+# login can read the dictionary. The SQL catalog reports VECTOR as varchar; the class dictionary keeps the element type
+# and dimension in Parameters ("DATATYPE,DOUBLE,LEN,3"). TABLES.CLASSNAME maps a class to its exact (schema, table),
+# and the column is SqlFieldName when the DDL name is not a valid property name (else Name).
+IRIS_VECTOR_COLUMNS = (
+    "SELECT t.TABLE_SCHEMA, t.TABLE_NAME, p.SqlFieldName, p.Name, p.Parameters "
+    "FROM %Dictionary.PropertyDefinition p JOIN INFORMATION_SCHEMA.TABLES t ON t.CLASSNAME = p.parent "
+    "WHERE p.Type = '%Library.Vector'"
+)
+
 # --- 005: access gaps ---
 
 # Readability check (spec 005, research R2): every catalog read succeeds on a table the login holds only REFERENCES or
