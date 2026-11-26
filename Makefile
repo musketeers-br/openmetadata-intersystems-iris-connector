@@ -24,7 +24,7 @@ PORT ?= 11972
 FIXTURES_PYTHON ?= $(if $(wildcard .om/env/bin/python),.om/env/bin/python,python3)
 .PHONY: om-test-deps iris-up iris-seed iris-down test-cell
 
-# make om-import resets .om/env to the dev profile, so run this after every om-import.
+# make om-import already ends with this; run it by hand only after syncing .om/env some other way.
 om-test-deps:
 	@scripts/om-test-deps.sh
 

@@ -60,4 +60,6 @@ UV_PIN="$(sed -n 's/^required-version *= *"==\([^"]*\)" *$/\1/p' "$OM/ingestion/
 if [ "${OM_SKIP_UI_CODEGEN:-0}" != "1" ]; then
   "$ROOT/scripts/om-ui-codegen.sh"
 fi
+# The dev profile synced above has neither the iris extra nor testcontainers; the IRIS tests need both.
+"$ROOT/scripts/om-test-deps.sh"
 echo "om-import: $OM ready at $VERSION"

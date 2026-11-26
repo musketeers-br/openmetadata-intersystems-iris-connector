@@ -45,7 +45,7 @@ must be able to fail ("a test that cannot fail is a finding", OpenMetadata `REVI
 
 **Purpose**: the `.om/` tree, line endings and pinned plain-venv dependencies.
 
-- [X] T001 Build `.om/` once with `OM_SKIP_UI_CODEGEN=1 make om-import`, and confirm that `.om/env/bin/python -m pytest .om/ingestion/tests/unit/topology/database/test_iris.py` passes. On Linux, until spec 000 fixes research R16, `om-import` fails even on its first run; apply spec 000's one-line `-u "$(id -u):$(id -g)"` fix to `scripts/antlr4` locally, hand any root-owned files back first (`docker run --rm -v "$PWD/.om:/om" alpine chown -R "$(id -u):$(id -g)" /om`), and never commit that file from this branch
+- [X] T001 Build `.om/` once with `OM_SKIP_UI_CODEGEN=1 make om-import`, and confirm that `.om/env/bin/python -m pytest .om/ingestion/tests/unit/topology/database/test_iris.py` passes. On Linux, until spec 000 fixes research R16, `om-import` fails even on its first run; apply spec 000's one-line `-u "$(id -u):$(id -g)"` fix to `scripts/antlr4` locally, hand any root-owned files back first (`docker run --rm -v "$PWD/.om:/om" alpine chown -R "$(id -u):$(id -g)" /om`), and never commit that file from this branch. Spec 000 has since fixed it (`02a194f`); the local patch is gone
 - [X] T002 [P] Add `.gitattributes` at the repository root with `* text=auto eol=lf` and explicit `*.sh text eol=lf`, `*.py text eol=lf`, `*.yml text eol=lf` (research R14). Then run `git add --renormalize . && git status`, which must show no unexpected changes (agreed with Henry, 2026-11-25)
 - [X] T003 [P] Create `fixtures/iris/requirements.txt` pinning `intersystems-irispython==5.4.1` and `pytest==9.0.3`. This is the only place these pins live for the plain venv (contracts/ci-matrix.md step 2, quickstart prerequisites)
 - [X] T004 [P] Create `.om/ingestion/tests/integration/iris/data/__init__.py` holding only the license header (`overlay/…/iris/__init__.py` already exists from spec 000)
@@ -202,7 +202,7 @@ alone.
   - step 12, `if: failure()`: `docker logs --tail 200 iris`.
 
   Then lint the workflow with `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7`, which must report nothing
-- [ ] T026 [US2] **Prerequisite**: spec 000's `scripts/antlr4` runs its container as the calling user (research R16, PR #11 review). Without it `overlay-roundtrip` fails on the runner and every cell is skipped; do not fix it from this branch. Then push `001-test-harness` and open it as a **draft** pull request to `000-connector-foundation` (to `main` once 000 has merged). Confirm with the user first: it is outward-facing, and a run costs at least 14 billed minutes while the repository is private. Confirm Q7: `overlay-roundtrip` plus 9 checks with the exact names, and every summary shows digest + `$ZVERSION`. Record wall time, cold `om-import` time per job and billed minutes (sum of per-job minutes rounded up) in `specs/001-test-harness/research.md` "Implementation measurements". If the run misses SC-004 (15 min), apply research R7's first optimization (cache `.om/`)
+- [ ] T026 [US2] **Prerequisite** (met by spec 000's `02a194f`): spec 000's `scripts/antlr4` runs its container as the calling user (research R16, PR #11 review). Without it `overlay-roundtrip` fails on the runner and every cell is skipped. Then push `001-test-harness` and open it as a **draft** pull request to `000-connector-foundation` (to `main` once 000 has merged). Confirm with the user first: it is outward-facing, and a run costs at least 14 billed minutes while the repository is private. Confirm Q7: `overlay-roundtrip` plus 9 checks with the exact names, and every summary shows digest + `$ZVERSION`. Record wall time, cold `om-import` time per job and billed minutes (sum of per-job minutes rounded up) in `specs/001-test-harness/research.md` "Implementation measurements". If the run misses SC-004 (15 min), apply research R7's first optimization (cache `.om/`)
 - [ ] T027 [US2] Same prerequisite as T026. Prove the failure paths on a throwaway branch `ci/001-break-cells` opened as a draft pull request (confirm with the user first), in one run:
   - in `iris-latest-em-reader` only, a step that exits 1;
   - in `iris-latest-cd-admin` only, `pip install sqlalchemy-iris` before the guard;
@@ -303,7 +303,7 @@ reproduction runs against a Q1 container.
   - any `CREATE TABLE` or `DROP TABLE` on `Scratch.Keep` (the loader owns it).
 
   Include self-tests on temporary files: `text("CREATE TABLE Clinic.X …")` and `text("DROP TABLE Scratch.Keep")` fail; `assert "GRANT SELECT ON X" in msg` passes. So the rule can be shown to fail, and to ignore assertion text
-- [ ] T039 [P] Replace the integration-test paragraph of `README.md` with a `## Running tests` section (FR-024): plain venv from `fixtures/iris/requirements.txt`; `fixtures/iris/start-iris.sh TAG 11972 NAME`; `IRIS_PORT=11972 python fixtures/iris/seed.py` and its exit codes; `pytest fixtures`; the guard; `make om-test-deps`; `make test-cell TAG=… LOGIN=…`; `make iris-down`; automatic single-instance mode (no `IRIS_HOST`); `.om/env/bin/python` as the connector's interpreter. The README stub is Henry's until spec 009; the change is agreed (2026-11-25)
+- [ ] T039 [P] Replace the integration-test paragraph of `README.md` with a `## Running tests` section (FR-024): plain venv from `fixtures/iris/requirements.txt`; `fixtures/iris/start-iris.sh TAG 11972 NAME`; `IRIS_PORT=11972 python fixtures/iris/seed.py` and its exit codes; `pytest fixtures`; the guard; `make om-import` installing the test dependencies (`make om-test-deps` by hand only after another sync); `make test-cell TAG=… LOGIN=…`; `make iris-down`; automatic single-instance mode (no `IRIS_HOST`); `.om/env/bin/python` as the connector's interpreter. The README stub is Henry's until spec 009; the change is agreed (2026-11-25)
 - [ ] T040 [P] Update `docs/adr/0012-shared-fixtures-and-matrix.md` (FR-026): entry point `fixtures/iris/seed.py` with source `overlay/ingestion/tests/integration/iris/data/seed.py`; `Scratch` with the sentinel `Scratch.Keep` (GAP-009, research R10); CI on pull requests, pushes to `main` and by hand, plus the `overlay-roundtrip` check; a dated "Revised" note in the status line
 - [ ] T041 Run quickstart Q1–Q9 end to end on the final branch. Tick SC-001..SC-008 in `specs/001-test-harness/checklists/requirements.md`, or list what remains open, and confirm Henry has reviewed SPIKE-06 before the merge (plan, Complexity Tracking)
 
@@ -357,7 +357,7 @@ fixture-dependent work in other specs locally.
 1. **MVP**: Setup + Foundational + US1. Commit; no push needed.
 2. **Harness**: US3. Integration tests run locally against any cell, and spec 000's test uses the fixtures.
 3. **CI**: US2. First draft pull request, and the round-trip check plus 9 cells are visible.
-4. **Gap report and polish**: US4, T038–T041. Opened for review after Henry's SPIKE-06 review and after 000 merges.
+4. **Gap report and polish**: US4, T038–T041. Opened for review after Henry's SPIKE-06 review and after 000 merges. Merge order 000 → 001 → 002 (agreed 2026-11-25): spec 002 rebases on 001, and its GAP-010..013 follow 001's GAP-001..009.
 
 ### Cost note
 

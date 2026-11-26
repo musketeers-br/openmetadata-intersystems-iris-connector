@@ -43,9 +43,9 @@ Makefile targets.
   It starts in seconds and does not need `.om/`;
 - the `.om/env` environment that `make om-import` builds, for connector unit and integration tests.
   `make om-import` installs the `dev` profile, which has neither the `iris` extra nor
-  `testcontainers` (checked 2026-11-25), so 001 adds a `make om-test-deps` target that installs both
-  into `.om/env` (research R7). If spec 000 changes `om-import` to install them, the target becomes a
-  no-op.
+  `testcontainers` (checked 2026-11-25), so 001 adds `scripts/om-test-deps.sh` (target
+  `make om-test-deps`), which installs both into `.om/env`, and `om-import.sh` calls it as its last
+  step (research R7; agreed with Henry).
 
 **Target Platform**: GitHub-hosted `ubuntu-latest` runners; developer machines on Linux or WSL2 with
 Docker.
@@ -171,20 +171,19 @@ Each step ends with its tests passing locally; steps 1–3 need only Docker and 
 ## Dependencies on spec 000
 
 - 001 merges after 000. Until then, the 001 branch is rebased on `000-connector-foundation`.
-- Review findings on 000 that 001 depends on (reported in the PR #11 review, not fixed in 001):
+- Review findings on 000 that 001 depends on (reported in the PR #11 review, fixed by spec 000 in
+  `02a194f`):
   - container steps write root-owned files into `.om/` on Linux, which breaks `om-import` already on
     a fresh clone (`scripts/antlr4`) and leaves `node_modules` owned by root (`om-ui-codegen.sh`);
   - `om-ui-codegen.sh` fails on a fresh clone, because `yarn install` runs the UI's `postinstall`
     (`js-antlr`) and there is no `antlr4` in the Node container.
 
-  Cells run with `OM_SKIP_UI_CODEGEN=1` (generated UI files are never exported). Consequence: until
-  spec 000 runs its ANTLR container as the calling user, `make om-import` fails on GitHub's Linux
-  runners, so `overlay-roundtrip` fails and the 9 cells, which need it, are skipped. The first CI run
-  (T026) waits for that fix.
-- Spec 002 (PR #12, stacked on 000) uses the fixtures and the `Scratch` schema: `Scratch.Keep` is in
-  catalog v1 for its mark-deleted test (R10). Its `GAP-REPORT.md` entries currently reuse the ids
-  GAP-006..009, which ADR-0006, ADR-0015 and this spec already give to other entries; the numbering
-  is agreed with spec 002's owner before either spec merges.
+  Cells run with `OM_SKIP_UI_CODEGEN=1` (generated UI files are never exported). Before the fix,
+  `make om-import` failed on GitHub's Linux runners, so the first CI run (T026) waited for it.
+- Merge order (agreed with Henry, 2026-11-25): 000 → 001 → 002. Spec 002 (PR #12) then rebases on
+  001 and uses the conftest. It uses the fixtures and the `Scratch` schema: `Scratch.Keep` is in
+  catalog v1 for its mark-deleted test (R10). Its `GAP-REPORT.md` entries are GAP-010..013, after
+  001's GAP-001..009.
 
 ## Complexity Tracking
 

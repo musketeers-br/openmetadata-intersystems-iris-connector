@@ -25,8 +25,8 @@ Implements FR-008..FR-015. File: `.github/workflows/iris-matrix.yml`.
 1. checkout, setup-uv, cache (above).
 2. `make om-import`.
 3. `make om-check` (a second `om-import`, then `om-export` and the diff; fails on any change to
-   `overlay/` or `patches/`). Until spec 000's ANTLR container runs as the calling user (research
-   R16), `make om-import` fails on GitHub's runners, here and in every cell.
+   `overlay/` or `patches/`). Needs spec 000's ANTLR container to run as the calling user (research
+   R16, fixed in `02a194f`).
 
 ## Cell steps
 
@@ -38,7 +38,7 @@ Implements FR-008..FR-015. File: `.github/workflows/iris-matrix.yml`.
 | 4 | `python fixtures/iris/seed.py` (loads and self-checks; runs the `overlay/` copy, `.om/` does not exist yet) |
 | 5 | `python fixtures/iris/check_dialect.py` (plain venv) |
 | 6 | `pytest fixtures -q -rs` (fixture tests, gap-report format, repo rules, the cell's login) |
-| 7 | `make om-import && make om-test-deps` |
+| 7 | `make om-import` (ends with `scripts/om-test-deps.sh`: `iris` extra and `testcontainers`) |
 | 8 | `.om/env/bin/python fixtures/iris/check_dialect.py` |
 | 9 | unit, from `.om/ingestion`: `../env/bin/python -m pytest tests/unit/topology/database/test_iris.py -rs` |
 | 10 | integration, from `.om/ingestion`: `../env/bin/python -m pytest tests/integration/iris -m iris -rs` |
