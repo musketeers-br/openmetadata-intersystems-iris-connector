@@ -16,4 +16,5 @@ if [ ! -f "$JAR" ]; then
   fi
   mv "$JAR.part" "$JAR"
 fi
-exec docker run --rm -v "$ROOT:$ROOT" -v "$PWD:$PWD" -w "$PWD" eclipse-temurin:21-jre java -jar "$JAR" "$@"
+# Run as the host user: files owned by root break the second generate pass on Linux.
+exec docker run --rm -u "$(id -u):$(id -g)" -v "$ROOT:$ROOT" -v "$PWD:$PWD" -w "$PWD" eclipse-temurin:21-jre java -jar "$JAR" "$@"

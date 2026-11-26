@@ -71,9 +71,10 @@ def get_connection_url(connection: IrisConnectionConfig) -> str:
         password = get_password_secret(connection).get_secret_value()
         url += f"{quote_plus(connection.username)}:{quote_plus(password)}@"
     url += f"{connection.hostPort}/{connection.namespace}"
-    options = get_connection_options_dict(connection)
-    if options:
-        url += "?" + "&".join(f"{key}={quote_plus(value)}" for key, value in options.items() if value)
+    options = get_connection_options_dict(connection) or {}
+    query = "&".join(f"{key}={quote_plus(value)}" for key, value in options.items() if value)
+    if query:
+        url += "?" + query
     return url
 
 

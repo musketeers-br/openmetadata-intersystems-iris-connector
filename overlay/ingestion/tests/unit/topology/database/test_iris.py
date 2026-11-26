@@ -128,6 +128,10 @@ class TestUrl:
         url = make_url(get_connection_url(_config(authType=BasicAuth(password="p@ss/w:rd?"))))
         assert url.password == "p@ss/w:rd?"
 
+    def test_no_trailing_question_mark_when_all_options_are_empty(self):
+        assert not get_connection_url(_config(connectionOptions={"timeout": ""})).endswith("?")
+        assert get_connection_url(_config(connectionOptions={"timeout": "5"})).endswith("?timeout=5")
+
     def test_password_is_masked_in_the_model(self):
         config = _config()
         assert PASSWORD not in repr(config)

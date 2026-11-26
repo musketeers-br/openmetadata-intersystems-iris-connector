@@ -12,12 +12,14 @@ fail() { echo "om-ui-codegen: $*" >&2; exit 1; }
 [ -d .om/.git ] || fail ".om not found; run 'make om-import' first"
 docker info >/dev/null 2>&1 || fail "docker is not running"
 
-docker run --rm -v "$ROOT/.om:/om" -w /om "$NODE_IMAGE" bash -c '
+docker run --rm -e HOST_IDS="$(id -u):$(id -g)" -v "$ROOT/.om:/om" -w /om "$NODE_IMAGE" bash -c '
   set -euo pipefail
   apt-get -qq update && apt-get -qq install -y --no-install-recommends jq >/dev/null
   UI=openmetadata-ui/src/main/resources/ui
-  if [ ! -d "$UI/node_modules" ]; then (cd "$UI" && yarn install --frozen-lockfile --silent); fi
+  if [ ! -d "$UI/node_modules" ]; then (cd "$UI" && yarn install --frozen-lockfile --silent --ignore-scripts); fi
   (cd "$UI" && node parseSchemas)
   PATH="/om/$UI/node_modules/.bin:$PATH" ./$UI/json2ts-generate-all.sh -l true
+  # apt needs root inside the container; hand the files back to the host user (Linux)
+  chown -R "$HOST_IDS" "$UI"
 '
 echo "om-ui-codegen: done; review 'git -C .om status' and run 'make om-export'"
