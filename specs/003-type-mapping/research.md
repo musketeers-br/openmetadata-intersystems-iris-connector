@@ -170,9 +170,16 @@ No `NEEDS CLARIFICATION` remained in the Technical Context.
 - Integration tests on every local cell (3 tracks × 3 logins): `test_types.py` 5 passed, with specs
   001 and 002 (Part A) 27 passed for `admin` and `reader_dict`, 28 for `reader` (Part B and
   `test_workflow.py` skip without an OpenMetadata server).
-- `pytest fixtures`: 54 tests, 52 passed. The two failures come from spec 002's content on this base,
-  not from 003: GAP-010..013 are not in the format `test_gap_report.py` checks, and
-  `test_metadata_core.py` creates and drops `Scratch.Keep`. Spec 002 fixes both when it rebases on 001.
+- `pytest fixtures`: 54 tests, 52 passed. The two failures came from spec 002's content on a local
+  copy of it, not from 003; spec 002 fixed both when it rebased on 001.
+- Rebased on spec 002 as pushed (`489fd3b`, 002 rebased on 001), 2026-11-26. One conflict, in
+  `_get_columns_internal`: spec 002 now reads column descriptions through reflection, so the method
+  keeps 002's single `get_columns` call and 003 adds only `self.map_column_types(...)` before the
+  return. Every local cell: unit and integration 125 passed for `admin` and `reader_dict`, 126 for
+  `reader` (the rest skip without an OpenMetadata server); `pytest fixtures` 53 of 54. The failure is
+  `test_gap_report.py` rejecting `Upstream: not applicable` on GAP-011 and GAP-012, which spec 001
+  accepts from its next push (agreed 2026-11-26); with that change applied, the check passes.
+  `make om-check`: no diff.
 - `make om-check` twice: no diff.
 - Spec 002's unit-test stubs answer every query with their description rows, so the new type query
   in `_get_columns_internal` reads those rows too; the tests still pass. A stub that answers per
