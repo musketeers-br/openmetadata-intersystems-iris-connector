@@ -9,7 +9,7 @@ description: "Task list for metadata core ingestion"
 
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/access-gap-helper.md, contracts/catalog-facts.md, quickstart.md
 
-**Tests**: REQUIRED (Constitution VI). Integration tests assert the "Expected OpenMetadata entities" table of the shared fixtures contract (`../is-omd/docs/contracts/fixtures.md`) using `iris_cell` / `iris_service_connection`, run in-process with a test sink or against a local OpenMetadata, as spec 000 established.
+**Tests**: REQUIRED (Constitution VI). Integration tests assert the "Expected OpenMetadata entities" table of the shared fixtures (spec 001) using `iris_cell` / `iris_service_connection`, run in-process with a test sink or against a local OpenMetadata, as spec 000 established.
 
 **Organization**: grouped by user story, in the requested order: research → access-gap helper (own PR) → catalog hooks → keys → descriptions → view definitions → view lineage → filters → mark deleted / override tests → regression tests. Work happens inside `.om/` (`make om-import`); only `overlay/` and `patches/` are committed after `make om-export`, and only when the developer asks.
 
@@ -32,7 +32,7 @@ Cells: "all" = every matrix cell (track × login `admin`/`reader`); "admin" = ad
 
 **Gate**: steps marked ⛔ in later phases MUST NOT start until T002 confirms research.md.
 
-- [X] T001 Read `../is-omd/spikes/findings/SPIKE-02.md` and record in `specs/002-metadata-core/research.md` the confirmed source per fact (inspector method or `INFORMATION_SCHEMA` view, and why) in the fact-by-fact table. If the file still does not exist, say so in research.md and continue with T002
+- [X] T001 Look for an earlier spike result on inspector vs `INFORMATION_SCHEMA` and record in `specs/002-metadata-core/research.md` the confirmed source per fact (inspector method or `INFORMATION_SCHEMA` view, and why) in the fact-by-fact table. If there is none, say so in research.md and continue with T002
 - [X] T002 For every fact still unconfirmed, compare the dialect inspector (`get_schema_names`, `get_table_names`, `get_view_names`, `get_columns`, `get_pk_constraint`, `get_foreign_keys`, `get_unique_constraints`, `get_view_definition`, `get_table_comment`) with `INFORMATION_SCHEMA` (`TABLES`, `COLUMNS`, `TABLE_CONSTRAINTS`, `KEY_COLUMN_USAGE`, `REFERENTIAL_CONSTRAINTS`, `VIEWS`) on the fixture objects, on `latest-em`, `latest-cd`, `latest-preview`, as `admin` and `reader`; fill the "Confirmed" column and the `DATA_TYPE` list for spec 003 in `specs/002-metadata-core/research.md`; record whether generated/deprecated classes are name-expressible. Reproduce each inspector failure for the Gap Report (T029)
 - [X] T003 [P] Run `make om-import` and confirm the spec 000 unit and connection integration tests pass in `.om/` before changes (baseline)
 
@@ -103,7 +103,7 @@ Cells: "all" = every matrix cell (track × login `admin`/`reader`); "admin" = ad
 
 **Independent Test**: three runs with default, include `Clinic`, and cleared excludes.
 
-- [X] T021 [US4] Check the defaults in `irisConnection.json` (`^%`, `^INFORMATION_SCHEMA$`, `^Ens`) against research.md; add a pattern only if T002 found a name-expressible generated/deprecated rule, in a `patches/` edit, never as Python skip logic; if the defaults change update `../is-omd/docs/contracts/connection.md` and `docs/adr/0009-exclusions-as-filter-patterns.md`
+- [X] T021 [US4] Check the defaults in `irisConnection.json` (`^%`, `^INFORMATION_SCHEMA$`, `^Ens`) against research.md; add a pattern only if T002 found a name-expressible generated/deprecated rule, in a `patches/` edit, never as Python skip logic; if the defaults change update `docs/adr/0009-exclusions-as-filter-patterns.md`
 - [X] T022 [US4] In `INTEG` (cells: admin) assert: default run ingests no `%*`, `INFORMATION_SCHEMA` or `Ens*` schema; `schemaFilterPattern.includes=["^Clinic$"]` yields only `Clinic`; clearing the default excludes brings system schemas back; a `tableFilterPattern` limits tables within allowed schemas
 
 ---
@@ -114,7 +114,7 @@ Cells: "all" = every matrix cell (track × login `admin`/`reader`); "admin" = ad
 
 **Independent Test**: ingest, drop a table, edit a description, ingest again with each option on and off.
 
-- [X] T023 [US5] Fixtures: add the first use of the `Scratch` schema through the fixtures contract (`../is-omd/docs/contracts/fixtures.md` and the loader, reviewed by the fixture owner) — done on the contract side: `Scratch` has a sentinel table `Scratch.Keep` that is never dropped; tests create and drop their own table there and clean up
+- [X] T023 [US5] Fixtures: add the first use of the `Scratch` schema through the shared fixtures (spec 001, reviewed by the fixture owner) — done: `Scratch` has a sentinel table `Scratch.Keep` that is never dropped; tests create and drop their own table there and clean up
 - [X] T024 [US5] In `INTEG` (cells: admin) create `Scratch.Tmp`, ingest, `DROP TABLE`, ingest again with `markDeletedTables` on → table deleted and others untouched; with it off → not deleted; re-created table is active again
 - [X] T025 [US5] In `INTEG` (cells: admin) edit the description of `Clinic.Patient` in OpenMetadata, re-ingest with `overrideMetadata` off → edit kept; with it on → IRIS description restored
 

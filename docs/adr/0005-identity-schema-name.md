@@ -26,7 +26,7 @@ IRIS also keeps mixed-case names (`Clinic.Patient`, `PatientId`). Upper- or lowe
 Compared on `latest-em` as `admin`, `omd_reader` and `omd_reader_dict`; the table is in `specs/002-metadata-core/research.md`. The other tracks are checked by the matrix (spec 001).
 
 - **Inspector:** schemas, tables, views, columns (name, nullability, length, precision, scale), primary keys, foreign keys (with the referenced schema), table descriptions and view definitions.
-- **Direct query in `queries.py`:** column descriptions (`IRIS_COLUMN_DESCRIPTIONS`, GAP-006) and unique constraints (`IRIS_UNIQUE_CONSTRAINTS`, GAP-007). Both are keyed on `(schema, name[, column])`.
+- **Direct query in `queries.py`:** column descriptions (`IRIS_COLUMN_DESCRIPTIONS`, GAP-010) and unique constraints (`IRIS_UNIQUE_CONSTRAINTS`, GAP-011). Both are keyed on `(schema, name[, column])`.
 
 ## Validation
 

@@ -1,6 +1,6 @@
 # Contract: `report_access_gap`
 
-Defined by the shared warnings contract (`../is-omd/docs/contracts/warnings.md`); this spec creates it, spec 005 hardens and tests it.
+Follows the warning rules of ADR-0008 (one warning per object and feature, ingestion continues); this spec creates it, spec 005 hardens and tests it.
 
 ```python
 @contextmanager
