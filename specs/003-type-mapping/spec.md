@@ -18,7 +18,7 @@
 - Q: Which types get a row? → A: every value `INFORMATION_SCHEMA.COLUMNS.DATA_TYPE` reports on `latest-em`, `latest-cd` and `latest-preview`, for the fixture table that has one column per IRIS SQL type and for the system tables of the `USER` Namespace. The draft in ADR-0006 is only a starting point.
 - Q: `BIT`? → A: `BOOLEAN`.
 - Q: Streams (`LONGVARCHAR`, `LONGVARBINARY`)? → A: `TEXT` and `BLOB`.
-- Q: `%List` projections? → A: decided from what the catalog reports: `ARRAY` if the element type can be known, otherwise `UNKNOWN`.
+- Q: `%List` projections? → A: decided from what the catalog reports: `ARRAY` if the element type can be known, otherwise `UNKNOWN`. Outcome of discovery (research R1): the catalog reports them as plain `varchar` and gives no sign that they are lists, so they are cataloged as `VARCHAR`, like any other `varchar`.
 - Q: Warning format? → A: `IRIS-UNKNOWN-TYPE: IRIS type '<type>' is not mapped; cataloged as UNKNOWN (first seen on <Schema>.<Table>.<Column>)`, keyed on the Database (Namespace) FQN, once per type per run (ADR-0006).
 
 ## User Scenarios & Testing *(mandatory)*
@@ -158,8 +158,9 @@ module and the comparison fails.
   system tables of the `USER` Namespace, as recorded in [research.md](research.md). A type reported on
   only some tracks keeps its row.
 - **FR-003**: These rows MUST follow the decisions already taken: `bit` → `BOOLEAN`, `longvarchar` →
-  `TEXT`, `longvarbinary` → `BLOB`, and `%List`-style projections → `ARRAY` when the element type is
-  known, otherwise `UNKNOWN`.
+  `TEXT`, `longvarbinary` → `BLOB`. `%List`-style projections follow what the catalog reports: it
+  reports them as `varchar` and does not mark them as lists, so they are cataloged as `VARCHAR`
+  (research R1, R4).
 
 **Cataloging columns**
 
