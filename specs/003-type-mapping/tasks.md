@@ -13,14 +13,14 @@ registration → unknown warning → Markdown renderer → tests → contract up
 
 ## Phase 1: Setup
 
-- [ ] T001 Rebuild `.om/` on this branch (`OM_SKIP_UI_CODEGEN=1 make om-import`; FORCE=1 only after checking the diff is spec 002's files) and confirm spec 002's unit tests pass: `cd .om/ingestion && ../env/bin/python -m pytest tests/unit/topology/database/test_iris.py -q`
+- [X] T001 Rebuild `.om/` on this branch (`OM_SKIP_UI_CODEGEN=1 make om-import`; FORCE=1 only after checking the diff is spec 002's files) and confirm spec 002's unit tests pass: `cd .om/ingestion && ../env/bin/python -m pytest tests/unit/topology/database/test_iris.py -q`
 - [ ] T002 [P] Write `fixtures/iris/discover_types.py` (research R1): create one `Scratch` table per candidate DDL type, record what `INFORMATION_SCHEMA.COLUMNS` reports, drop it, then collect every distinct `DATA_TYPE` of the Namespace. `--check` (run with `.om/env/bin/python`) exits 1 and names any value missing from `IRIS_TYPES`. It never leaves a table behind
 
 ## Phase 2: Foundational — fixture `Types.AllTypes` (blocks US1 and US3)
 
-- [ ] T003 Add to `fixtures/iris/test_seed.py` the expectations of catalog v2 (`Types.AllTypes` in `EXPECTED`, `CATALOG_VERSION == 2`, both readers can read it); run against `latest-em` and see it fail
-- [ ] T004 Extend `.om/ingestion/tests/integration/iris/data/seed.py` (data-model, "Fixture catalog v2"): `CATALOG_VERSION = 2` with a history line; schema `Types` and `Types.AllTypes` in `DDL` and in the drop order; one row in `ROWS`; `Types` in `READER_SCHEMAS`; `EXPECTED` objects, columns with `DATA_TYPE`, primary key, row count and reader tables. Makes T003 pass
-- [ ] T005 Run the loader twice on `latest-em`, `latest-cd`, `latest-preview` (`FIXTURES OK v2`), `pytest fixtures` on each, and spec 001's and 002's integration tests on `latest-em` as `reader` (no regression from the new schema)
+- [X] T003 Add to `fixtures/iris/test_seed.py` the expectations of catalog v2 (`Types.AllTypes` in `EXPECTED`, `CATALOG_VERSION == 2`, both readers can read it); run against `latest-em` and see it fail
+- [X] T004 Extend `.om/ingestion/tests/integration/iris/data/seed.py` (data-model, "Fixture catalog v2"): `CATALOG_VERSION = 2` with a history line; schema `Types` and `Types.AllTypes` in `DDL` and in the drop order; one row in `ROWS`; `Types` in `READER_SCHEMAS`; `EXPECTED` objects, columns with `DATA_TYPE`, primary key, row count and reader tables. Makes T003 pass
+- [X] T005 Run the loader twice on `latest-em`, `latest-cd`, `latest-preview` (`FIXTURES OK v2`), `pytest fixtures` on each, and spec 001's and 002's integration tests on `latest-em` as `reader` (no regression from the new schema)
 
 ## Phase 3: User Story 1 — Columns show the right type (P1)
 

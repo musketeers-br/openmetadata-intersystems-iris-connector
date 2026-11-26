@@ -116,7 +116,8 @@ def test_import_does_not_connect(monkeypatch):
     spec = importlib.util.spec_from_file_location("iris_fixture_seed_import_check", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    assert module.CATALOG_VERSION == 1
+    assert module.CATALOG_VERSION == 2
+    assert set(module.VERSION_HISTORY) == {1, 2}
     assert set(module.LOGINS) == {"admin", "reader", "reader_dict"}
 
 
@@ -215,7 +216,7 @@ def test_load_reports_all_checks(seed_module, loaded, monkeypatch, capsys):
     out = capsys.readouterr().out
     for number in range(1, 12):
         assert f"PASS C{number} " in out
-    assert "FIXTURES OK v1 IRIS" in out
+    assert f"FIXTURES OK v{seed_module.CATALOG_VERSION} IRIS" in out
 
 
 def test_load_is_idempotent(seed_module, loaded, connect):
@@ -288,6 +289,36 @@ def test_scratch_is_emptied(seed_module, loaded, admin_conn):
     passes = seed_module.load(**loaded)
     assert seed_module._scratch_tables(admin_conn.cursor()) == ["Keep"]
     assert ("C7", "tables", "Scratch") in passes
+
+
+# The 15 DATA_TYPE values the IRIS SQL catalog reports on all three tracks (spec 003, research R1).
+CATALOG_TYPES = {
+    "bigint", "bit", "date", "double", "guid", "integer", "longvarbinary", "longvarchar",
+    "numeric", "smallint", "time", "timestamp", "tinyint", "varbinary", "varchar",
+}  # fmt: skip
+
+
+def test_type_fixture_has_every_catalog_type(seed_module, loaded, admin_conn):
+    cursor = admin_conn.cursor()
+    columns = seed_module._columns(cursor, "Types", "AllTypes")
+    assert {data_type for _, data_type in columns} == CATALOG_TYPES
+    cursor.execute(
+        "SELECT CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS "
+        "WHERE TABLE_SCHEMA = 'Types' AND TABLE_NAME = 'AllTypes' AND COLUMN_NAME = 'VarChar1Col'"
+    )
+    assert cursor.fetchall()[0][0] == 1
+
+
+def test_readers_can_read_the_type_fixture(seed_module, loaded, connect):
+    for login in seed_module.READERS:
+        account = seed_module.LOGINS[login]
+        conn = connect(account.user, account.password)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM Types.AllTypes")
+            assert cursor.fetchall()[0][0] == 1, account.user
+        finally:
+            conn.close()
 
 
 def test_scratch_stays_listed(seed_module, loaded, admin_conn):

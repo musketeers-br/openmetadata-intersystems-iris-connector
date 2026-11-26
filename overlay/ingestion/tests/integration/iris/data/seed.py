@@ -32,9 +32,10 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
-CATALOG_VERSION = 1
+CATALOG_VERSION = 2
 VERSION_HISTORY = {
     1: "spec 001: Clinic, Billing, AI, Scratch (sentinel Scratch.Keep); omd_reader, omd_reader_dict",
+    2: "spec 003: Types.AllTypes, one column per DATA_TYPE the IRIS SQL catalog reports",
 }
 
 
@@ -65,6 +66,12 @@ DDL: list[str] = [
     "CREATE TABLE Billing.Patient ("
     "Code VARCHAR(20) PRIMARY KEY, Balance DOUBLE, CONSTRAINT UqBillingCode UNIQUE (Code))",
     "CREATE TABLE AI.Embedding (Id INT PRIMARY KEY, Content VARCHAR(500), Vec VECTOR(DOUBLE, 3))",
+    # Spec 003: one column per DATA_TYPE the catalog reports (Id covers integer), plus VARCHAR(1) (GAP-008).
+    "CREATE TABLE Types.AllTypes ("
+    "Id INT PRIMARY KEY, BigIntCol BIGINT, BitCol BIT, DateCol DATE, DoubleCol DOUBLE, "
+    "GuidCol UNIQUEIDENTIFIER, LongVarBinaryCol LONGVARBINARY, LongVarCharCol LONGVARCHAR, "
+    "NumericCol NUMERIC(7,3), SmallIntCol SMALLINT, TimeCol TIME, TimestampCol TIMESTAMP, "
+    "TinyIntCol TINYINT, VarBinaryCol VARBINARY(16), VarCharCol VARCHAR(40), VarChar1Col VARCHAR(1))",
     "CREATE VIEW Clinic.ActivePatient AS SELECT p.PatientId, p.FullName FROM Clinic.Patient p "
     "JOIN Clinic.Encounter e ON e.PatientId = p.PatientId WHERE e.Active = 1",
     "CREATE SCHEMA Scratch",
@@ -91,11 +98,34 @@ ROWS: list[tuple[str, tuple]] = [
         "INSERT INTO AI.Embedding (Id, Content, Vec) VALUES (?, ?, TO_VECTOR(?, DOUBLE))",
         (1, "hello", "0.1,0.2,0.3"),
     ),
+    (
+        "INSERT INTO Types.AllTypes (Id, BigIntCol, BitCol, DateCol, DoubleCol, GuidCol, LongVarBinaryCol, "
+        "LongVarCharCol, NumericCol, SmallIntCol, TimeCol, TimestampCol, TinyIntCol, VarBinaryCol, VarCharCol, "
+        "VarChar1Col) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            1,
+            9007199254740993,
+            1,
+            "2026-11-26",
+            3.5,
+            "6F9619FF-8B86-D011-B42D-00C04FC964FF",
+            b"\x00\x01\x02",
+            "a long text",
+            1234.567,
+            32000,
+            "12:34:56",
+            "2026-11-26 12:34:56",
+            7,
+            b"\x01\x02",
+            "forty characters at most",
+            "Y",
+        ),
+    ),
 ]
 
 READERS = ("reader", "reader_dict")
 DICTIONARY_TABLES = ("%Dictionary.CompiledProperty", "%Dictionary.PropertyDefinition")
-READER_SCHEMAS = ("Clinic", "Billing", "AI")
+READER_SCHEMAS = ("Clinic", "Billing", "AI", "Types")
 
 GRANTS: list[str] = [
     f"GRANT SELECT ON SCHEMA {schema} TO {LOGINS['reader'].user}, {LOGINS['reader_dict'].user}"
@@ -104,7 +134,7 @@ GRANTS: list[str] = [
 
 # Dropped in this order (view first, then FK-safe); Scratch tables are found at run time.
 CLEANUP_VIEWS = ("Clinic.ActivePatient",)
-CLEANUP_TABLES = ("Clinic.Encounter", "Clinic.Patient", "Billing.Patient", "AI.Embedding")
+CLEANUP_TABLES = ("Clinic.Encounter", "Clinic.Patient", "Billing.Patient", "AI.Embedding", "Types.AllTypes")
 
 PK = "PRIMARY KEY"
 FK = "FOREIGN KEY"
@@ -121,6 +151,7 @@ EXPECTED: dict = {
         ("AI", "Embedding"): "BASE TABLE",
         ("Clinic", "ActivePatient"): "VIEW",
         ("Scratch", "Keep"): "BASE TABLE",
+        ("Types", "AllTypes"): "BASE TABLE",
     },
     "columns": {
         ("Clinic", "Patient"): [
@@ -140,6 +171,24 @@ EXPECTED: dict = {
         ("AI", "Embedding"): [("Id", "integer"), ("Content", "varchar"), ("Vec", "varchar")],
         ("Clinic", "ActivePatient"): [("PatientId", "integer"), ("FullName", "varchar")],
         ("Scratch", "Keep"): [("Id", "integer")],
+        ("Types", "AllTypes"): [
+            ("Id", "integer"),
+            ("BigIntCol", "bigint"),
+            ("BitCol", "bit"),
+            ("DateCol", "date"),
+            ("DoubleCol", "double"),
+            ("GuidCol", "guid"),
+            ("LongVarBinaryCol", "longvarbinary"),
+            ("LongVarCharCol", "longvarchar"),
+            ("NumericCol", "numeric"),
+            ("SmallIntCol", "smallint"),
+            ("TimeCol", "time"),
+            ("TimestampCol", "timestamp"),
+            ("TinyIntCol", "tinyint"),
+            ("VarBinaryCol", "varbinary"),
+            ("VarCharCol", "varchar"),
+            ("VarChar1Col", "varchar"),
+        ],
     },
     "constraints": {
         ("Clinic", "Patient"): [(PK, ("PatientId",), None)],
@@ -150,6 +199,7 @@ EXPECTED: dict = {
         ("Billing", "Patient"): [(PK, ("Code",), None), (UNIQUE, ("Code",), "UqBillingCode")],
         ("AI", "Embedding"): [(PK, ("Id",), None)],
         ("Scratch", "Keep"): [(PK, ("Id",), None)],
+        ("Types", "AllTypes"): [(PK, ("Id",), None)],
     },
     "table_descriptions": {("Clinic", "Patient"): "Patients registered in the clinic"},
     "column_descriptions": {("Clinic", "Patient", "PatientId"): "Patient identifier"},
@@ -158,10 +208,11 @@ EXPECTED: dict = {
         ("Clinic", "Encounter"): 1,
         ("Billing", "Patient"): 1,
         ("AI", "Embedding"): 1,
+        ("Types", "AllTypes"): 1,
     },
     "view_sources": {("Clinic", "ActivePatient"): ("Clinic.Patient", "Clinic.Encounter")},
     "scratch_tables": ["Keep"],
-    "reader_tables": ("Clinic.Patient", "Billing.Patient", "AI.Embedding"),
+    "reader_tables": ("Clinic.Patient", "Billing.Patient", "AI.Embedding", "Types.AllTypes"),
     "refused_writes": (
         "INSERT INTO Clinic.Patient (PatientId, FullName) VALUES (99, 'Refused')",
         "CREATE TABLE Scratch.ReaderProbe (Id INT)",
