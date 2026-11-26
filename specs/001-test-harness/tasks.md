@@ -176,13 +176,13 @@ alone.
 
 ### Tests for User Story 2 (REQUIRED — Constitution VI) ⚠️
 
-- [ ] T021 [P] [US2] Write `fixtures/iris/test_cell_login.py`, a fast driver-level check of the cell's login that runs before the connector tests. Parametrize over `IRIS_LOGIN` when it is set, else over all three logins from `LOGINS`. For each login, connect with `iris.connect`, then check:
+- [X] T021 [P] [US2] Write `fixtures/iris/test_cell_login.py`, a fast driver-level check of the cell's login that runs before the connector tests. Parametrize over `IRIS_LOGIN` when it is set, else over all three logins from `LOGINS`. For each login, connect with `iris.connect`, then check:
   - `SELECT COUNT(*) FROM Clinic.Patient` returns 2;
   - `SELECT TOP 1 Name FROM %Dictionary.CompiledProperty` succeeds iff `has_dict_grant`, otherwise the error carries `-99`;
   - `INSERT INTO Clinic.Patient` is refused with `-99` unless `is_admin` (admin's insert runs in a transaction that is rolled back).
 
   The test id contains the login, so the job summary shows which login ran
-- [ ] T022 [P] [US2] Write `fixtures/iris/test_check_dialect.py`. These are offline tests that monkeypatch `importlib.metadata.distribution` and `importlib.metadata.entry_points`:
+- [X] T022 [P] [US2] Write `fixtures/iris/test_check_dialect.py`. These are offline tests that monkeypatch `importlib.metadata.distribution` and `importlib.metadata.entry_points`:
   - (a) distribution `sqlalchemy-iris` present → `main()` returns 1 and the message names `sqlalchemy-iris`;
   - (b) entry point `sqlalchemy.dialects:iris` → `sqlalchemy_iris.base:IRISDialect` → exit 1, and the message names the target;
   - (c) entry point → `sqlalchemy_intersystems_iris.iris:IRISDialect_iris` and no community distribution → exit 0;
@@ -190,7 +190,7 @@ alone.
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Write `fixtures/iris/check_dialect.py` per research R6. It uses the standard library only, and exits 1 when the `sqlalchemy-iris` distribution is installed, when `importlib.util.find_spec("sqlalchemy_iris")` finds the module, or when the `iris` dialect entry point resolves to anything other than `sqlalchemy_intersystems_iris.iris:IRISDialect_iris`. It prints the offending package or target. Makes T022 pass
+- [X] T023 [US2] Write `fixtures/iris/check_dialect.py` per research R6. It uses the standard library only, and exits 1 when the `sqlalchemy-iris` distribution is installed, when `importlib.util.find_spec("sqlalchemy_iris")` finds the module, or when the `iris` dialect entry point resolves to anything other than `sqlalchemy_intersystems_iris.iris:IRISDialect_iris`. It prints the offending package or target. Makes T022 pass
 - [ ] T024 [US2] Write `.github/workflows/iris-matrix.yml` per contracts/ci-matrix.md:
   - triggers (`pull_request`, `push` on `main` only, `workflow_dispatch`), `permissions: contents: read`, no secrets, `concurrency` exactly as in the contract, `OM_SKIP_UI_CODEGEN: "1"` at workflow level;
   - job `overlay-roundtrip`: checkout with `persist-credentials: false`, `astral-sh/setup-uv`, `actions/cache@v4` on the uv cache and `.cache/` with the contract's key, `make om-import`, `make om-check`;
@@ -297,7 +297,7 @@ reproduction runs against a Q1 container.
 
 ## Phase 7: Polish & cross-cutting concerns
 
-- [ ] T038 [P] Write `fixtures/iris/test_repo_rules.py` (FR-018, SC-008, offline). It parses every `.py` file under `overlay/ingestion/tests/` except `overlay/…/iris/data/seed.py` with `ast`, and inspects only string constants passed as the first argument of `execute`, `exec_driver_sql` or `text` (so assertion messages such as `test_connection.py`'s `"GRANT SELECT ON %Dictionary…"` are not flagged). It fails, printing each offending file and line, on:
+- [X] T038 [P] Write `fixtures/iris/test_repo_rules.py` (FR-018, SC-008, offline). It parses every `.py` file under `overlay/ingestion/tests/` except `overlay/…/iris/data/seed.py` with `ast`, and inspects only string constants passed as the first argument of `execute`, `exec_driver_sql` or `text` (so assertion messages such as `test_connection.py`'s `"GRANT SELECT ON %Dictionary…"` are not flagged). It fails, printing each offending file and line, on:
   - `CREATE USER`, `GRANT`, `Security.Users` (case-insensitive);
   - `CREATE TABLE`, `CREATE VIEW`, `INSERT INTO`, `DROP TABLE` whose target is not `Scratch.<name>`;
   - any `CREATE TABLE` or `DROP TABLE` on `Scratch.Keep` (the loader owns it).
