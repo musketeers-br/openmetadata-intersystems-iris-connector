@@ -151,9 +151,9 @@ Local cells: `latest-em` 2026.1 (Build 234U), `latest-cd` and `latest-preview` 2
 fixtures at catalog v3.
 
 - **Fixtures**: the loader ran twice on each track, `FIXTURES OK v3` each time. C12 adds 16 passes
-  (2 readers × 8). `pytest fixtures`: 55 passed on each track. The 1 failure is
-  `test_gap_report.py`, which waits for spec 001's `not applicable` value (on spec 001, not yet in
-  this branch's base).
+  (2 readers × 8). `pytest fixtures`: 57 passed on each track, after the rebase onto spec 002
+  `854c532`, which carries spec 001's `not applicable` value. Before it, `test_gap_report.py` failed
+  on GAP-011 and GAP-012.
 - **Unit tests** (no IRIS): 122 passed. That is specs 002 and 003 (94, unchanged) plus
   `test_iris_access.py` (21) and `test_iris_access_guard.py` (7).
 - **Guard, by hand** (quickstart step 3): a `try/except Exception: pass` appended to `types.py` failed

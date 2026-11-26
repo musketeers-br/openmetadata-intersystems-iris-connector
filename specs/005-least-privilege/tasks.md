@@ -89,8 +89,7 @@ hardening → tests → grants table → GAP-003 and ADR-0008 updates.
   - actual behavior from SPIKE-03 (no privilege views; detection only with `%Dictionary.CompiledClass`);
   - connector behavior: documented limitation; visible-but-unreadable objects are reported (`data`).
 
-  `pytest fixtures/iris/test_gap_report.py` passes. *GAP-003 passes; the check still fails on spec
-  002's GAP-011 `not applicable` until this branch's base has spec 001's change.*
+  `pytest fixtures/iris/test_gap_report.py` passes. *Passes since the rebase onto spec 002 `854c532`.*
 - [X] T019 Update `docs/adr/0008-access-gaps-as-warnings.md` (FR-013), dated "Revised":
   - the decision adds the readability check (`data`) and the schema listing (`tables`, `views`);
   - invisible objects: SPIKE-03's evidence and the 2026-11-26 decision to keep the limitation;
