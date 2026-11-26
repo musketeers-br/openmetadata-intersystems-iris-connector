@@ -71,6 +71,7 @@ registration → unknown warning → Markdown renderer → tests → contract up
 - [X] T018 `make py_format`-equivalent: ruff format and check (OpenMetadata's config) on the touched files only; `scripts/check_ruff_suppressions.py --check`; then `make om-export` and `make om-check` twice
 - [X] T019 Run quickstart Q1–Q6; tick the checklist; record in research.md the test counts per track
 - [X] T020 Prepare the contract changes for the planning repository on a local branch (`contracts/003-type-mapping`, stacked on `spike/06-findings`, not pushed) (type mapping table generated, fixtures `Types.AllTypes`, warnings row unchanged); push only with the user's go-ahead
+- [X] T021 Correct the GAP-007 wording in `docs/adr/0015-dialect-state-presets.md` ("primary key of a class-defined table reflected with its column repeated", as the reproduction shows; agreed with Henry 2026-11-26)
 
 ## Dependencies
 

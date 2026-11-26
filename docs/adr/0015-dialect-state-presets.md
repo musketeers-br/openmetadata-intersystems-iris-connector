@@ -30,7 +30,7 @@ Rules for this exception:
 - **One place:** all of it lives in `iris/connection.py` in one function. It has a unit test with a fake DB-API connection, and the integration tests run it on every matrix cell.
 - **Reported:** GAP-004 (A) and GAP-005 (B) in the Gap Report, each with its reproduction and an issue raised with the dialect maintainers. The PR description mentions the issue links.
 - **Removable:** when a dialect release fixes A or B, the matching preset is deleted, the minimum dialect version is raised, and the GAP entry is closed. A version check in the unit tests flags when the pinned dialect version changes, so the presets get re-evaluated.
-- **No other workarounds:** the dialect's other defects (GAP-006 stray `print`, GAP-007 repeated composite-PK columns) are reported, not patched. Wrong types are handled by the connector's own type map ([ADR-0006](0006-single-type-map.md)) from the raw `DATA_TYPE`, which is ordinary connector logic.
+- **No other workarounds:** the dialect's other defects (GAP-006 stray `print`, GAP-007 primary key of a class-defined table reflected with its column repeated) are reported, not patched. Wrong types are handled by the connector's own type map ([ADR-0006](0006-single-type-map.md)) from the raw `DATA_TYPE`, which is ordinary connector logic.
 
 ## Consequences
 
