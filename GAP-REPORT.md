@@ -31,29 +31,35 @@ handles itself with nothing to report. An issue is opened only after both develo
 
 - **Expected:** a type that says VECTOR, with its element type and dimension (`VECTOR(DOUBLE, 3)`).
 - **Actual:** `varchar`, length 1037, for every login that can read the table.
-- **Connector behavior:** enriches the column from the class dictionary when the login can read it
-  (ADR-0007, spec 004); otherwise the column is cataloged as `VARCHAR` (GAP-002).
-- **User workaround:** `GRANT SELECT ON %Dictionary.CompiledProperty TO <user>` (see GAP-002).
+  The same holds for `Vec4 VECTOR(INT, 4)` (length 83) and `"vec_low" VECTOR(FLOAT, 2)` (length 691),
+  checked on 2026-11-26 on the three tracks.
+- **Connector behavior:** with `SELECT` on `%Dictionary.PropertyDefinition`, the column is cataloged as
+  `ARRAY` of its element type, shown as `VECTOR(DOUBLE, 3)` (ADR-0007, spec 004). Otherwise it is
+  cataloged as `VARCHAR` (GAP-002).
+- **User workaround:** `GRANT SELECT ON %Dictionary.PropertyDefinition TO <user>` (see GAP-002).
 - **Upstream:** not raised yet.
 
-### GAP-002 — VECTOR element type and dimension need `SELECT` on `%Dictionary.CompiledProperty`
+### GAP-002 — VECTOR element type and dimension need `SELECT` on `%Dictionary.PropertyDefinition`
 
 - **Component:** class dictionary
-- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
-- **Found in spec:** 001-test-harness (seed entry, ADR-0007)
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced (2026-11-26)
+- **Found in spec:** 001-test-harness (seed entry, ADR-0007); grant settled by SPIKE-03
 - **Reproduction:** as `omd_reader`, then as `omd_reader_dict`
 
   ```sql
-  SELECT Type, Parameters FROM %Dictionary.CompiledProperty
+  SELECT Type, Parameters FROM %Dictionary.PropertyDefinition
   WHERE parent = 'AI.Embedding' AND Name = 'Vec'
   ```
 
 - **Expected:** a login that can read `AI.Embedding` can also read its column's VECTOR parameters.
 - **Actual:** `omd_reader` gets `[SQLCODE: <-99>:<Privilege violation>]`. `omd_reader_dict` gets
-  `%Library.Vector` and parameters that include `DATATYPE,DOUBLE` and `LEN,3`.
-- **Connector behavior:** one `IRIS-VECTOR-GRANT` warning per run; the column is cataloged as
-  `VARCHAR` (ADR-0007, spec 004).
-- **User workaround:** `GRANT SELECT ON %Dictionary.CompiledProperty TO <user>`.
+  `%Library.Vector` and `DATATYPE,DOUBLE,LEN,3`. `%Dictionary.CompiledProperty`, named here before
+  SPIKE-03, gives the same and is not needed.
+- **Connector behavior:** without the grant, no dictionary query runs (the ADR-0015 preset already
+  knows), the column is cataloged as `VARCHAR`, and the run gets one `IRIS-VECTOR-GRANT` warning
+  naming the grant (ADR-0007, spec 004).
+- **User workaround:** `GRANT SELECT ON %Dictionary.PropertyDefinition TO <user>`. It also gives the
+  dialect its full reflection (GAP-005).
 - **Upstream:** not raised yet.
 
 ### GAP-003 — Objects invisible to a login cannot be detected by that login
@@ -236,8 +242,8 @@ handles itself with nothing to report. An issue is opened only after both develo
 - **Component:** official dialect
 - **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
 - **Found in spec:** 002-metadata-core
-- **Reproduction:** as `omd_reader_dict` (SELECT on the schemas, plus `%Dictionary.PropertyDefinition` and
-  `%Dictionary.CompiledProperty`), with `.om/env/bin/python`
+- **Reproduction:** as `omd_reader_dict` (SELECT on the schemas, plus `%Dictionary.PropertyDefinition`;
+  until fixture catalog v3 also `%Dictionary.CompiledProperty`), with `.om/env/bin/python`
 
   ```python
   from sqlalchemy import create_engine, event, inspect

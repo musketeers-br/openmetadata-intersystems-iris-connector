@@ -101,3 +101,38 @@ This workstation's WSL has 7 GB, which is not enough to run the server stack bes
 containers (SPIKE-04 was deferred for the same reason). **Decision**: the ingestion-level evidence
 (R1) is the acceptance on the matrix. The UI check is a task that runs once a server is available,
 either here with the IRIS containers stopped, or with spec 008's demo. Its result goes into ADR-0007.
+
+## Implementation measurements (2026-11-26)
+
+Local cells: `latest-em` 2026.1 (Build 234U), `latest-cd` and `latest-preview` 2026.3 (Build 212U),
+fixtures at catalog v4.
+
+- **Fixtures**: the loader ran twice on each track, `FIXTURES OK v4` each time. `pytest fixtures`:
+  58 passed on each track.
+- **Dictionary query**, as `omd_reader_dict`: about 450 ms on `latest-em` and 390 ms on `latest-cd`.
+  It returns the three fixture columns: `Vec` and `Vec4` with `SqlFieldName` `NULL`, and `vec_low`
+  with `SqlFieldName = vec_low` and `Name = veclow`. As `omd_reader` it fails at once with
+  `SQLCODE -99`, but the connector never sends it, because the ADR-0015 preset already knows.
+- **Element types through the framework**: `ARRAY(DOUBLE)`, `ARRAY(FLOAT)`, `ARRAY(DECIMAL)`,
+  `ARRAY(INTEGER)` and `ARRAY(String)` give `arrayDataType` `DOUBLE`, `FLOAT`, `DECIMAL`, `INT` and
+  `STRING` in `SqlColumnHandlerMixin`; `ARRAY` of spec 003's unmapped type gives `UNKNOWN`.
+- **Unit tests** (no IRIS): 160 passed. That is specs 002, 003 and 005 (122, unchanged) plus
+  `test_iris_vector.py` (38). Spec 005's guard accepts the new handler, which records the hint.
+- **Integration**, `pytest tests/integration/iris -m iris` per cell:
+
+  | Track | `admin` | `reader` | `reader_dict` |
+  |---|---|---|---|
+  | `latest-em` | 32 passed, 11 skipped | 33 passed, 10 skipped | 32 passed, 11 skipped |
+  | `latest-cd` | 32 passed, 11 skipped | 33 passed, 10 skipped | 32 passed, 11 skipped |
+  | `latest-preview` | 32 passed, 11 skipped | 33 passed, 10 skipped | 32 passed, 11 skipped |
+
+- **`test_vector.py`**:
+  - As `admin` and `reader_dict`, the three columns are `ARRAY` / `DOUBLE`, `INT`, `FLOAT` /
+    `VECTOR(DOUBLE, 3)`, `VECTOR(INT, 4)`, `VECTOR(FLOAT, 2)`, with no hint.
+  - As `reader`, they are `VARCHAR(1037)`, `VARCHAR(83)` and `VARCHAR(691)`, and a run over every
+    readable fixture has exactly one hint, keyed on the Database FQN and naming `omd_reader`.
+  - For every login, `Id` and `Content` are as spec 003 gives.
+- **Spec 002's test changed**: `test_no_access_problem_for_the_readable_fixtures` required an empty
+  status. The `reader` hint is not an access problem, so the test now checks there are no
+  `IRIS-ACCESS` warnings.
+- **UI check** (T022): not run. No OpenMetadata server fits beside the three IRIS containers (R5).
