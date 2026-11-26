@@ -30,7 +30,6 @@ from metadata.ingestion.api.steps import InvalidSourceException
 from metadata.ingestion.ometa.ometa_api import OpenMetadata
 from metadata.ingestion.source.database.common_db_source import CommonDbSourceService
 from metadata.ingestion.source.database.iris.queries import (
-    IRIS_COLUMN_DESCRIPTIONS,
     IRIS_UNIQUE_CONSTRAINTS,
 )
 from metadata.utils import fqn as fqn_utils
@@ -126,21 +125,8 @@ class IrisSource(CommonDbSourceService):
         return pk_columns, unique_columns, foreign_columns
 
     def _get_columns_internal(self, schema_name, table_name, db_name, inspector, table_type=None):
-        table_fqn = self._table_fqn(schema_name, table_name)
-        columns = []
-        with self.report_access_gap(table_fqn, "columns", schema_name, table_name):
-            columns = inspector.get_columns(table_name, schema_name, table_type=table_type, db_name=db_name)
-        descriptions = {}
-        if columns:
-            with self.report_access_gap(table_fqn, "description", schema_name, table_name):
-                rows = self.connection.execute(
-                    text(IRIS_COLUMN_DESCRIPTIONS), {"schema": schema_name, "table": table_name}
-                )
-                descriptions = {(row[0], row[1], row[2]): row[3] for row in rows}
-        for column in columns:
-            comment = descriptions.get((schema_name, table_name, column["name"]))
-            if comment:
-                column["comment"] = comment
-        return columns
+        with self.report_access_gap(self._table_fqn(schema_name, table_name), "columns", schema_name, table_name):
+            return inspector.get_columns(table_name, schema_name, table_type=table_type, db_name=db_name)
+        return []
 
     # --- 004: dictionary / VECTOR enrichment ---

@@ -15,7 +15,7 @@
 - Q: Framework reflection or direct catalog queries? → A: Framework reflection by default; where it is wrong or incomplete for IRIS (keys, view definitions, descriptions), a direct `INFORMATION_SCHEMA` query keyed on `(schema, name)` is used and a Gap Report entry is added (ADR-0005, ADR-0013).
 - Q: Are `Ens*` schemas system content? → A: Settled by evidence: they appear in a plain `USER` Namespace, so `^Ens` stays a default exclusion (ADR-0009); any new default pattern is recorded in ADR-0009 and the connection contract.
 - Q: Generated or deprecated classes? → A: Excluded only if expressible as a name pattern; otherwise documented with a Gap Report entry (ADR-0009).
-- Q: Source of column descriptions? → A: `INFORMATION_SCHEMA.COLUMNS.DESCRIPTION` when reflection does not return them (confirmed during planning).
+- Q: Source of column descriptions? → A: The framework's reflection, which returns them (confirmed on all three tracks during implementation).
 - Q: Stored procedures? → A: Not ingested.
 - Q: View lineage parsing? → A: OpenMetadata's default parsing for unknown dialects (ANSI); views it cannot parse are listed in the Gap Report.
 
@@ -156,7 +156,7 @@ A login can list an object but not read one of its parts (columns, keys, view de
 - **FR-018**: Every capability MUST work with an ordinary SQL login holding only SELECT on the target schemas.
 - **FR-019**: Column types MUST come from the connector's type map as it exists; type mapping rules are not defined here.
 - **FR-020**: Credentials MUST NOT appear in logs, warnings or errors.
-- **FR-021**: Wherever the framework's standard reflection is wrong or incomplete for IRIS, the connector MUST obtain the data from the catalog keyed on `(schema, name)` and record the gap in the Gap Report; table and column descriptions MUST come from the catalog when reflection does not return them.
+- **FR-021**: Wherever the framework's standard reflection is wrong or incomplete for IRIS, the connector MUST obtain the data from the catalog keyed on `(schema, name)` and record the gap in the Gap Report; descriptions are read through reflection, as it returns them.
 - **FR-022**: Lineage MUST use OpenMetadata's default view parsing; a view it cannot parse MUST still be ingested and MUST be listed in the Gap Report, not fail the run.
 - **FR-023**: Stored procedures MUST NOT be ingested.
 

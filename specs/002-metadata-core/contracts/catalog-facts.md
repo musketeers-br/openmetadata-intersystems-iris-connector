@@ -8,4 +8,4 @@ Rules for every constant added under `# --- 002: catalog ---`:
 - No upper/lower-casing in SQL or Python.
 - A constant exists only for a fact that research.md confirms the inspector gets wrong or incomplete, and has a Gap Report entry with reproduction.
 
-Candidate constants (created only if confirmed): key columns by constraint, referential constraints, view definition, table description, column descriptions.
+Constants created: unique constraints (`IRIS_UNIQUE_CONSTRAINTS`, GAP-010). Everything else is read through reflection.

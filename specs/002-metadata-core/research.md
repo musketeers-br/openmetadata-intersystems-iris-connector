@@ -33,10 +33,10 @@ view definitions, descriptions are the suspects), not evidence.
 | Columns (name, position, nullability, default, length, precision, scale) | `get_columns` | `COLUMNS` | inspector (note GAP-005 needs `_dictionary_access` preset) | **inspector**: identical to `COLUMNS` for all three logins (NOT NULL, VARCHAR(120), NUMERIC(5,2)); no fixture has a default value, so defaults are unverified |
 | Primary key | `get_pk_constraint` | `TABLE_CONSTRAINTS` + `KEY_COLUMN_USAGE` | catalog if inspector wrong | **inspector**: correct for all logins. Note PK constraint names repeat across schemas (`PATIENT_PKEY1` in `Clinic` and `Billing`), so constraint names are never an identity |
 | Foreign keys (referenced schema and table) | `get_foreign_keys` | `REFERENTIAL_CONSTRAINTS` + `KEY_COLUMN_USAGE`, join on schema AND name | catalog if inspector wrong | **inspector**: `Clinic.Encounter` → `referred_schema=Clinic`, `referred_table=Patient` for all logins |
-| Unique constraints | `get_unique_constraints` | `TABLE_CONSTRAINTS` + `KEY_COLUMN_USAGE` | catalog if inspector wrong | **catalog** (`IRIS_UNIQUE_CONSTRAINTS`, GAP-011): inspector is correct for `admin` and `omd_reader` but fails with SQLCODE -99 for `omd_reader_dict` (needs `%Dictionary.IndexDefinition`) |
-| View definition | `get_view_definition` | `VIEWS.VIEW_DEFINITION` | catalog if inspector wrong | **inspector**: identical text to `VIEWS`, readable by all three logins; stored form has a column-list prefix and an `/*#OPTIONS*/` suffix (GAP-012); the lineage parser reads it correctly, so no post-processing |
+| Unique constraints | `get_unique_constraints` | `TABLE_CONSTRAINTS` + `KEY_COLUMN_USAGE` | catalog if inspector wrong | **catalog** (`IRIS_UNIQUE_CONSTRAINTS`, GAP-010): the inspector is correct for `admin` and `omd_reader` but fails with SQLCODE -99 for `omd_reader_dict` (needs `%Dictionary.IndexDefinition`), on all three tracks |
+| View definition | `get_view_definition` | `VIEWS.VIEW_DEFINITION` | catalog if inspector wrong | **inspector**: identical text to `VIEWS`, readable by all three logins; stored form has a column-list prefix and an `/*#OPTIONS*/` suffix (GAP-011); the lineage parser reads it correctly, so no post-processing |
 | Table description | `get_table_comment` | `TABLES.DESCRIPTION` | catalog if inspector wrong | **inspector**: "Patients registered in the clinic" for all logins |
-| Column description | (not returned) | `COLUMNS.DESCRIPTION` | catalog | **catalog** (`IRIS_COLUMN_DESCRIPTIONS`, GAP-010): inspector returns no comment; `COLUMNS` has "Patient identifier" for `PatientId` for all logins |
+| Column description | `get_columns` (`comment`) | `COLUMNS.DESCRIPTION` | catalog | **inspector**: the dialect returns it as `comment` for every login and track; an earlier draft of this table assumed otherwise because the comparison did not print comments |
 
 For each row the task records: result on each track and each login (`admin`, `reader`), SQLCODE on
 failure, and the chosen source with the reason. A catalog choice creates a Gap entry with reproduction.
@@ -53,9 +53,9 @@ failure, and the chosen source with the reason. A catalog choice creates a Gap e
 - Generated/deprecated classes: no marker in `INFORMATION_SCHEMA.TABLES.DESCRIPTION` for the fixture objects, so no name pattern was added (ADR-0009 outcome).
 
 - Workflow run on the overlay server (admin, `latest-em`): hierarchy, columns, keys, descriptions, view definition, lineage (exactly `Clinic.Patient` and `Clinic.Encounter`), include filter, mark-deleted (on and off) and description override pass. The local stack needs its Elasticsearch container running (lineage and the server's search depend on it).
-- **GAP-013 (resolved):** the framework ignores the connection-level default filters, so the source applies them when the pipeline has no `schemaFilterPattern` (decided; ADR-0009).
+- **GAP-012 (resolved):** the framework ignores the connection-level default filters, so the source applies them when the pipeline has no `schemaFilterPattern` (decided; ADR-0009).
 - A lineage workflow with default settings reports one error because query-log lineage (`processQueryLineage`, spec 010) needs `sql_stmt`; view lineage works with `processQueryLineage: false`.
-- IRIS stops listing a schema when its last table is dropped, so mark-deleted only visits the schema if another table remains; tables of a vanished schema depend on `markDeletedSchemas`.
+- IRIS stops listing a schema when its last table is dropped (GAP-009), so mark-deleted only visits the schema if another table remains; tables of a vanished schema depend on `markDeletedSchemas`.
 
 ## Open items
 

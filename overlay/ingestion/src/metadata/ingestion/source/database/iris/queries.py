@@ -22,15 +22,8 @@ IRIS_CLASS_DICTIONARY_PROBE = "SELECT TOP 1 Name FROM %Dictionary.PropertyDefini
 
 # --- 002: catalog ---
 
-# Column descriptions: the dialect's inspector does not return them (GAP-010). Bound on the exact
-# (schema, table); callers index the rows by (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME).
-IRIS_COLUMN_DESCRIPTIONS = (
-    "SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DESCRIPTION FROM INFORMATION_SCHEMA.COLUMNS "
-    "WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = :table AND DESCRIPTION IS NOT NULL"
-)
-
 # Unique constraints: with dictionary access the inspector reads %Dictionary.IndexDefinition, which a login
-# holding only the documented dictionary grants cannot read (GAP-011). Joined on schema AND name.
+# holding only the documented dictionary grants cannot read (GAP-010). Joined on schema AND name.
 IRIS_UNIQUE_CONSTRAINTS = (
     "SELECT tc.CONSTRAINT_NAME, k.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc "
     "JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k ON k.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA "

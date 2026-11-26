@@ -44,6 +44,7 @@ from metadata.ingestion.source.database.iris.connection import (
 )
 from metadata.ingestion.source.database.iris.lineage import IrisLineageSource
 from metadata.ingestion.source.database.iris.metadata import IrisSource, apply_default_schema_filter
+from metadata.ingestion.source.database.iris.queries import IRIS_UNIQUE_CONSTRAINTS
 from metadata.ingestion.source.database.iris.service_spec import ServiceSpec
 from metadata.utils.filters import filter_by_schema
 from metadata.utils.importer import MissingPluginException
@@ -347,14 +348,16 @@ class _Inspector:
 
 
 class _Connection:
-    def __init__(self, rows=(), fail=False):
-        self.rows, self.fail, self.params = rows, fail, None
+    """Answers per statement: `rows` go only to `query` (a queries.py constant); any other statement gets none."""
+
+    def __init__(self, rows=(), fail=False, query=None):
+        self.rows, self.fail, self.query, self.params = rows, fail, query, None
 
     def execute(self, statement, params):
         self.params = params
         if self.fail:
             raise _db_error()
-        return iter(self.rows)
+        return iter(self.rows if str(statement) == self.query else ())
 
 
 class Test002AccessGap:
@@ -403,37 +406,22 @@ class Test002AccessGap:
 
 class Test002Hierarchy:
     def test_same_name_tables_in_two_schemas_keep_their_own_columns_and_descriptions(self):
-        columns = {
-            "Clinic": [{"name": "PatientId"}, {"name": "FullName"}],
-            "Billing": [{"name": "Code"}],
-        }
-        rows = {("Clinic", "Patient", "PatientId"): "Patient identifier"}
-
-        class Connection(_Connection):
-            def execute(self, statement, params):
-                self.params = params
-                return iter(
-                    [(s, t, c, d) for (s, t, c), d in rows.items() if (s, t) == (params["schema"], params["table"])]
-                )
-
-        source = _source(Connection())
-        clinic = source._get_columns_internal("Clinic", "Patient", "USER", _Inspector(columns["Clinic"]))
-        billing = source._get_columns_internal("Billing", "Patient", "USER", _Inspector(columns["Billing"]))
-        assert [c["name"] for c in clinic] == ["PatientId", "FullName"]
+        source = _source(_Connection())
+        clinic = source._get_columns_internal(
+            "Clinic", "Patient", "USER", _Inspector([{"name": "PatientId", "comment": "Patient identifier"}])
+        )
+        billing = source._get_columns_internal("Billing", "Patient", "USER", _Inspector([{"name": "Code"}]))
+        assert [c["name"] for c in clinic] == ["PatientId"]
         assert [c["name"] for c in billing] == ["Code"]
         assert clinic[0]["comment"] == "Patient identifier"
-        assert all("comment" not in c for c in billing)
+        assert "comment" not in billing[0]
 
-    def test_column_names_keep_their_case(self):
-        source = _source(_Connection([("Clinic", "Patient", "PatientId", "id")]))
-        columns = source._get_columns_internal("Clinic", "Patient", "USER", _Inspector([{"name": "PatientId"}]))
-        assert columns[0]["name"] == "PatientId"
-        assert columns[0]["comment"] == "id"
-
-    def test_description_query_is_bound_on_schema_and_table(self):
-        connection = _Connection()
-        _source(connection)._get_columns_internal("Clinic", "Patient", "USER", _Inspector([{"name": "A"}]))
-        assert connection.params == {"schema": "Clinic", "table": "Patient"}
+    def test_column_names_and_comments_pass_through_unchanged(self):
+        source = _source(_Connection())
+        columns = source._get_columns_internal(
+            "Clinic", "Patient", "USER", _Inspector([{"name": "PatientId", "comment": "id"}])
+        )
+        assert columns == [{"name": "PatientId", "comment": "id"}]
 
     def test_unreadable_columns_warn_and_return_nothing(self):
         source = _source(_Connection())
@@ -441,12 +429,6 @@ class Test002Hierarchy:
         assert result == []
         assert list(source.status.warnings[0]) == ["iris_test.USER.S.T"]
         assert "cannot read columns of S.T" in source.status.warnings[0]["iris_test.USER.S.T"]
-
-    def test_unreadable_descriptions_warn_but_keep_the_columns(self):
-        source = _source(_Connection(fail=True))
-        result = source._get_columns_internal("S", "T", "USER", _Inspector([{"name": "A"}]))
-        assert [c["name"] for c in result] == ["A"]
-        assert "cannot read description of S.T" in source.status.warnings[0]["iris_test.USER.S.T"]
 
     def test_table_description_comes_from_the_inspector(self):
         assert _source().get_table_description("Clinic", "Patient", _Inspector()) == "about Clinic.Patient"
@@ -471,7 +453,9 @@ class Test002Hierarchy:
 class Test002Keys:
     def test_keys_are_read_for_the_exact_schema_and_table(self):
         inspector = _Inspector()
-        connection = _Connection([("UqBillingCode", "Code"), ("UqPair", "A"), ("UqPair", "B")])
+        connection = _Connection(
+            [("UqBillingCode", "Code"), ("UqPair", "A"), ("UqPair", "B")], query=IRIS_UNIQUE_CONSTRAINTS
+        )
         pk, unique, foreign = _source(connection)._get_columns_with_constraints("Clinic", "Encounter", inspector)
         assert pk == ["Id"]
         assert unique == [["Code"], ["A", "B"]]
@@ -480,7 +464,7 @@ class Test002Keys:
         assert {(schema, table) for _, schema, table in inspector.calls} == {("Clinic", "Encounter")}
 
     def test_one_unreadable_kind_of_key_does_not_hide_the_others(self):
-        source = _source(_Connection([("Uq", "Code")]))
+        source = _source(_Connection([("Uq", "Code")], query=IRIS_UNIQUE_CONSTRAINTS))
         pk, unique, foreign = source._get_columns_with_constraints("S", "T", _Inspector(fail={"get_foreign_keys"}))
         assert pk == ["Id"] and unique == [["Code"]] and foreign == []
         assert len(source.status.warnings) == 1
@@ -527,35 +511,36 @@ class Test002Lineage:
 
 
 class Test002IdentityRegression:
-    """ADR-0005: a map keyed on the table name alone would merge Clinic.Patient and Billing.Patient."""
+    """ADR-0005: every read is keyed on (schema, name); a name alone would merge Clinic.Patient and Billing.Patient."""
 
-    ROWS = (
-        ("Clinic", "Patient", "PatientId", "clinic id"),
-        ("Billing", "Patient", "Code", "billing code"),
-    )
+    def test_the_unique_constraint_query_joins_and_binds_on_schema_and_table(self):
+        query = " ".join(IRIS_UNIQUE_CONSTRAINTS.split())
+        assert "k.TABLE_SCHEMA = tc.TABLE_SCHEMA AND k.TABLE_NAME = tc.TABLE_NAME" in query
+        assert "k.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA AND k.CONSTRAINT_NAME" in query.replace('"', "")
+        assert "tc.TABLE_SCHEMA = :schema AND tc.TABLE_NAME = :table" in query
 
-    def _descriptions_for(self, schema, table):
-        source = _source()
-        source._connection_map = {1: _Connection([r for r in self.ROWS if (r[0], r[1]) == (schema, table)])}
-        inspector = _Inspector([{"name": "PatientId"}, {"name": "Code"}])
-        return {c["name"]: c.get("comment") for c in source._get_columns_internal(schema, table, "USER", inspector)}
+    def test_each_schema_gets_only_its_own_unique_constraints(self):
+        class Connection(_Connection):
+            def execute(self, statement, params):
+                self.params = params
+                rows = {("Billing", "Patient"): [("UqBillingCode", "Code")]}.get(
+                    (params["schema"], params["table"]), []
+                )
+                return iter(rows)
 
-    def test_each_schema_gets_only_its_own_descriptions(self):
-        assert self._descriptions_for("Clinic", "Patient") == {"PatientId": "clinic id", "Code": None}
-        assert self._descriptions_for("Billing", "Patient") == {"PatientId": None, "Code": "billing code"}
+        source = _source(Connection())
+        assert source._get_columns_with_constraints("Billing", "Patient", _Inspector())[1] == [["Code"]]
+        assert source._get_columns_with_constraints("Clinic", "Patient", _Inspector())[1] == []
 
-    def test_the_lookup_key_includes_the_schema(self):
-        # If the key were (table, column) the Billing row would answer for Clinic.Patient.Code.
-        source = _source(_Connection([("Billing", "Patient", "Code", "billing code")]))
-        columns = source._get_columns_internal("Clinic", "Patient", "USER", _Inspector([{"name": "Code"}]))
-        assert "comment" not in columns[0]
+    def test_the_inspector_is_asked_for_the_exact_schema_and_table(self):
+        inspector = _Inspector([{"name": "Code"}])
+        _source(_Connection())._get_columns_internal("Billing", "Patient", "USER", inspector)
+        assert inspector.calls == [("get_columns", "Billing", "Patient")]
 
     def test_mixed_case_names_are_not_normalized(self):
-        source = _source(
-            _Connection([("Clinic", "Patient", "PatientId", "x"), ("CLINIC", "PATIENT", "PATIENTID", "y")])
-        )
-        columns = source._get_columns_internal("Clinic", "Patient", "USER", _Inspector([{"name": "PatientId"}]))
-        assert columns[0]["comment"] == "x"
+        inspector = _Inspector([{"name": "PatientId"}])
+        _source(_Connection())._get_columns_internal("Clinic", "Patient", "USER", inspector)
+        assert inspector.calls == [("get_columns", "Clinic", "Patient")]
 
 
 class Test002DefaultSchemaFilter:

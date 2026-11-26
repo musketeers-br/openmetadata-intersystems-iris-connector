@@ -216,75 +216,78 @@ handles itself with nothing to report. An issue is opened only after both develo
 - **User workaround:** none.
 - **Upstream:** not raised yet.
 
-### GAP-010 — Inspector does not return column descriptions
+### GAP-010 — Unique-constraint reflection needs `%Dictionary.IndexDefinition` when dictionary access is on
 
 - **Component:** official dialect
-- **IRIS tracks:** latest-em (reproduced); latest-cd, latest-preview pending spec 001
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
 - **Found in spec:** 002-metadata-core
-- **Reproduction:**
+- **Reproduction:** as `omd_reader_dict` (SELECT on the schemas, plus `%Dictionary.PropertyDefinition` and
+  `%Dictionary.CompiledProperty`), with `.om/env/bin/python`
 
   ```python
-  from sqlalchemy import inspect
-  # engine for omd_reader, with the ADR-0015 presets applied
-  [c.get("comment") for c in inspect(engine).get_columns("Patient", "Clinic")]
-  ```
-
-- **Expected:** `PatientId` has the comment "Patient identifier" (`%DESCRIPTION` in the DDL).
-- **Actual:** every column dict has no comment (`None`), while `INFORMATION_SCHEMA.COLUMNS.DESCRIPTION`
-  returns it for the same login. Table descriptions (`get_table_comment`) work.
-- **Connector behavior:** `IRIS_COLUMN_DESCRIPTIONS` in `iris/queries.py`, one bound query per table, rows
-  indexed by `(TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)` and merged into the inspector's columns.
-- **User workaround:** none needed.
-- **Upstream:** not raised yet. TODO(upstream): open an issue with the dialect maintainers and link it here.
-
-### GAP-011 — Unique-constraint reflection needs `%Dictionary.IndexDefinition` when dictionary access is on
-
-- **Component:** official dialect
-- **IRIS tracks:** latest-em (reproduced); latest-cd, latest-preview pending spec 001
-- **Found in spec:** 002-metadata-core
-- **Reproduction:**
-
-  ```python
-  # login omd_reader_dict (SELECT on the schemas + %Dictionary.PropertyDefinition and CompiledProperty)
+  from sqlalchemy import create_engine, event, inspect
+  from metadata.ingestion.source.database.iris.connection import preset_dialect_state
+  engine = create_engine("iris://omd_reader_dict:Reader123@127.0.0.1:1972/USER")
+  event.listen(engine, "do_connect", lambda d, r, a, k: preset_dialect_state(d, a, k))
   inspect(engine).get_unique_constraints("Patient", "Billing")
   ```
 
-- **Expected:** `[{"name": "UqBillingCode", "column_names": ["Code"], ...}]`, as for `omd_reader`.
+- **Expected:** `[{"name": "UqBillingCode", "column_names": ["Code"], ...}]`, as for `omd_reader` and `_SYSTEM`.
 - **Actual:** `SQLCODE -99 Privilege violation`: with dictionary access the dialect's query joins
   `%Dictionary.IndexDefinition`, which the documented dictionary grants do not cover. Primary and foreign keys
   are not affected.
 - **Connector behavior:** unique constraints come from `IRIS_UNIQUE_CONSTRAINTS` (`INFORMATION_SCHEMA.TABLE_CONSTRAINTS`
   joined to `KEY_COLUMN_USAGE` on schema and name), which works for every login.
 - **User workaround:** none needed (granting `%Dictionary.IndexDefinition` would also work).
-- **Upstream:** not raised yet. TODO(upstream): open an issue with the dialect maintainers and link it here.
+- **Upstream:** not raised yet.
 
-### GAP-012 — View definitions are returned in IRIS's stored form
+### GAP-011 — View definitions are returned in IRIS's stored form
 
-- **Component:** IRIS / official dialect
-- **IRIS tracks:** latest-em (reproduced); latest-cd, latest-preview pending spec 001
+- **Component:** IRIS SQL catalog
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
 - **Found in spec:** 002-metadata-core
-- **Reproduction:** `inspect(engine).get_view_definition("ActivePatient", "Clinic")` or
-  `SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'ActivePatient'`.
+- **Reproduction:** as `omd_reader`, with `.om/env/bin/python`
+
+  ```python
+  from sqlalchemy import create_engine, event, inspect
+  from metadata.ingestion.source.database.iris.connection import preset_dialect_state
+  engine = create_engine("iris://omd_reader:Reader123@127.0.0.1:1972/USER")
+  event.listen(engine, "do_connect", lambda d, r, a, k: preset_dialect_state(d, a, k))
+  print(repr(inspect(engine).get_view_definition("ActivePatient", "Clinic")))
+  ```
+
+  `SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'ActivePatient'` returns the same text.
 - **Expected:** the `SELECT` statement of the view.
 - **Actual:** the text starts with the column list (`(PatientId,FullName)` plus a line break) and ends with a
   `/*#OPTIONS {...} */` comment; both sources return the identical text.
 - **Connector behavior:** none. The text is stored as IRIS returns it; OpenMetadata's lineage parser reads it
-  correctly (checked: tables `Clinic.Patient` and `Clinic.Encounter` found). No post-processing.
+  correctly (tables `Clinic.Patient` and `Clinic.Encounter` found; test `test_view_lineage`). No post-processing.
 - **User workaround:** none.
-- **Upstream:** not applicable.
+- **Upstream:** not applicable: the connector handles it.
 
-### GAP-013 — The connection's default filter patterns are not applied by ingestion workflows (resolved)
+### GAP-012 — The connection's default filter patterns are not applied by ingestion workflows
 
-- **Component:** OpenMetadata framework (2.1.1)
-- **IRIS tracks:** latest-em (reproduced); resolved in spec 002
+- **Component:** OpenMetadata
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
 - **Found in spec:** 002-metadata-core
-- **Reproduction:** run a metadata workflow for an IRIS service whose `sourceConfig` has no
-  `schemaFilterPattern`, before the fix.
+- **Reproduction:** the framework filters with the pipeline's `schemaFilterPattern` only, so with none every schema
+  the login can see is kept; as `omd_reader`, with `.om/env/bin/python`
+
+  ```python
+  from sqlalchemy import create_engine, event, inspect
+  from metadata.ingestion.source.database.iris.connection import preset_dialect_state
+  from metadata.utils.filters import filter_by_schema
+  engine = create_engine("iris://omd_reader:Reader123@127.0.0.1:1972/USER")
+  event.listen(engine, "do_connect", lambda d, r, a, k: preset_dialect_state(d, a, k))
+  names = inspect(engine).get_schema_names()
+  print([n for n in names if not filter_by_schema(None, n) and n.startswith(("%", "Ens"))][:3])
+  ```
+
 - **Expected:** the defaults of `irisConnection.json` (`^%`, `^INFORMATION_SCHEMA$`, `^Ens`) exclude system schemas.
-- **Actual:** the framework filters with the pipeline's pattern only, so the run ingested every schema (221 on the
-  fixture Namespace).
+- **Actual:** with no pipeline pattern the framework keeps every schema, system ones included (221 on the fixture
+  Namespace of `latest-em`).
 - **Connector behavior:** `apply_default_schema_filter` (`iris/metadata.py`, also used by `iris/lineage.py`) uses
-  the connection's pattern when the pipeline has none; a pipeline pattern replaces it completely. Not a hidden
-  workaround: it only chooses between two user-visible configuration values (ADR-0009).
+  the connection's pattern when the pipeline has none; a pipeline pattern replaces it completely (ADR-0009). It only
+  chooses between two user-visible configuration values.
 - **User workaround:** none needed.
-- **Upstream:** not applicable (framework design).
+- **Upstream:** not applicable: the connector handles it.
