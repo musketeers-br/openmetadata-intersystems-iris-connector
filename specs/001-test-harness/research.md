@@ -386,3 +386,22 @@ warm), unit 12 s (26 passed), integration 12 s (10 passed, `test_workflow.py` sk
 server). No root-owned file is left in the clone. The rehearsal caught one defect, fixed before any
 run: the summary missed `pytest -q`'s result line, which has no `=` banner. `actionlint` 1.7.7
 reports nothing.
+
+## First CI run (T026)
+
+Run 45750120790 on draft pull request #13, 2026-11-26 (`pull_request` event, cold caches): all ten
+checks green, with the exact names `overlay-roundtrip` and `iris-<tag>-<login>`; every summary shows
+digest and `$ZVERSION`.
+
+| Job | Duration | Start IRIS | Cold `om-import` | Fixture tests | Unit | Integration |
+|---|---|---|---|---|---|---|
+| `overlay-roundtrip` | 110 s | — | 80 s (+ 20 s `om-check`) | — | — | — |
+| em cells (3) | 169–191 s | 38–41 s | 80–90 s | 10–11 s | 13–14 s | 12–15 s |
+| cd cells (3) | 172–184 s | 37–60 s | 77–81 s | 8–12 s | 10–13 s | 12–13 s |
+| preview cells (3) | 169–413 s | 56–258 s | 72–109 s | 7–9 s | 9–11 s | 11–13 s |
+
+- Wall time 525 s (8 min 45 s): SC-004 (under 15 min) is met, so research R7's first optimization
+  (cache `.om/`) is not needed.
+- Billed minutes, the sum of per-job minutes rounded up: **38**.
+- The one slow cell (`iris-latest-preview-admin`, 413 s) spent 258 s starting IRIS, which is the image
+  pull from `containers.intersystems.com`; its other steps took the usual time.
