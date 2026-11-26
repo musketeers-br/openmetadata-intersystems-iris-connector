@@ -270,7 +270,7 @@ reproduction runs against a Q1 container.
 
 ### Tests for User Story 4 (REQUIRED — Constitution VI) ⚠️
 
-- [ ] T035 [P] [US4] Write `fixtures/iris/test_gap_report.py`. It is offline and parses `GAP-REPORT.md`:
+- [X] T035 [P] [US4] Write `fixtures/iris/test_gap_report.py`. It is offline and parses `GAP-REPORT.md`:
   - entries are headed `### GAP-NNN — <title>`, with ids sequential from 001 and none skipped or repeated;
   - there are at least 9 entries;
   - every entry has the bold labels of the existing entries (GAP-004, GAP-005) in this order: `Component`, `IRIS tracks`, `Found in spec`, `Reproduction`, `Expected`, `Actual`, `Connector behavior`, `User workaround`, `Upstream` (data-model, Gap entry);
@@ -282,14 +282,14 @@ reproduction runs against a Q1 container.
 
 ### Implementation for User Story 4
 
-- [ ] T036 [US4] Complete `GAP-REPORT.md`:
+- [X] T036 [US4] Complete `GAP-REPORT.md`:
   - insert GAP-001..003 before GAP-004 and GAP-006..009 after GAP-005, from the data-model's "Known entries" table, in the format of the existing entries;
   - fill tracks from evidence: SPIKE-06 for GAP-001/002 (all three tracks), SPIKE-01 for GAP-006..008 (`latest-em`), R10 for GAP-009 (`latest-em`, `latest-cd`);
   - GAP-003's reproduction reads "pending SPIKE-03";
   - keep the `Upstream` fields "not raised yet" (no issue without both developers agreeing).
 
   Tracks without evidence yet are written "not tested", which T037 replaces. Makes T035 pass
-- [ ] T037 [US4] Run every GAP reproduction except GAP-003 against `latest-em`, `latest-cd` and `latest-preview` containers loaded by `fixtures/iris/seed.py` (GAP-004..008 with `.om/env/bin/python`). Fix any reproduction that does not show the stated "actual" behavior, and update every entry's `IRIS tracks`, GAP-004 and GAP-005 included. Makes T035 pass
+- [X] T037 [US4] Run every GAP reproduction except GAP-003 against `latest-em`, `latest-cd` and `latest-preview` containers loaded by `fixtures/iris/seed.py` (GAP-004..008 with `.om/env/bin/python`). Fix any reproduction that does not show the stated "actual" behavior, and update every entry's `IRIS tracks`, GAP-004 and GAP-005 included. Makes T035 pass
 
 **Checkpoint**: later specs append entries in the fixed format.
 

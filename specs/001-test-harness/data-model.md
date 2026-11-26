@@ -137,10 +137,12 @@ tracks from the matrix.
 | GAP-004 | Dialect reads the server version through the Native API | official dialect 1.0.2 | `server_version_info` preset (ADR-0015) | 000 |
 | GAP-005 | Dialect's dictionary-access probe is true for every login | official dialect 1.0.2 | `_dictionary_access` preset (ADR-0015) | 000 |
 | GAP-006 | Stray `print(...)` in `get_multi_columns` writes one stdout line per reflected column | official dialect 1.0.2 | none (cosmetic) | 001 |
-| GAP-007 | Composite primary keys reflected with repeated column names (e.g. `['ID','ID',…]`) | official dialect 1.0.2 | behavior settled in spec 002 | 001 |
-| GAP-008 | `LONGVARCHAR` reflected as `VARCHAR(1)`; `VARCHAR(1)` reflected as `CHAR` | official dialect 1.0.2 | the type map uses the raw `DATA_TYPE` (ADR-0006, spec 003) | 001 |
+| GAP-007 | Primary key of a class-defined table reflected with its column repeated (e.g. `['ID','ID',…]`) | official dialect 1.0.2 | none yet; system tables are excluded by default (ADR-0009) | 001 |
+| GAP-008 | `VARCHAR(1)` reflected as `CHAR`; `LONGVARCHAR` cataloged as `VARCHAR(1)` | official dialect 1.0.2 (the `LONGVARCHAR` half is OpenMetadata's `ColumnTypeParser`) | the type map uses the raw `DATA_TYPE` (ADR-0006, spec 003) | 001 |
 | GAP-009 | A schema without tables is not listed in `INFORMATION_SCHEMA.SCHEMATA` | IRIS SQL catalog | none in the connector; the fixtures keep the sentinel `Scratch.Keep` so `Scratch` stays listed (FR-002) | 001 |
 
-GAP-006 to GAP-008 were found with SPIKE-01 on `latest-em`. Their reproductions run against the
-fixture catalog: `Billing.Patient` and `Clinic.Encounter` (`Notes LONGVARCHAR`) are enough for 006 and
-008. GAP-007 needs a composite key, so its reproduction creates a table in `Scratch` and drops it.
+GAP-006 to GAP-008 were found with SPIKE-01 on `latest-em`. `Billing.Patient` is enough for 006;
+008 uses `Clinic.Encounter` (`Notes LONGVARCHAR`) and a `VARCHAR(1)` table it creates and drops in
+`Scratch`. GAP-007 does not reproduce on a primary key declared in DDL, composite or not (checked as
+admin and both readers, with and without dictionary access), so its reproduction reads the system
+table `Ens_Util.LookupTable` as admin (research, "Gap reproductions").

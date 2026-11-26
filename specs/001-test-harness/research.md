@@ -355,3 +355,23 @@ Measured on 2026-11-25 on WSL2 (Ubuntu 24.04, Docker Engine), images already pul
   `iris` extra and `testcontainers` again. `om-import.sh` now ends with `scripts/om-test-deps.sh`
   (R7). Checked after rebasing onto `02a194f`: `om-check` 16 s, "no diff"; the integration tests then
   pass for all three logins with no manual step.
+
+## Gap reproductions (T037)
+
+Run on 2026-11-25 against containers loaded by `fixtures/iris/seed.py` on `latest-em`, `latest-cd`
+and `latest-preview`: every reproduction in `GAP-REPORT.md` except GAP-003 (pending SPIKE-03). All
+eight show the stated behavior on all three tracks. The Python blocks were run exactly as written
+(port changed), the SQL ones with the same statements through the driver.
+
+- **GAP-007 corrected.** A primary key declared in DDL is reflected correctly, composite or not, as
+  admin and as both readers, with and without dictionary access. The defect is on class-defined
+  tables: `Ens_Util.LookupTable` has the primary key `RowIDField_As_PKey` on `ID` only, and the
+  dialect returns `['ID']` eight times. The entry's title and reproduction say so; the planned
+  `Scratch` reproduction would not have shown it.
+- **GAP-008 corrected.** The dialect turns `VARCHAR(1)` into `CHAR`, but it reflects `LONGVARCHAR`
+  correctly. OpenMetadata's `ColumnTypeParser` maps `LONGVARCHAR` to `VARCHAR` with no length, which
+  is where SPIKE-01's `VARCHAR(1)` came from. The entry keeps one id and says which half is whose.
+  ADR-0006 still says "the dialect reflects `LONGVARCHAR` as `VARCHAR(1)`"; spec 003 rewrites that
+  table and should correct it.
+- GAP-009: `CREATE SCHEMA` alone does not list the schema either; `DROP SCHEMA` after its last table
+  is dropped succeeds.
