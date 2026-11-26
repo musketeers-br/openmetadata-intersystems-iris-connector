@@ -137,6 +137,8 @@ Requested order: Makefile → scaffold → schema + enum → `setup.py` extra �
 - [X] T040 Create `README.md` stub: what the repository is, `make om-import`, `make om-check`, `make om-image`, the icon source and licence, licensing summary (Apache-2.0 root, Collate Community License 1.0 for `overlay/ingestion/`, driver never vendored, optional `iris` extra)
 - [X] T042 [US2] (found during T024) Server-side password masking: add `openmetadata-service/src/main/java/org/openmetadata/service/secrets/converter/IrisConnectionClassConverter.java` and register it in `ClassConverterFactory.java`; without it the server returns the Iris password in clear while Postgres is masked. Verified with an Iris and a Postgres service created through the API
 - [x] T041 Move the spec's issue on the "IRIS connector" GitHub Project to Review once T037–T040 are done
+- [ ] T043 (review of PR #11) Add `.gitattributes` at the repository root with `* text=auto eol=lf`, so shell scripts, `seed.py` and patches keep LF line endings on Windows checkouts (`core.autocrlf`) and do not break under WSL; renormalize with `git add --renormalize .` and confirm `make om-check` shows no diff
+- [ ] T044 (review of PR #11) Check the install command `om-import` runs inside `.om/ingestion`: OpenMetadata 2.1.1's `CONTRIBUTING.md` points to `DEVELOPER.md` and `make install_dev_env` (Nox + pinned `uv`), while `om-import` runs `make install_dev`. Keep `install_dev` if it gives the same environment; otherwise switch. Record the decision in research.md and the README
 
 ---
 
