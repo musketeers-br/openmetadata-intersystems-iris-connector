@@ -8,7 +8,7 @@ One failed read of one object's feature in one run.
 |---|---|
 | `fqn` | the object's FQN: table or view `<service>.<Namespace>.<Schema>.<Table>`, schema `<service>.<Namespace>.<Schema>` |
 | `feature` | one of the features below |
-| `schema`, `name` | the exact IRIS names, used in the message (`<Schema>.<Name>`; a schema gap uses the schema alone) |
+| `schema`, `name` | the exact IRIS names, used in the message (`<Schema>.<Name>`); a schema gap passes no `name`, and the message uses the schema alone |
 | `reason` | the first line of the database error (`str(exc.orig)`), or the exception class name if empty |
 
 Status entry: `self.status.warning(fqn, "IRIS-ACCESS: cannot read <feature> of <Schema>.<Name>: <reason>")`.
@@ -25,7 +25,7 @@ source). The helper catches `SQLAlchemyError` only; any other exception is a bug
 | `keys` | table | PK, `IRIS_UNIQUE_CONSTRAINTS`, FKs (three reads, one feature) | `_get_columns_with_constraints` | 002 |
 | `description` | table, view | `inspector.get_table_comment` | `get_table_description` | 002 |
 | `view definition` | view | `inspector.get_view_definition` | `get_schema_definition` | 002 |
-| `data` | table, view | `IRIS_READ_PROBE` (`SELECT TOP 0 *`) | `check_readable` | 005 |
+| `data` | table, view | `IRIS_READ_PROBE` (`SELECT TOP 0 *`) | `check_readable`, called from `get_columns_and_constraints` | 005 |
 | `sample data`, `profile` | table | profiler reads | the profiler's IRIS hooks | 006 |
 
 ## Restricted fixtures (catalog v3)
@@ -42,8 +42,9 @@ One row in each (`Id = 1`). The administrator sees and reads all three.
 
 Self-check additions:
 - C1–C3 and C5 for the three tables, as the administrator.
-- C11 per reader:
+- C12 per reader (C11 is spec 001's VECTOR catalog check):
   - the tables listed in `Restricted` are `["ColumnGrant", "Secret"]`;
+  - the columns each reader sees: `Secret` all 3, `ColumnGrant` `Id` only, `Hidden` none;
   - `SELECT TOP 1 * FROM` each of the three is refused with -99;
   - `SELECT TOP 1 Id FROM Restricted.ColumnGrant` reads.
 

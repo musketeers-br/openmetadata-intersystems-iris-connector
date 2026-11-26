@@ -22,7 +22,8 @@ Extends the warnings contract's `IRIS-ACCESS` row (ADR-0008) with the features t
 - **Tests:** they assert on the prefix `IRIS-ACCESS: cannot read <feature> of <Schema>.<Table>: ` and
   the key, never on the SQL error text, which differs between IRIS versions.
 - **Logs:** a debug log line may add detail; it never replaces the warning.
-- **One mechanism:** every read goes through `report_access_gap(fqn, feature, schema, name)`; no other
+- **One mechanism:** every read goes through `report_access_gap(fqn, feature, schema, name)` (no
+  `name` for a schema read); no other
   code catches database errors in `iris/` without warning or re-raising, which the guard test
   enforces.
 

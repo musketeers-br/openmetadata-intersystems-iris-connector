@@ -105,9 +105,16 @@ never fires for a database error.
   The connector never guesses names, so this does not change the limitation; it is noted for the docs.
 
 **Decision**: the probe text is a template in `queries.py`
-(`IRIS_READ_PROBE = 'SELECT TOP 0 * FROM {schema}.{table}'`), filled with quoted identifiers. It
-runs from `_get_columns_internal` (the one per-table hook spec 003 already uses), after the type map.
-The cost, one prepare per object, needs no batching (constitution: measure first).
+(`IRIS_READ_PROBE = 'SELECT TOP 0 * FROM {schema}.{table}'`), filled with quoted identifiers and run
+with `exec_driver_sql`, because `text()` would read a colon in a quoted name as a bind parameter. It
+runs from an override of the framework's `get_columns_and_constraints`, which the framework calls
+once per cataloged table and view, after the framework's own reads. The cost, one prepare per
+object, needs no batching (constitution: measure first).
+
+**Revised during implementation**: the plan put the call in spec 002's `_get_columns_internal`, next
+to spec 003's. The override keeps spec 002's code and unit tests unchanged: their connection stub
+has no dialect to quote with, and the tests call `_get_columns_internal` directly. It also leaves
+`_get_columns_internal` to specs 003 and 004.
 
 ## R5 — Error handlers in `iris/` today
 
@@ -137,3 +144,46 @@ records the step result, so they need no entry.
 - **dbt lineage**: no IRIS grant expected (dbt artifacts are read outside IRIS); spec 007 confirms.
 - **A table-level `REVOKE` does not override a schema-level `GRANT`** (R1): to keep one table out,
   grant table by table, or put it in a schema the login has no grant on.
+
+## Implementation measurements (2026-11-26)
+
+Local cells: `latest-em` 2026.1 (Build 234U), `latest-cd` and `latest-preview` 2026.3 (Build 212U),
+fixtures at catalog v3.
+
+- **Fixtures**: the loader ran twice on each track, `FIXTURES OK v3` each time. C12 adds 16 passes
+  (2 readers × 8). `pytest fixtures`: 55 passed on each track. The 1 failure is
+  `test_gap_report.py`, which waits for spec 001's `not applicable` value (on spec 001, not yet in
+  this branch's base).
+- **Unit tests** (no IRIS): 122 passed. That is specs 002 and 003 (94, unchanged) plus
+  `test_iris_access.py` (21) and `test_iris_access_guard.py` (7).
+- **Guard, by hand** (quickstart step 3): a `try/except Exception: pass` appended to `types.py` failed
+  the guard with `types.py:176`; removed, it passed again.
+- **Integration**, `pytest tests/integration/iris -m iris` per cell. The skips are the server-bound
+  Part B tests and the tests that branch on the login.
+
+  | Track | `admin` | `reader` | `reader_dict` |
+  |---|---|---|---|
+  | `latest-em` | 29 passed, 11 skipped | 30 passed, 10 skipped | 29 passed, 11 skipped |
+  | `latest-cd` | 29 passed, 11 skipped | 30 passed, 10 skipped | 29 passed, 11 skipped |
+  | `latest-preview` | 29 passed, 11 skipped | 30 passed, 10 skipped | 29 passed, 11 skipped |
+
+- **`test_access.py`**: for each reader on every track, exactly two `data` warnings
+  (`Restricted.Secret`, `Restricted.ColumnGrant`). `Secret` is cataloged with 3 columns and
+  `ColumnGrant` with `Id` only. `Hidden` is not listed. As `admin`, no warning, 3 tables, and
+  `ColumnGrant` has 2 columns. Reading all of `READER_SCHEMAS` gives no access warning for any login.
+- **Probe cost**: `check_readable` was timed per object on a warm connection on `latest-em` and
+  `latest-cd`.
+  - Most objects, refusals included: 2.6–5.0 ms.
+  - First prepare of `Scratch.Keep` as `_SYSTEM`: about 20 ms.
+  - The test that reads every readable fixture (7 objects) takes about 0.5 s as `admin` and 2.0 s as
+    a reader. The probe accounts for at most about 35 ms of either.
+- **US1 (same results as `admin` for an ordinary login)**: the whole suite passes as `reader` and
+  `reader_dict` on the three tracks. For `READER_SCHEMAS` they get the same expectations as `admin`.
+  Spec 004 has not landed, so `AI.Embedding.Vec` is `VARCHAR(1037)` for every login.
+- **Grants table** (T017): a throwaway login and schemas on `latest-em`, removed afterwards.
+  - `CREATE USER … IDENTIFIED BY "Pw-1x"` sets the password `Pw-1x`; the quotes only delimit it.
+  - The login connects with no unexpire step.
+  - After `GRANT SELECT ON SCHEMA` and `REVOKE SELECT ON <schema>.Payroll`, the login still lists and
+    reads `Payroll`.
+  - With `GRANT SELECT ON <schema>.Orders` only, the login lists `Orders` and not the schema's other
+    table.

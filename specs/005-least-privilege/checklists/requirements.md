@@ -41,4 +41,4 @@
   "the restricted table produces exactly one warning" cannot hold, because every catalog read
   succeeds on a visible-but-unreadable table (research R2). Henry, as reviewer, should confirm it.
 - The `data`, `tables` and `views` feature names extend the warnings contract's list; the contract is
-  updated in is-omd with this spec.
+  updated with this spec.

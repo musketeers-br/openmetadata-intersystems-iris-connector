@@ -12,7 +12,8 @@ Make a plain `SELECT` login enough, and leave no access problem silent:
 - `metadata.py` gets a section `--- 005: access gaps ---`:
   - `check_readable(schema, table)` runs a no-row read of each cataloged table and view through the
     helper (feature `data`), because every catalog read succeeds on a visible-but-unreadable table
-    (research R2);
+    (research R2). An override of the framework's `get_columns_and_constraints` calls it after the
+    framework's reads (revised during implementation, R4);
   - `query_table_names_and_types` and `query_view_names_and_types` call the framework's methods inside
     the helper, keyed on the schema FQN (features `tables`, `views`), because the framework only logs
     a failed listing (R3).
@@ -61,8 +62,8 @@ batching without a measured problem.
 - **One mechanism:** `report_access_gap` stays the only place that turns read failures into warnings
   (ADR-0008). It is hardened, not duplicated.
 - **Direct SQL only in `queries.py`**; identifiers quoted by the dialect (Principle III).
-- **Other specs' code:** spec 002 code is changed only to add one call next to spec 003's in
-  `_get_columns_internal`. The `--- 004 ---` sections stay free.
+- **Other specs' code:** spec 002's helper gains an optional `name`, so a schema warning reads
+  `of <Schema>`; its call sites and unit tests stay as they are. The `--- 004 ---` sections stay free.
 - **Warnings, not logs:** warnings go in the ingestion status, never only in logs (Principle V), with
   no credentials or row data.
 - **Fixtures:** changes are additive (ADR-0012).
@@ -110,8 +111,9 @@ specs/005-least-privilege/
 overlay/ingestion/src/metadata/ingestion/source/database/iris/
 ├── queries.py       # + section 005: IRIS_READ_PROBE
 └── metadata.py      # + section "--- 005: access gaps ---": check_readable(), _schema_fqn(),
-                     #   query_table_names_and_types(), query_view_names_and_types();
-                     #   one call in 002's _get_columns_internal, after 003's
+                     #   query_table_names_and_types(), query_view_names_and_types(),
+                     #   get_columns_and_constraints() (calls check_readable);
+                     #   002's report_access_gap: optional name for schema messages
 overlay/ingestion/tests/unit/topology/database/test_iris_access.py          # new
 overlay/ingestion/tests/unit/topology/database/test_iris_access_guard.py    # new
 overlay/ingestion/tests/integration/iris/test_access.py                     # new
@@ -125,8 +127,9 @@ GAP-REPORT.md                        # GAP-003 reproduction and actual behavior
 docs/adr/0008-access-gaps-as-warnings.md   # updated (FR-013)
 ```
 
-**Structure Decision**: everything new lives in the `--- 005 ---` sections. Spec 002's helper and
-its existing call sites stay as they are; the hardening is tests plus the missing call sites.
+**Structure Decision**: everything new lives in the `--- 005 ---` sections. Spec 002's call sites
+stay as they are, and its helper only gains the optional `name`; the hardening is tests plus the
+missing call sites.
 
 ## Build order
 
@@ -138,8 +141,8 @@ its existing call sites stay as they are; the hardening is tests plus the missin
 
 ## Dependencies
 
-- **Spec 002**: `report_access_gap`, `_table_fqn`, `_get_columns_internal`. Merges first.
-- **Spec 003**: the fixture catalog v2 and the column-read call site. This branch starts from 003.
+- **Spec 002**: `report_access_gap`, `_table_fqn`. Merges first.
+- **Spec 003**: the fixture catalog v2. This branch starts from 003.
 - **Spec 004** uses the helper for its dictionary reads. The VECTOR grant row of the grants table is
   confirmed there.
 - **Spec 006** uses the helper for sample data and profile. The profiler and data-quality rows are
