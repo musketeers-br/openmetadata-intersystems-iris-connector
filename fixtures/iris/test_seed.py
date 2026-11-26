@@ -116,8 +116,8 @@ def test_import_does_not_connect(monkeypatch):
     spec = importlib.util.spec_from_file_location("iris_fixture_seed_import_check", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    assert module.CATALOG_VERSION == 2
-    assert set(module.VERSION_HISTORY) == {1, 2}
+    assert module.CATALOG_VERSION == 3
+    assert set(module.VERSION_HISTORY) == {1, 2, 3}
     assert set(module.LOGINS) == {"admin", "reader", "reader_dict"}
 
 
@@ -214,7 +214,7 @@ def test_load_reports_all_checks(seed_module, loaded, monkeypatch, capsys):
     monkeypatch.setenv("IRIS_PORT", str(loaded["port"]))
     assert seed_module.main() == 0
     out = capsys.readouterr().out
-    for number in range(1, 12):
+    for number in range(1, 13):
         assert f"PASS C{number} " in out
     assert f"FIXTURES OK v{seed_module.CATALOG_VERSION} IRIS" in out
 
@@ -316,6 +316,38 @@ def test_readers_can_read_the_type_fixture(seed_module, loaded, connect):
         try:
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM Types.AllTypes")
+            assert cursor.fetchall()[0][0] == 1, account.user
+        finally:
+            conn.close()
+
+
+RESTRICTED = ("Secret", "ColumnGrant", "Hidden")
+
+
+def test_the_restricted_tables_exist_for_the_admin(seed_module, loaded, admin_conn):
+    objects = seed_module.EXPECTED["objects"]
+    assert {name for schema, name in objects if schema == "Restricted"} == set(RESTRICTED)
+    assert seed_module._columns(admin_conn.cursor(), "Restricted", "ColumnGrant") == [
+        ("Id", "integer"),
+        ("Hidden", "varchar"),
+    ]
+    assert "Restricted" not in seed_module.READER_SCHEMAS
+
+
+def test_readers_see_but_cannot_read_the_restricted_tables(seed_module, loaded, connect):
+    """Spec 005: REFERENCES lists Secret, a one-column SELECT lists ColumnGrant with Id only, Hidden stays unseen."""
+    for login in seed_module.READERS:
+        account = seed_module.LOGINS[login]
+        conn = connect(account.user, account.password)
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'Restricted'")
+            assert sorted(row[0] for row in cursor.fetchall()) == ["ColumnGrant", "Secret"], account.user
+            assert [c for c, _ in seed_module._columns(cursor, "Restricted", "ColumnGrant")] == ["Id"], account.user
+            for table in RESTRICTED:
+                result = _sqlcode_of(lambda t=table: (cursor.execute(f"SELECT TOP 1 * FROM Restricted.{t}"),))
+                assert "SQLCODE: <-99>" in result, f"{account.user} Restricted.{table}: {result}"
+            cursor.execute("SELECT TOP 1 Id FROM Restricted.ColumnGrant")
             assert cursor.fetchall()[0][0] == 1, account.user
         finally:
             conn.close()
