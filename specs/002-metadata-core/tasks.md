@@ -139,7 +139,7 @@ Cells: "all" = every matrix cell (track × login `admin`/`reader`); "admin" = ad
 - [X] T031 [P] Case regression in `UNIT`: mixed-case schema, table and column names round-trip through the maps unchanged
 - [X] T032 Run `make py_format` on touched modules inside `.om/`, then `make om-export` and `make om-check`; confirm only intended `overlay/` and `patches/` changes
 - [X] T033 Run the quickstart steps in `specs/002-metadata-core/quickstart.md` on `latest-em` locally; list the cells run and the cells left to the CI matrix (spec 001) (done on latest-em only; cd and preview left to the matrix)
-- [ ] T034 Update `specs/002-metadata-core/research.md` open items and the fixtures contract notes with anything learned; ask the developer whether to commit
+- [X] T034 Update `specs/002-metadata-core/research.md` open items and the fixtures contract notes with anything learned; ask the developer whether to commit
 
 ---
 

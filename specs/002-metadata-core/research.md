@@ -59,7 +59,8 @@ failure, and the chosen source with the reason. A catalog choice creates a Gap e
 
 ## Open items
 
-- `latest-cd` and `latest-preview` comparison (spec 001 matrix).
-- Column default values are unverified: no fixture column has a default.
-- `Scratch` schema: first use is by the mark-deleted test; the shared fixtures (spec 001) create `Scratch` with a sentinel table `Scratch.Keep` that is never dropped, because IRIS stops listing a schema once its last table is dropped.
-- `iris_cell` / `iris_service_connection` / `iris_admin_engine` do not exist yet (spec 001): the tests use an ad-hoc environment like spec 000's.
+- Resolved: the comparison (T002) was run on `latest-em`; GAP-010 (unique constraints with dictionary access), GAP-011 (view definitions in stored form) and GAP-012 (connection defaults not applied by the framework) are reproduced on `latest-em`, `latest-cd` and `latest-preview`. All 9 matrix cells (3 tracks x admin, reader, reader_dict) pass this spec's integration tests.
+- Corrected: an earlier draft claimed the inspector does not return column descriptions. It does (the dialect returns them as `comment`, on every login and track), so there is no catalog query for them and no gap entry.
+- The shared fixtures own `Scratch` and its sentinel table `Scratch.Keep`, which is never dropped (IRIS stops listing a schema once its last table is dropped, GAP-009). Tests create and drop only their own tables in `Scratch`.
+- The tests use the shared test fixtures (`iris_cell`, `iris_service_connection`, `iris_admin_engine`) and the expected-objects catalog.
+- Still open: column default values are unverified, because no fixture column has a default.
