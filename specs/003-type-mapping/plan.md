@@ -96,7 +96,7 @@ specs/003-type-mapping/
 # OpenMetadata tree (overlay/, edited in .om/, Collate Community License header)
 overlay/ingestion/src/metadata/ingestion/source/database/iris/
 ├── types.py         # section "--- 003: type map ---": IRIS_TYPES, ColumnFacts, resolve(), UnknownTypes,
-│                    #   unknown_type_message(), render_markdown_table(), __main__ prints the table
+│                    #   unknown_type_message(), render_markdown_table()
 ├── queries.py       # + IRIS_COLUMN_TYPES (bound on schema and table)
 └── metadata.py      # + section "--- 003: type map ---": map_column_types(); one call at the end of
                      #   002's _get_columns_internal

@@ -19,6 +19,7 @@ from typing import cast
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from metadata.generated.schema.entity.data.database import Database
 from metadata.generated.schema.entity.data.table import Table, TableType
 from metadata.generated.schema.entity.services.connections.database.irisConnection import (
     IrisConnection,
@@ -30,7 +31,14 @@ from metadata.ingestion.api.steps import InvalidSourceException
 from metadata.ingestion.ometa.ometa_api import OpenMetadata
 from metadata.ingestion.source.database.common_db_source import CommonDbSourceService
 from metadata.ingestion.source.database.iris.queries import (
+    IRIS_COLUMN_TYPES,
     IRIS_UNIQUE_CONSTRAINTS,
+)
+from metadata.ingestion.source.database.iris.types import (
+    ColumnFacts,
+    UnknownTypes,
+    resolve,
+    unknown_type_message,
 )
 from metadata.utils import fqn as fqn_utils
 
@@ -125,8 +133,45 @@ class IrisSource(CommonDbSourceService):
         return pk_columns, unique_columns, foreign_columns
 
     def _get_columns_internal(self, schema_name, table_name, db_name, inspector, table_type=None):
+        columns = []
         with self.report_access_gap(self._table_fqn(schema_name, table_name), "columns", schema_name, table_name):
-            return inspector.get_columns(table_name, schema_name, table_type=table_type, db_name=db_name)
-        return []
+            columns = inspector.get_columns(table_name, schema_name, table_type=table_type, db_name=db_name)
+        self.map_column_types(schema_name, table_name, columns)
+        return columns
+
+    # --- 003: type map ---
+
+    def map_column_types(self, schema_name: str, table_name: str, columns: list[dict]) -> None:
+        """
+        ADR-0006: resolve each column's type from its own INFORMATION_SCHEMA.COLUMNS row through the one type table,
+        not from the dialect's reflected type (GAP-008). Sets `type` and `system_data_type`; the framework builds the
+        column from them. An unmapped type is cataloged as UNKNOWN with one IRIS-UNKNOWN-TYPE warning per type per run.
+        """
+        if not columns:
+            return
+        facts: dict[str, ColumnFacts] = {}
+        with self.report_access_gap(self._table_fqn(schema_name, table_name), "columns", schema_name, table_name):
+            rows = self.connection.execute(text(IRIS_COLUMN_TYPES), {"schema": schema_name, "table": table_name})
+            # The catalog may compare names case-insensitively; keep the exact (schema, table) only (Principle III).
+            facts = {row[2]: ColumnFacts(*row[3:7]) for row in rows if (row[0], row[1]) == (schema_name, table_name)}
+        unknown = self.__dict__.setdefault("_unknown_types", UnknownTypes())
+        for column in columns:
+            column_facts = facts.get(column["name"])
+            if column_facts is None:
+                continue
+            resolved = resolve(column_facts)
+            column["type"] = resolved.sqlalchemy_type
+            column["system_data_type"] = resolved.display
+            where = f"{schema_name}.{table_name}.{column['name']}"
+            if not resolved.known and unknown.first(column_facts.data_type or "", where):
+                self.status.warning(self._database_fqn(), unknown_type_message(column_facts.data_type, where))
+
+    def _database_fqn(self) -> str:
+        return fqn_utils.build(
+            metadata=self.metadata,
+            entity_type=Database,
+            service_name=self.context.get().database_service,
+            database_name=self.context.get().database,
+        )
 
     # --- 004: dictionary / VECTOR enrichment ---

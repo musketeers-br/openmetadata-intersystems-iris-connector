@@ -157,5 +157,23 @@ No `NEEDS CLARIFICATION` remained in the Technical Context.
 
 - **Decision**: `render_markdown_table()` in `types.py` returns the Markdown table (IRIS `DATA_TYPE`,
   OpenMetadata type, kept, example DDL, note). `contracts/type-mapping.md` holds the rendered table
-  between markers; a unit test compares it with a fresh rendering, and
-  `python -m metadata.ingestion.source.database.iris.types` prints it for regeneration.
+  between markers; a unit test compares it with a fresh rendering and prints the
+  command that regenerates it. No `__main__` in `types.py`: section 004 may add code after section 003.
+
+## Implementation measurements
+
+2026-11-26, WSL2, containers loaded with catalog v2 (`FIXTURES OK v2` twice on each track, 49 checks):
+
+- `discover_types.py --check`: 15 `DATA_TYPE` values, all mapped, on `latest-em`, `latest-cd`,
+  `latest-preview`.
+- Unit tests: `test_iris_types.py` 41 passed; with spec 002's `test_iris.py`, 95 passed.
+- Integration tests on every local cell (3 tracks × 3 logins): `test_types.py` 5 passed, with specs
+  001 and 002 (Part A) 27 passed for `admin` and `reader_dict`, 28 for `reader` (Part B and
+  `test_workflow.py` skip without an OpenMetadata server).
+- `pytest fixtures`: 54 tests, 52 passed. The two failures come from spec 002's content on this base,
+  not from 003: GAP-010..013 are not in the format `test_gap_report.py` checks, and
+  `test_metadata_core.py` creates and drops `Scratch.Keep`. Spec 002 fixes both when it rebases on 001.
+- `make om-check` twice: no diff.
+- Spec 002's unit-test stubs answer every query with their description rows, so the new type query
+  in `_get_columns_internal` reads those rows too; the tests still pass. A stub that answers per
+  statement would make them exact (for spec 002's owner).

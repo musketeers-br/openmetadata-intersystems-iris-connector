@@ -44,7 +44,7 @@ both columns `UNKNOWN`.
 ## Q6 — Regenerate the docs table (FR-014, SC-004)
 
 ```bash
-cd .om/ingestion && ../env/bin/python -m metadata.ingestion.source.database.iris.types
+cd .om/ingestion && ../env/bin/python -c 'from metadata.ingestion.source.database.iris.types import render_markdown_table; print(render_markdown_table())'
 ```
 
 Paste the output between the markers of `contracts/type-mapping.md`, or run the unit test, which says
