@@ -105,6 +105,13 @@ jobs:
           echo "T_SEED=$(( $(date +%s) - s ))" >> "$GITHUB_ENV"
           exit $rc
 
+      # T027 (throwaway): break three cells on purpose
+      - name: "T027: install the community dialect (latest-cd admin only)"
+        if: matrix.tag == 'latest-cd' && matrix.login == 'admin'
+        run: python -m pip install -q sqlalchemy-iris
+      - name: "T027: fail on purpose (latest-em reader, latest-preview reader)"
+        if: matrix.login == 'reader' && (matrix.tag == 'latest-em' || matrix.tag == 'latest-preview')
+        run: exit 1
       # 5
       - name: Guard, no community dialect (fixture environment)
         run: python fixtures/iris/check_dialect.py
