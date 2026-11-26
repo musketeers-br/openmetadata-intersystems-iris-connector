@@ -23,7 +23,7 @@ what the SQL catalog reports, and GAP-001 and GAP-002 say why.
 - Q: OpenMetadata representation? → A: `dataType = ARRAY`, `arrayDataType = <element type>`, `dataTypeDisplay = VECTOR(<TYPE>, <dim>)`. SPIKE-03 checked that the ingestion framework carries all three for five element types. pgvector and MariaDB give nothing better (`NULL`, or a failed read). The UI check needs an OpenMetadata server built from the overlay.
 - Q: Element types? → A: `DOUBLE`, `FLOAT`, `DECIMAL`, `INT` (and `INTEGER`), `STRING` map to the same-named OpenMetadata types (`INT` for both integer spellings). Any other element type gives `arrayDataType = UNKNOWN` and one warning for that column.
 - Q: Narrower grant than the whole dictionary table? → A: SPIKE-03 found a column-level grant on `CompiledProperty`, which is not needed now. The documented grant is the single table above.
-- Q: When is the hint emitted for a login without the grant? → A: Once per run, on the first `varchar` column read (any of them may be a VECTOR). A login without the grant cannot tell a VECTOR column from a `VARCHAR` one, so it cannot wait for "the first VECTOR column".
+- Q: When is the hint emitted for a login without the grant? → A: Once per run, on the first `varchar` column read (any of them may be a VECTOR). A login without the grant cannot tell a VECTOR column from a `VARCHAR` one, so it cannot wait for "the first VECTOR column". Reviewed with Henry on 2026-11-26: once per run is accepted, with conditional text (it says "if this Namespace has VECTOR columns"), and only when the dictionary check fails.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -161,7 +161,9 @@ should follow without a release.
 
 - **FR-005**: Without access, VECTOR columns MUST stay as spec 003 catalogs them (`VARCHAR` with the
   catalog length), and the status MUST hold exactly one warning per run, keyed on the Database FQN:
-  `IRIS-VECTOR-GRANT: VECTOR element type and dimension not available. Optional: GRANT SELECT ON %Dictionary.PropertyDefinition TO <username>`.
+  `IRIS-VECTOR-GRANT: if this Namespace has VECTOR columns, GRANT SELECT ON %Dictionary.PropertyDefinition TO <username> to catalog their element type and dimension`.
+  It MUST be emitted only when the dictionary check fails (no access, or the query fails), never
+  when the dictionary was read.
   The username MUST be the connection's login; nothing else from the connection (no password, no URL).
 - **FR-006**: Access MUST be taken from the dialect-state preset of ADR-0015 when it is known, so a
   login without the grant runs no dictionary query at all. A `SQLCODE -99` or any other database

@@ -122,7 +122,7 @@ query constant → probe and cache → enrichment → warnings → tests → GAP
   `pytest fixtures/iris/test_gap_report.py` passes
 - [ ] T020 Point spec 005's grants table (`specs/005-least-privilege/quickstart.md`, VECTOR row) at this spec's docs note, and mark the row confirmed
 - [ ] T021 [P] Prepare the planning-repository contract changes on a local branch `contracts/004-vector-enrichment`:
-  - `docs/contracts/warnings.md`: the `IRIS-VECTOR-GRANT` text names `PropertyDefinition`; `IRIS-VECTOR-PARAMS` gains the unknown-element text;
+  - `docs/contracts/warnings.md`: the `IRIS-VECTOR-GRANT` text becomes the conditional text of [contracts/vector-warnings.md](contracts/vector-warnings.md), naming `PropertyDefinition`, emitted only when the dictionary check fails; `IRIS-VECTOR-PARAMS` gains the unknown-element text;
   - `docs/contracts/type-mapping.md`: the VECTOR element table and the join;
   - `docs/contracts/fixtures.md`: catalog v4, the two columns, the 004 planned-additions row done;
   - `docs/contracts/test-connection.md`: drop the "SPIKE-03 may add `CompiledProperty`" sentence.
@@ -149,8 +149,10 @@ After T013:  T018 ∥ T019 ∥ T020 ∥ T021
 
 ## Notes
 
-- Built on spec 005, which is built on 003. When they rebase or merge, rebase this branch; the
-  shared line is the call list in `_get_columns_internal` (003, 005, 004 in that order).
+- Built on spec 005, which is built on 003. When they rebase or merge, rebase this branch. The
+  shared line is the call list in `_get_columns_internal` (003, then 004); spec 005 calls its
+  readability check from `get_columns_and_constraints` instead. The fixture catalog goes v2 (003),
+  v3 (005), v4 (004).
 - First cut inside the MVP: if it is parked, spec 003's `VARCHAR` stays, and GAP-001 and GAP-002
   say why.
 - Nothing in this spec is pushed without the user's go-ahead.

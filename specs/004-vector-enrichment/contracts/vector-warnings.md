@@ -5,7 +5,7 @@ before SPIKE-03, and keeps `IRIS-VECTOR-PARAMS`.
 
 | Code | Key | Reason | Emitted |
 |---|---|---|---|
-| `IRIS-VECTOR-GRANT` | `<service>.<Namespace>` | `IRIS-VECTOR-GRANT: VECTOR element type and dimension not available. Optional: GRANT SELECT ON %Dictionary.PropertyDefinition TO <username>` | once per run, on the first `varchar` column read when the dictionary is not readable |
+| `IRIS-VECTOR-GRANT` | `<service>.<Namespace>` | `IRIS-VECTOR-GRANT: if this Namespace has VECTOR columns, GRANT SELECT ON %Dictionary.PropertyDefinition TO <username> to catalog their element type and dimension` | once per run, on the first `varchar` column read, only when the dictionary check failed (no access, or the query failed) |
 | `IRIS-VECTOR-PARAMS` | `<service>.<Namespace>.<Schema>.<Table>.<Column>` | `IRIS-VECTOR-PARAMS: could not parse VECTOR parameters '<raw>'; cataloged as VARCHAR` (unusable `DATATYPE` or `LEN`), or `IRIS-VECTOR-PARAMS: VECTOR element type '<type>' is not mapped; cataloged as ARRAY of UNKNOWN` | once per column per run |
 
 ## Rules
@@ -17,4 +17,6 @@ before SPIKE-03, and keeps `IRIS-VECTOR-PARAMS`.
   `IRIS-ACCESS` warning per table.
 - **Parameters in the message:** the raw parameters are dictionary metadata, not row data, so they
   may appear in the message.
+- **Conditional text:** a login without the grant cannot tell whether the Namespace has VECTOR
+  columns, so the hint says "if" (review decision, 2026-11-26).
 - **Tests:** they assert on the code prefix and the key.

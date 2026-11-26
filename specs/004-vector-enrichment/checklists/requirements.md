@@ -43,5 +43,5 @@
 - The demand's representation choice ("after comparing with pgvector/MariaDB") was settled by
   SPIKE-03. Only the UI check is left, and it needs an OpenMetadata server (research R5).
 - The hint is emitted for a login without the grant even when the Namespace has no VECTOR column,
-  because such a login cannot tell. Once per run keeps it to one line; Henry, as reviewer, should
-  confirm this is acceptable.
+  because such a login cannot tell. Henry confirmed it on 2026-11-26, with conditional text ("if
+  this Namespace has VECTOR columns, …") and only when the dictionary check fails (FR-005).
