@@ -375,3 +375,14 @@ eight show the stated behavior on all three tracks. The Python blocks were run e
   table and should correct it.
 - GAP-009: `CREATE SCHEMA` alone does not list the schema either; `DROP SCHEMA` after its last table
   is dropped succeeds.
+
+## CI rehearsal before the first run (T024–T025)
+
+2026-11-26, WSL2: the cell steps 2–11 of `iris-matrix.yml` run in order on a fresh clone of the
+branch (`latest-cd`, `reader`; host port 11976 instead of 1972), with `GITHUB_ENV`,
+`GITHUB_OUTPUT` and `GITHUB_STEP_SUMMARY` emulated and the summary script taken from the YAML. All
+steps pass: start 5 s, seed 2 s, fixture tests 8 s (46 passed), cold `om-import` 56 s (uv cache
+warm), unit 12 s (26 passed), integration 12 s (10 passed, `test_workflow.py` skipped without a
+server). No root-owned file is left in the clone. The rehearsal caught one defect, fixed before any
+run: the summary missed `pytest -q`'s result line, which has no `=` banner. `actionlint` 1.7.7
+reports nothing.

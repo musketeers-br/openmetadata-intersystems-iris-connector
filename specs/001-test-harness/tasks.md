@@ -191,13 +191,13 @@ alone.
 ### Implementation for User Story 2
 
 - [X] T023 [US2] Write `fixtures/iris/check_dialect.py` per research R6. It uses the standard library only, and exits 1 when the `sqlalchemy-iris` distribution is installed, when `importlib.util.find_spec("sqlalchemy_iris")` finds the module, or when the `iris` dialect entry point resolves to anything other than `sqlalchemy_intersystems_iris.iris:IRISDialect_iris`. It prints the offending package or target. Makes T022 pass
-- [ ] T024 [US2] Write `.github/workflows/iris-matrix.yml` per contracts/ci-matrix.md:
+- [X] T024 [US2] Write `.github/workflows/iris-matrix.yml` per contracts/ci-matrix.md:
   - triggers (`pull_request`, `push` on `main` only, `workflow_dispatch`), `permissions: contents: read`, no secrets, `concurrency` exactly as in the contract, `OM_SKIP_UI_CODEGEN: "1"` at workflow level;
   - job `overlay-roundtrip`: checkout with `persist-credentials: false`, `astral-sh/setup-uv`, `actions/cache@v4` on the uv cache and `.cache/` with the contract's key, `make om-import`, `make om-check`;
   - job `iris` with `name: iris-${{ matrix.tag }}-${{ matrix.login }}`, `needs: overlay-roundtrip`, `strategy.fail-fast: false`, matrix `tag: [latest-em, latest-cd, latest-preview]` × `login: [admin, reader, reader_dict]`, `continue-on-error: ${{ matrix.tag == 'latest-preview' }}`, `timeout-minutes: 30`, and the cell env from the contract;
   - cell steps 1–10 in contract order; pytest output goes through `tee -a pytest.log` with `set -o pipefail`;
   - capture each exit status with `rc=0; cmd || rc=$?` (SPIKE-06 fix)
-- [ ] T025 [US2] Add steps 11 and 12 to `.github/workflows/iris-matrix.yml`:
+- [X] T025 [US2] Add steps 11 and 12 to `.github/workflows/iris-matrix.yml`:
   - step 11, `if: always()`: write the cell name, `steps.iris.outputs.digest`, `steps.iris.outputs.zversion`, per-step durations (recorded with `date +%s` around each step into `$GITHUB_ENV`), the pytest summary lines and the skip reasons from `pytest.log` to `$GITHUB_STEP_SUMMARY`;
   - step 12, `if: failure()`: `docker logs --tail 200 iris`.
 
@@ -303,8 +303,8 @@ reproduction runs against a Q1 container.
   - any `CREATE TABLE` or `DROP TABLE` on `Scratch.Keep` (the loader owns it).
 
   Include self-tests on temporary files: `text("CREATE TABLE Clinic.X …")` and `text("DROP TABLE Scratch.Keep")` fail; `assert "GRANT SELECT ON X" in msg` passes. So the rule can be shown to fail, and to ignore assertion text
-- [ ] T039 [P] Replace the integration-test paragraph of `README.md` with a `## Running tests` section (FR-024): plain venv from `fixtures/iris/requirements.txt`; `fixtures/iris/start-iris.sh TAG 11972 NAME`; `IRIS_PORT=11972 python fixtures/iris/seed.py` and its exit codes; `pytest fixtures`; the guard; `make om-import` installing the test dependencies (`make om-test-deps` by hand only after another sync); `make test-cell TAG=… LOGIN=…`; `make iris-down`; automatic single-instance mode (no `IRIS_HOST`); `.om/env/bin/python` as the connector's interpreter. The README stub is Henry's until spec 009; the change is agreed (2026-11-25)
-- [ ] T040 [P] Update `docs/adr/0012-shared-fixtures-and-matrix.md` (FR-026): entry point `fixtures/iris/seed.py` with source `overlay/ingestion/tests/integration/iris/data/seed.py`; `Scratch` with the sentinel `Scratch.Keep` (GAP-009, research R10); CI on pull requests, pushes to `main` and by hand, plus the `overlay-roundtrip` check; a dated "Revised" note in the status line
+- [X] T039 [P] Replace the integration-test paragraph of `README.md` with a `## Running tests` section (FR-024): plain venv from `fixtures/iris/requirements.txt`; `fixtures/iris/start-iris.sh TAG 11972 NAME`; `IRIS_PORT=11972 python fixtures/iris/seed.py` and its exit codes; `pytest fixtures`; the guard; `make om-import` installing the test dependencies (`make om-test-deps` by hand only after another sync); `make test-cell TAG=… LOGIN=…`; `make iris-down`; automatic single-instance mode (no `IRIS_HOST`); `.om/env/bin/python` as the connector's interpreter. The README stub is Henry's until spec 009; the change is agreed (2026-11-25)
+- [X] T040 [P] Update `docs/adr/0012-shared-fixtures-and-matrix.md` (FR-026): entry point `fixtures/iris/seed.py` with source `overlay/ingestion/tests/integration/iris/data/seed.py`; `Scratch` with the sentinel `Scratch.Keep` (GAP-009, research R10); CI on pull requests, pushes to `main` and by hand, plus the `overlay-roundtrip` check; a dated "Revised" note in the status line
 - [ ] T041 Run quickstart Q1–Q9 end to end on the final branch. Tick SC-001..SC-008 in `specs/001-test-harness/checklists/requirements.md`, or list what remains open, and confirm Henry has reviewed SPIKE-06 before the merge (plan, Complexity Tracking)
 
 ---
