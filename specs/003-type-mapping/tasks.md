@@ -70,7 +70,7 @@ registration → unknown warning → Markdown renderer → tests → contract up
 - [X] T017 Update `docs/adr/0006-single-type-map.md` (FR-015): replace the starting table with the 15-row decision and a link to the generated table; correct the GAP-008 sentence (the `LONGVARCHAR` half is OpenMetadata's `ColumnTypeParser`); note that the raw catalog is read because registering in `ischema_names` cannot fix GAP-008 nor keep an unknown type's name; dated "Revised" in the status line
 - [X] T018 `make py_format`-equivalent: ruff format and check (OpenMetadata's config) on the touched files only; `scripts/check_ruff_suppressions.py --check`; then `make om-export` and `make om-check` twice
 - [X] T019 Run quickstart Q1–Q6; tick the checklist; record in research.md the test counts per track
-- [ ] T020 Prepare the contract changes for the planning repository on a local branch (type mapping table generated, fixtures `Types.AllTypes`, warnings row unchanged); push only with the user's go-ahead
+- [X] T020 Prepare the contract changes for the planning repository on a local branch (`contracts/003-type-mapping`, stacked on `spike/06-findings`, not pushed) (type mapping table generated, fixtures `Types.AllTypes`, warnings row unchanged); push only with the user's go-ahead
 
 ## Dependencies
 
