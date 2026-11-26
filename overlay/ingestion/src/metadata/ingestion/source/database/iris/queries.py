@@ -43,4 +43,11 @@ IRIS_COLUMN_TYPES = (
 
 # --- 004: dictionary / VECTOR enrichment ---
 
+# --- 005: access gaps ---
+
+# Readability check (spec 005, research R2): every catalog read succeeds on a table the login holds only REFERENCES or
+# a column-level SELECT on, so only a read of the rows tells. TOP 0 prepares the statement and reads no row. Filled
+# with identifiers quoted by the dialect; run once per cataloged table and view.
+IRIS_READ_PROBE = "SELECT TOP 0 * FROM {schema}.{table}"
+
 # --- 010: query log ---
