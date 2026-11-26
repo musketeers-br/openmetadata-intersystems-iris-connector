@@ -21,6 +21,7 @@ import pytest
 from tests.integration.iris.data.seed import EXPECTED, READER_SCHEMAS
 
 from metadata.generated.schema.entity.data.table import TableType
+from metadata.generated.schema.type.filterPattern import FilterPattern
 from metadata.ingestion.api.status import Status
 from metadata.ingestion.source.database.iris.metadata import IrisSource
 
@@ -99,3 +100,17 @@ def test_the_readable_fixtures_give_no_access_warning(source, iris_cell):
         expected = {name for s, name in EXPECTED["objects"] if s == schema}
         assert set(cataloged) == expected, f"{iris_cell.name}: {schema}"
     assert _access_warnings(source) == [], iris_cell.name
+
+
+def test_a_filtered_out_table_is_not_probed(source, iris_cell):
+    # The framework reads (and so probes) only what its listing yields, and the listing drops filtered tables.
+    source.source_config.tableFilterPattern = FilterPattern(excludes=["^Secret$"])
+    source.context.get().database_schema = "Restricted"
+    listed = list(source.get_tables_name_and_type())
+    _catalog(source, "Restricted", listed)
+    assert "Secret" not in {name for name, _ in listed}, iris_cell.name
+    assert not [key for key, _ in _access_warnings(source) if key.endswith(".Restricted.Secret")], iris_cell.name
+    if not iris_cell.is_admin:
+        assert [key for key, _ in _access_warnings(source)] == [
+            f"{SERVICE}.{iris_cell.namespace}.Restricted.ColumnGrant"
+        ], iris_cell.name

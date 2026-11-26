@@ -163,14 +163,29 @@ fixtures at catalog v3.
 
   | Track | `admin` | `reader` | `reader_dict` |
   |---|---|---|---|
-  | `latest-em` | 29 passed, 11 skipped | 30 passed, 10 skipped | 29 passed, 11 skipped |
-  | `latest-cd` | 29 passed, 11 skipped | 30 passed, 10 skipped | 29 passed, 11 skipped |
-  | `latest-preview` | 29 passed, 11 skipped | 30 passed, 10 skipped | 29 passed, 11 skipped |
+  | `latest-em` | 30 passed, 11 skipped | 31 passed, 10 skipped | 30 passed, 11 skipped |
+  | `latest-cd` | 30 passed, 11 skipped | 31 passed, 10 skipped | 30 passed, 11 skipped |
+  | `latest-preview` | 30 passed, 11 skipped | 31 passed, 10 skipped | 30 passed, 11 skipped |
 
 - **`test_access.py`**: for each reader on every track, exactly two `data` warnings
   (`Restricted.Secret`, `Restricted.ColumnGrant`). `Secret` is cataloged with 3 columns and
   `ColumnGrant` with `Id` only. `Hidden` is not listed. As `admin`, no warning, 3 tables, and
   `ColumnGrant` has 2 columns. Reading all of `READER_SCHEMAS` gives no access warning for any login.
+- **Filters** (review decision, 2026-11-26: probe only what passes the filters):
+  - In the framework's topology, `get_tables_name_and_type` produces the tables and views, and
+    `yield_table`, which calls `get_columns_and_constraints` and so the probe, processes only what it
+    yields.
+  - The producer drops tables cut by `tableFilterPattern`, and schemas cut by `schemaFilterPattern`
+    are never listed.
+  - `test_a_filtered_out_table_is_not_probed` excludes `^Secret$`: `Secret` is not listed and gets
+    no warning, and the readers get only the `ColumnGrant` warning.
+- **One dictionary grant** (review note, 2026-11-26): `omd_reader_dict` no longer holds
+  `%Dictionary.CompiledProperty`.
+  - The dialect reads only `%Dictionary.PropertyDefinition` and `%Dictionary.IndexDefinition`
+    (`sqlalchemy-intersystems-iris` 1.0.2 source).
+  - Spec 004 reads `PropertyDefinition`.
+  - With the reduced grant, every cell above passes, and so do `test_cell_login.py` and
+    `test_harness.py`'s dictionary checks, which now probe `PropertyDefinition`.
 - **Probe cost**: `check_readable` was timed per object on a warm connection on `latest-em` and
   `latest-cd`.
   - Most objects, refusals included: 2.6–5.0 ms.

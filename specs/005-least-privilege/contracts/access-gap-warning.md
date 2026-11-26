@@ -30,7 +30,8 @@ Extends the warnings contract's `IRIS-ACCESS` row (ADR-0008) with the features t
 ## `data` feature
 
 - **Query:** `SELECT TOP 0 * FROM "<Schema>"."<Table>"`, with identifiers quoted by the dialect. Once
-  per cataloged table and view per run, after its columns are read.
+  per cataloged table and view per run, after its columns are read. Objects cut by the schema or
+  table filters are not cataloged, so they are never probed.
 - **Meaning:** the login cannot read the object's rows. With a column-level grant, the columns it
   cannot read are also missing from the catalog. The message is the same; the grants docs explain
   both.

@@ -34,7 +34,7 @@ def test_select_one(iris_engine):
 @pytest.mark.iris
 def test_dictionary_toggle(iris_engine, iris_cell):
     try:
-        _scalar(iris_engine, "SELECT TOP 1 Name FROM %Dictionary.CompiledProperty")
+        _scalar(iris_engine, "SELECT TOP 1 Name FROM %Dictionary.PropertyDefinition")
         error = None
     except Exception as exc:
         error = str(exc)

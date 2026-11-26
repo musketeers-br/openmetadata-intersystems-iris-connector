@@ -39,6 +39,8 @@
   2026-11-26; `/speckit-clarify` has no open question.
 - One requirement goes beyond the demand: the readability check (FR-005). Without it the acceptance
   "the restricted table produces exactly one warning" cannot hold, because every catalog read
-  succeeds on a visible-but-unreadable table (research R2). Henry, as reviewer, should confirm it.
+  succeeds on a visible-but-unreadable table (research R2). Henry confirmed it on 2026-11-26, for
+  the tables and views that pass the filters only, which is what the framework already does
+  (research "Implementation measurements", Filters).
 - The `data`, `tables` and `views` feature names extend the warnings contract's list; the contract is
   updated with this spec.

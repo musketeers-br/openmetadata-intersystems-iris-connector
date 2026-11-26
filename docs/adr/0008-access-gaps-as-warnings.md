@@ -23,7 +23,7 @@ SPIKE-03 and spec 005 measured both sides on the three IRIS tracks:
   - message: `IRIS-ACCESS: cannot read <feature> of <Schema>.<Object>: <first line of SQL error>`, or `… of <Schema>: …` for a listing;
   - `<feature>`: `tables`, `views`, `columns`, `keys`, `view definition`, `description`, `data`, `sample data` or `profile`;
   - one warning per object and feature per run.
-- **Readability check (spec 005):** each cataloged table and view gets one no-row read, `SELECT TOP 0 * FROM "<Schema>"."<Table>"`. A refusal is the `data` warning. It is the only way to report a visible but unreadable object, and a column-level grant that hides columns.
+- **Readability check (spec 005):** each cataloged table and view gets one no-row read, `SELECT TOP 0 * FROM "<Schema>"."<Table>"`. Only objects that pass the schema and table filters are cataloged, so filtered-out objects are never probed. A refusal is the `data` warning. It is the only way to report a visible but unreadable object, and a column-level grant that hides columns.
 - **Never debug-only:** nothing about an access gap is reported only in debug logs. A unit test parses the connector package and fails on any error handler that neither re-raises nor records a status warning, unless it is allow-listed with a reason.
 - **Invisible objects:** objects invisible to the login are a documented limitation in the docs and the Gap Report. They are not guessed at.
   - SPIKE-03 found no catalog view that a login without privileges can query.

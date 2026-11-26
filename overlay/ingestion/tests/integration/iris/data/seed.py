@@ -37,7 +37,7 @@ VERSION_HISTORY = {
     1: "spec 001: Clinic, Billing, AI, Scratch (sentinel Scratch.Keep); omd_reader, omd_reader_dict",
     2: "spec 003: Types.AllTypes, one column per DATA_TYPE the IRIS SQL catalog reports",
     3: "spec 005: Restricted.Secret (REFERENCES), Restricted.ColumnGrant (one-column SELECT), Restricted.Hidden "
-    "(no grant)",
+    "(no grant); omd_reader_dict keeps only the PropertyDefinition grant (SPIKE-03)",
 }
 
 
@@ -133,7 +133,9 @@ ROWS: list[tuple[str, tuple]] = [
 ]
 
 READERS = ("reader", "reader_dict")
-DICTIONARY_TABLES = ("%Dictionary.CompiledProperty", "%Dictionary.PropertyDefinition")
+# The one optional dictionary grant (ADR-0007, SPIKE-03): the dialect's full reflection and VECTOR detail read
+# PropertyDefinition only. Until catalog v3, omd_reader_dict also held %Dictionary.CompiledProperty.
+DICTIONARY_TABLES = ("%Dictionary.PropertyDefinition",)
 READER_SCHEMAS = ("Clinic", "Billing", "AI", "Types")
 
 GRANTS: list[str] = [
