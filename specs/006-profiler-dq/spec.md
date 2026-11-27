@@ -26,7 +26,8 @@ Decisions taken by both developers after SPIKE-04 (ADR-0016 and its "Related dec
 - Q: Percentage sampling? → A: Unsupported. The table's sampled metrics are skipped, with one warning
   per run. Nothing is computed on a substitute. A capped full-table read was considered and left out
   of v1, because it would need a new IRIS-only setting.
-- Q: Randomized row-count sampling (the default)? → A: Unsupported. It runs as non-randomized
+- Q: Randomized row-count sampling? → A: Unsupported. In OpenMetadata 2.1.1 it is the default
+  for data-quality test runs. The profiler pipeline's default is off (research). It runs as non-randomized
   row-count sampling (the first `n` rows), with one warning per run.
 - Q: Where do IRIS SQL overrides go? → A: `@compiles(..., "iris")` in OpenMetadata's profiler
   functions, with the IRIS dialect in the profiler registry (ADR-0010). Only one override is
@@ -133,7 +134,8 @@ a percentage sample; count the rows the metrics saw and the warnings in the stat
 
 1. **Given** a row-count sample of `n` with randomization off, **When** the profiler runs, **Then** the
    metrics are computed on `n` rows and no warning is recorded.
-2. **Given** a row-count sample of `n` with randomization on (the default), **When** the profiler runs
+2. **Given** a row-count sample of `n` with randomization on (the default for data-quality tests),
+   **When** the profiler runs
    on several tables, **Then** each table's metrics are computed on its first `n` rows, and the
    status holds exactly one `IRIS-PROFILER-UNSUPPORTED` warning for the run. The warning says that
    randomized sampling was asked for and non-randomized sampling ran.
@@ -229,16 +231,22 @@ then check that the run completes and that every unsupported item is in the matr
   `IRIS-PROFILER-UNSUPPORTED` warning per run.
 - **FR-009**: Percentage sampling MUST compute no sampled metric and give no test verdict for that
   table. No query MUST read the table in full in its place. It MUST record one
-  `IRIS-PROFILER-UNSUPPORTED` warning per run.
+  `IRIS-PROFILER-UNSUPPORTED` warning per run. The framework also records the table once as failed,
+  with the same message. That happens because the table is skipped when its sampler is built, the
+  only point where OpenMetadata 2.1.1 lets a sampler skip a table (research). A percentage of 100
+  is the whole table. It is not sampling, so it runs.
 - **FR-010**: The sampler MUST add no SQL of its own: no random function, no ordering, no modulo. It
   builds its queries with the base sampler's code, and changes only the CTE names and which branch
   runs.
 - **FR-011**: Each `IRIS-PROFILER-UNSUPPORTED` warning MUST meet these rules:
-  - It goes into the ingestion status, keyed on the FQN of the first table that asked for the mode.
+  - It goes into the ingestion status of the step that met it (the profiler step or the test step),
+    through the step's own warning handler. The key is the one that handler assigns.
+  - Its message starts with the code and names the FQN of the first table that asked for the mode.
   - It is recorded once per run for each unsupported mode.
   - Its message names the mode asked for, the reason, and what ran instead.
 
-  The warnings contract MUST be updated to this form. Today it says "metric `<metric>`".
+  The warnings contract MUST be updated to this form. Today it says "metric `<metric>`" and keys
+  the warning on the table FQN.
 
 **Unsupported metrics and tests**
 
@@ -254,16 +262,32 @@ then check that the run completes and that every unsupported item is in the matr
 - **FR-012a**: An IRIS test-suite interface MUST be registered as the connector's test-suite class.
   For the tests it covers, it MUST give an `Aborted` result whose message names the test, the column
   and the reason, and it MUST NOT run their validator. It MUST record one `IRIS-PROFILER-UNSUPPORTED`
-  warning per test type per run, keyed on the FQN of the first table that met it.
+  warning per test type per run, as FR-011 says. The framework counts each `Aborted` result as one
+  failure of the test step, as it does for any test that cannot be evaluated.
   - Covered on any column: "values to match regex" and "values to not match regex".
   - Covered on stream columns only: "values to be in set", "values to be not in set" and "value
     lengths between".
   - Every other test MUST run through the base interface unchanged.
 - **FR-012b**: The test-suite interface MUST decide only from the test's definition name and the
   column's type in the table entity. It MUST NOT add SQL, rewrite a test or compute a verdict.
-- **FR-013**: No unsupported metric or test may fail the whole run. Over all fixture tables, a
-  profiler run and a test run MUST complete on every matrix cell, and the workflow MUST meet its
-  default success threshold.
+- **FR-013**: No unsupported metric may fail the whole run. Over all fixture tables:
+  - a profiler run MUST complete on every matrix cell and meet the workflow's default success
+    threshold;
+  - a test run of the supported tests MUST do the same;
+  - a test run that includes the aborted tests of FR-012a MUST complete, with each aborted test
+    counted as one failure.
+
+**Tables the login cannot read (spec 005)**
+
+- **FR-013a**: Before any metric or test query, the IRIS sampler MUST check once per table that the
+  login can read the table's cataloged columns. The check reads no rows. If the login cannot, the
+  sampler MUST:
+  - record one `IRIS-ACCESS: cannot read profile of <Schema>.<Table>: <first line of SQL error>`
+    warning, in the form spec 005's contract gives (feature `sample data` when only sample data is
+    fetched);
+  - skip the table, so no metric query runs on it.
+
+  The framework records the table once as failed, as in FR-009, instead of once per metric.
 
 **Fixtures**
 
@@ -291,7 +315,8 @@ then check that the run completes and that every unsupported item is in the matr
   - the three sampling modes and their warning counts (US3);
   - the aborted tests of FR-012a and their warning counts, including on `Clinic.Encounter.Notes`
     (US4);
-  - that the run completes over all fixture tables (FR-013).
+  - that the run completes over all fixture tables (FR-013);
+  - the readability check on the `Restricted` tables as `omd_reader` (FR-013a).
 
   They MUST set a thread count of 5 and run without an OpenMetadata server, as SPIKE-04 did.
 - **FR-017**: Unit tests MUST cover:
@@ -335,8 +360,8 @@ then check that the run completes and that every unsupported item is in the matr
   unsupported, the reason and the Gap Report id. Spec 008 publishes it.
 - **Expected values**: per table and column, the value of each supported metric, and per test, the
   parameters that pass and those that fail. Derived from the fixture rows.
-- **Unsupported-mode warning**: `IRIS-PROFILER-UNSUPPORTED`, at most one per mode per run, keyed on
-  a table FQN.
+- **Unsupported-mode warning**: `IRIS-PROFILER-UNSUPPORTED`, at most one per mode or test type per
+  run, naming the first table that met it.
 - **IRIS sampler**: the connector's sampler, with the base sampler's queries, unquoted CTE names and
   no randomization.
 - **IRIS test-suite interface**: the connector's test-suite class. It aborts the tests IRIS cannot
@@ -354,14 +379,16 @@ then check that the run completes and that every unsupported item is in the matr
   a digit. Today it works on no table whose digest starts with a digit.
 - **SC-004**: A run over all fixture tables with randomized or percentage sampling records exactly one
   warning per unsupported mode, whatever the number of tables.
-- **SC-005**: A profiler run and a test run over all fixture tables complete on every cell, and the
-  workflow meets its default success threshold.
+- **SC-005**: A profiler run and a test run of the supported tests over all fixture tables complete
+  on every cell, and the workflow meets its default success threshold.
 - **SC-006**: Every metric, sampling mode and built-in test appears in the matrix. Every unsupported
   row has a Gap Report entry with a reproduction.
 - **SC-007**: Each IRIS-specific adjustment has its own unit test: the median override, the sampler
   and the test-suite interface.
 - **SC-008**: No test gives a wrong verdict on any cell. The regex tests and the stream in-set tests
   end as `Aborted` with one warning per test type per run.
+- **SC-009**: As `omd_reader`, each `Restricted` table it can see but not read gives exactly one
+  `IRIS-ACCESS` warning in a profiler run, and no metric query runs on it.
 
 ## Assumptions
 
