@@ -387,4 +387,4 @@ These measurements are from `latest-em` 2026.1 (Build 234U) and `latest-cd`/`lat
     work.
   - **Second site:** `data_quality/validations/checkers/between_bounds_checker.py` has the same
     `coalesce(…, literal(0))`.
-  - **Decision pending:** see the T012 note in tasks.md.
+  - **Decision (Henrique Dias, 2026-11-27):** `@compiles(coalesce, "iris")` in the connector (`iris/compiles.py`, imported by `service_spec.py`). For the IRIS dialect it writes the bound values of COALESCE as literals (`COALESCE(…, 0)`): the same SQL with a constant in place of `?`, and no shared file changes. It gets a Gap Report entry (the eighth), a note in the ADR-0016 amendment, and an upstream report only once both developers agree. After it, `tests/integration/iris` passes on all nine cells (47/47/46 passed per track).

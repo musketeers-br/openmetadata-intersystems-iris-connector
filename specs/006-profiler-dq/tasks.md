@@ -101,8 +101,8 @@ on every cell and login.
 
 - [X] T010 [US1] Add `Iris = "iris"` to `PythonDialects` in `.om/ingestion/src/metadata/profiler/orm/registry.py`, one line in alphabetical place. This becomes `patches/ingestion__src__metadata__profiler__orm__registry.py.patch` on export
 - [X] T011 [US1] Add `@compiles(MedianFn, Dialects.Iris)` to `.om/ingestion/src/metadata/profiler/orm/functions/median.py`, in the SPIKE-04 window form (research R6), next to the MySQL one. If the dimensional variant (fourth argument) does not compile on IRIS, raise `NotImplementedError` with the reason, and record it for the matrix. Makes T008 pass
-- [ ] T012 [US1] Run T009 on the nine local cells. Record in research.md, section "Implementation measurements":
-  *Blocked 2026-11-27: green on `latest-em` (all logins); on `latest-cd` and `latest-preview` every static metric fails with `SQLCODE -378` (`COALESCE(<expr>, ?)` refused by IRIS 2026.3; research "Implementation measurements"). Decision pending with the developers.*
+- [X] T012 [US1] Run T009 on the nine local cells. Record in research.md, section "Implementation measurements":
+  *Done 2026-11-27, after the IRIS COALESCE compile (research "Implementation measurements"): `tests/integration/iris` green on the nine cells.*
   - the standard-deviation kind IRIS gives (population or sample), with `expected.py` fixed to match;
   - the metric-task counts;
   - what the profiler does on `AI.Embedding`'s VECTOR columns, with and without the dictionary grant (spec edge case).
@@ -209,7 +209,7 @@ unreadable tables give one `IRIS-ACCESS` each; the runs complete within the thre
 ## Phase 7: Polish and cross-cutting
 
 - [ ] T030 Fill the supported-metrics matrix in `quickstart.md` from the results of T012, T016, T021 and T028: the "measured" cells, the dimensional median and the VECTOR behaviour
-- [ ] T031 Add the seven entries of data-model "Gap Report entries" to `GAP-REPORT.md`, ids after the last one, each with reproduction, actual result per track, connector behaviour and `Upstream:` line. Link them from the matrix. `pytest fixtures/iris/test_gap_report.py` passes
+- [ ] T031 Add the eight entries of data-model "Gap Report entries" (the eighth, COALESCE on 2026.3, found in T012) to `GAP-REPORT.md`, ids after the last one, each with reproduction, actual result per track, connector behaviour and `Upstream:` line. Link them from the matrix. `pytest fixtures/iris/test_gap_report.py` passes
 - [ ] T032 Amend `docs/adr/0016-iris-sampler.md` (spec FR-020):
   - **Decision:** add the test-suite interface (research R5), the warning route through the step's handler (R2), the table skip at construction with one framework failure (R3), and the readability check (FR-013a);
   - **Context:** correct the randomization default (R4);

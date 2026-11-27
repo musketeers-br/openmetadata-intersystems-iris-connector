@@ -8,6 +8,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+from metadata.ingestion.source.database.iris import compiles  # noqa: F401  registers the IRIS COALESCE (spec 006)
 from metadata.ingestion.source.database.iris.connection import IrisConnection
 from metadata.ingestion.source.database.iris.lineage import IrisLineageSource
 from metadata.ingestion.source.database.iris.metadata import IrisSource

@@ -57,6 +57,7 @@ sampler and the interface.
 | `iris/service_spec.py` | `sampler_class=IrisSampler`, `test_suite_class=IrisTestSuiteInterface` |
 | `iris/sampler.py` | new |
 | `iris/test_suite_interface.py` | new |
+| `iris/compiles.py` | new (T012): `@compiles(coalesce, "iris")`, bound values as literals (IRIS 2026.3, `SQLCODE -378`); imported by `service_spec.py` |
 
 ## Fixture catalog v5
 
@@ -87,3 +88,4 @@ sample, as `StdDev` compiles on IRIS). The first integration run confirms which.
 | Aggregates on streams | `SELECT MIN(Notes) FROM Clinic.Encounter` → `-37`. The same for `LEN`, `COUNT(DISTINCT …)`, `MAX`, `CAST` |
 | `IN`/`LIKE` on streams | `SELECT COUNT(*) FROM Clinic.Encounter WHERE Notes IN ('checkup')` → 0 |
 | No regex predicate | `REGEXP`, `REGEXP_LIKE` refused. OpenMetadata's `LIKE` fallback gives wrong verdicts |
+| `COALESCE` with a bound parameter refused (2026.3) | `SELECT COALESCE(SUM(PatientId), ?) FROM Clinic.Patient` with `(0,)` → `SQLCODE -378` on 2026.3, works on 2026.1. Handled by `iris/compiles.py` |
