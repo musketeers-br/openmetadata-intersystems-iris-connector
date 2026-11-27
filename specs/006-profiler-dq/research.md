@@ -327,3 +327,24 @@ not a code change.
 - **Table skips:** step-level behaviour (R3) is checked by calling `ProfilerProcessor._run` and
   `TestCaseRunner._run` through `Step.run` with a stub record, once per cell.
 - **Threads:** `threadCount` is 5 in every profiler config of the tests (R1).
+
+## T-probe results (T002, 2026-11-27)
+
+The probe ran on `latest-em` 2026.1 as `_SYSTEM`. It used a throwaway `SQASampler` subclass, built on
+`Clinic.Patient`, that logs one `WARNING` through `ingestion_logger()` in its constructor and then
+raises. Each step was driven through its real `run()` method, or through `_run_for_entity` for the
+sample-data step, with stub records.
+
+| Step | `status.warnings` | `status.failures` |
+|---|---|---|
+| Profiler (`ProfilerProcessor.run`) | `{'<module>': 'IRIS-PROFILER-UNSUPPORTED: …'}`, exactly one | one: `Unhandled exception during workflow processing: [IRIS-PROFILER-UNSUPPORTED: …]` |
+| Test (`TestCaseRunner.run`) | the same, exactly one | the same, exactly one |
+| Sample data (`SamplerProcessor._run_for_entity`, `is_skippable_sampling_error` true) | ours, plus the framework's `Skipping sample collection for [<fqn>]: <exc>` | none |
+
+- **R2 holds.** The key is the module name (`tprobe` in the probe, `sampler` in the connector). The
+  step's own log line for the failure is not counted as a warning, because the handler skips the
+  `step` and `status` modules.
+- **R3 holds.** The table gives one failure in the profiler and test steps, and none in the
+  sample-data step.
+- **In the sample-data step the table gets two warnings, ours and the framework's.** The contract
+  allows this: the `sample data` `IRIS-ACCESS` warning is still recorded once per table.

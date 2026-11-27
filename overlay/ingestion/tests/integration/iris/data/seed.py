@@ -32,13 +32,15 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
-CATALOG_VERSION = 4
+CATALOG_VERSION = 5
 VERSION_HISTORY = {
     1: "spec 001: Clinic, Billing, AI, Scratch (sentinel Scratch.Keep); omd_reader, omd_reader_dict",
     2: "spec 003: Types.AllTypes, one column per DATA_TYPE the IRIS SQL catalog reports",
     3: "spec 005: Restricted.Secret (REFERENCES), Restricted.ColumnGrant (one-column SELECT), Restricted.Hidden "
     "(no grant); omd_reader_dict keeps only the PropertyDefinition grant (SPIKE-03)",
     4: "spec 004: AI.Embedding.Vec4 VECTOR(INT, 4) and AI.Embedding.vec_low VECTOR(FLOAT, 2)",
+    5: "spec 006: Clinic.Patient and Clinic.Encounter grown to 60 deterministic rows each (NULLs, duplicates, "
+    "fractional Weight, stream Notes) for the profiler",
 }
 
 
@@ -90,19 +92,44 @@ DDL: list[str] = [
     "CREATE TABLE Scratch.Keep (Id INT PRIMARY KEY)",
 ]
 
+PATIENT_INSERT = "INSERT INTO Clinic.Patient (PatientId, FullName, BirthDate, Weight) VALUES (?, ?, ?, ?)"
+ENCOUNTER_INSERT = (
+    "INSERT INTO Clinic.Encounter (EncounterId, PatientId, StartedAt, Notes, Active) VALUES (?, ?, ?, ?, ?)"
+)
+PATIENT_ROWS = 60
+ENCOUNTER_IDS = range(10, 70)
+NAMES = (
+    "Ana Souza", "Bruno Lima", "Carla Dias", "Diego Rocha", "Elisa Prado", "Fabio Nunes",
+    "Gina Alves", "Hugo Melo", "Iara Costa", "Joao Reis", "Karen Luz", "Lucas Moura",
+)
+NOTES = ("checkup", "follow-up", "lab results")
+
+
+def clinic_rows() -> tuple[list[tuple], list[tuple]]:
+    """
+    Spec 006: the Clinic.Patient and Clinic.Encounter rows, a pure function of the row index (no randomness).
+    The rows of specs 001-005 come first and keep their values. The rest give the profiler NULLs in every
+    nullable column, duplicate names and weights, fractional weights (decimal histogram bounds) and stream notes.
+    tests/integration/iris/data/expected.py derives the expected profiler values from this function.
+    """
+    patients = [(1, "Ana Souza", "1985-03-02", 61.50), (2, "Bruno Lima", "1990-11-20", 82.00)]
+    for i in range(3, PATIENT_ROWS + 1):
+        birth = None if i % 10 == 0 else f"{1950 + i % 50:04d}-{1 + i % 12:02d}-{1 + i % 28:02d}"
+        weight = None if i % 7 == 0 else 45 + (i % 24) * 2.25
+        patients.append((i, NAMES[i % len(NAMES)], birth, weight))
+    encounters = [(10, 1, "2026-11-01 09:00:00", "checkup", 1)]
+    for e in ENCOUNTER_IDS[1:]:
+        hours = e - 10
+        started = None if e % 9 == 0 else f"2026-11-{1 + hours // 24:02d} {hours % 24:02d}:00:00"
+        notes = None if e % 8 == 0 else NOTES[e % len(NOTES)]
+        active = None if e % 11 == 0 else e % 2
+        encounters.append((e, 1 + e % PATIENT_ROWS, started, notes, active))
+    return patients, encounters
+
+
 ROWS: list[tuple[str, tuple]] = [
-    (
-        "INSERT INTO Clinic.Patient (PatientId, FullName, BirthDate, Weight) VALUES (?, ?, ?, ?)",
-        (1, "Ana Souza", "1985-03-02", 61.50),
-    ),
-    (
-        "INSERT INTO Clinic.Patient (PatientId, FullName, BirthDate, Weight) VALUES (?, ?, ?, ?)",
-        (2, "Bruno Lima", "1990-11-20", 82.00),
-    ),
-    (
-        "INSERT INTO Clinic.Encounter (EncounterId, PatientId, StartedAt, Notes, Active) VALUES (?, ?, ?, ?, ?)",
-        (10, 1, "2026-11-01 09:00:00", "checkup", 1),
-    ),
+    *((PATIENT_INSERT, row) for row in clinic_rows()[0]),
+    *((ENCOUNTER_INSERT, row) for row in clinic_rows()[1]),
     ("INSERT INTO Billing.Patient (Code, Balance) VALUES (?, ?)", ("B-1", 120.5)),
     (
         'INSERT INTO AI.Embedding (Id, Content, Vec, Vec4, "vec_low") '
@@ -256,8 +283,8 @@ EXPECTED: dict = {
     "table_descriptions": {("Clinic", "Patient"): "Patients registered in the clinic"},
     "column_descriptions": {("Clinic", "Patient", "PatientId"): "Patient identifier"},
     "rows": {
-        ("Clinic", "Patient"): 2,
-        ("Clinic", "Encounter"): 1,
+        ("Clinic", "Patient"): PATIENT_ROWS,
+        ("Clinic", "Encounter"): len(ENCOUNTER_IDS),
         ("Billing", "Patient"): 1,
         ("AI", "Embedding"): 1,
         ("Types", "AllTypes"): 1,

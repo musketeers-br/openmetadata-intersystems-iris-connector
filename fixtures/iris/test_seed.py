@@ -116,8 +116,8 @@ def test_import_does_not_connect(monkeypatch):
     spec = importlib.util.spec_from_file_location("iris_fixture_seed_import_check", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    assert module.CATALOG_VERSION == 4
-    assert set(module.VERSION_HISTORY) == {1, 2, 3, 4}
+    assert module.CATALOG_VERSION == 5
+    assert set(module.VERSION_HISTORY) == {1, 2, 3, 4, 5}
     assert set(module.LOGINS) == {"admin", "reader", "reader_dict"}
 
 
@@ -269,7 +269,8 @@ def test_self_check_can_fail(seed_module, loaded):
     with pytest.raises(seed_module.SelfCheckError) as failure:
         seed_module.self_check(**loaded, expected=expected)
     message = str(failure.value)
-    for part in ("C5", "Clinic.Patient", "expected 3", "actual 2"):
+    actual = seed_module.EXPECTED["rows"][("Clinic", "Patient")]
+    for part in ("C5", "Clinic.Patient", "expected 3", f"actual {actual}"):
         assert part in message
 
 
@@ -387,3 +388,31 @@ def test_scratch_stays_listed(seed_module, loaded, admin_conn):
     cursor.execute("DROP TABLE Scratch.Tmp")
     assert seed_module._is_listed(cursor, "Scratch")
     assert seed_module._scratch_tables(cursor) == ["Keep"]
+
+
+# Spec 006: Clinic.Patient and Clinic.Encounter grown for the profiler (catalog v5).
+
+
+def _one(cursor, statement):
+    cursor.execute(statement)
+    return cursor.fetchall()[0]
+
+
+def test_the_profiler_rows(seed_module, loaded, admin_conn):
+    cursor = admin_conn.cursor()
+    assert seed_module.EXPECTED["rows"][("Clinic", "Patient")] == 60
+    assert seed_module.EXPECTED["rows"][("Clinic", "Encounter")] == 60
+    # The rows earlier specs rely on keep their values.
+    cursor.execute("SELECT PatientId, FullName, BirthDate, Weight FROM Clinic.Patient WHERE PatientId IN (1, 2) ORDER BY 1")
+    rows = [(r[0], r[1], str(r[2]), float(r[3])) for r in cursor.fetchall()]
+    assert rows == [(1, "Ana Souza", "1985-03-02", 61.5), (2, "Bruno Lima", "1990-11-20", 82.0)]
+    row = _one(cursor, "SELECT EncounterId, PatientId, StartedAt, Active FROM Clinic.Encounter WHERE EncounterId = 10")
+    assert (row[0], row[1], str(row[2])[:19], row[3]) == (10, 1, "2026-11-01 09:00:00", 1)
+    # NULLs in every nullable column, duplicates, fractional weights, stream values.
+    for table, column in (("Patient", "BirthDate"), ("Patient", "Weight"), ("Encounter", "StartedAt"),
+                          ("Encounter", "Notes"), ("Encounter", "Active")):
+        assert _one(cursor, f"SELECT COUNT(*) FROM Clinic.{table} WHERE {column} IS NULL")[0] > 0, column
+    total, names, weights = _one(cursor, "SELECT COUNT(*), COUNT(DISTINCT FullName), COUNT(DISTINCT Weight) FROM Clinic.Patient")
+    assert names < total and weights < total
+    assert _one(cursor, "SELECT COUNT(*) FROM Clinic.Patient WHERE Weight <> ROUND(Weight, 0)")[0] > 0
+    assert _one(cursor, "SELECT COUNT(*) FROM Clinic.Encounter WHERE SUBSTRING(Notes, 1, 20) = 'checkup'")[0] > 1

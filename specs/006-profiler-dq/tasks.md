@@ -33,8 +33,8 @@ after `make om-export` (`make om-check` must stay clean). Connector tests run fr
 
 ## Phase 1: Setup
 
-- [ ] T001 Rebuild `.om/` on this branch (`OM_SKIP_UI_CODEGEN=1 make om-import`, `uv` on `PATH`) and confirm that the unit and integration tests of specs 002–005 pass on `latest-em` as `admin` and `reader`
-- [ ] T002 T-probe (research R2, R3; plan build order step 1). This throwaway script lives in the scratchpad and is not committed. On `latest-em`, use a subclass of `SQASampler` that does two things in its constructor: it logs one `WARNING` through `ingestion_logger()`, then raises an exception. Run it with a stub record through `ProfilerProcessor` (via `Step.run`) and through `TestCaseRunner`, with a stub OpenMetadata client. Check that:
+- [X] T001 Rebuild `.om/` on this branch (`OM_SKIP_UI_CODEGEN=1 make om-import`, `uv` on `PATH`) and confirm that the unit and integration tests of specs 002–005 pass on `latest-em` as `admin` and `reader`
+- [X] T002 T-probe (research R2, R3; plan build order step 1). This throwaway script lives in the scratchpad and is not committed. On `latest-em`, use a subclass of `SQASampler` that does two things in its constructor: it logs one `WARNING` through `ingestion_logger()`, then raises an exception. Run it with a stub record through `ProfilerProcessor` (via `Step.run`) and through `TestCaseRunner`, with a stub OpenMetadata client. Check that:
   - the warning is in the step's `status.warnings`, keyed on the module name;
   - the exception gives exactly one step failure for the table, and no metric query runs (count statements on the engine);
   - with `sampler/processor.py` and `is_skippable_sampling_error` returning true, there is one warning and no failure.
@@ -43,23 +43,23 @@ after `make om-export` (`make om-check` must stay clean). Connector tests run fr
 
 ## Phase 2: Foundational — fixtures v5, expected values, harness (blocks every story)
 
-- [ ] T003 Add the catalog v5 expectations to `fixtures/iris/test_seed.py` (data-model "Fixture catalog v5"):
+- [X] T003 Add the catalog v5 expectations to `fixtures/iris/test_seed.py` (data-model "Fixture catalog v5"):
   - `CATALOG_VERSION == 5`, history 1–5;
   - `EXPECTED["rows"]` with 60 rows for `Clinic.Patient` and 60 for `Clinic.Encounter`;
   - rows 1 and 2 of `Clinic.Patient` and row 10 of `Clinic.Encounter` unchanged;
   - no change to objects, columns or grants.
 
   Run it against `latest-em` and see it fail
-- [ ] T004 Extend `.om/ingestion/tests/integration/iris/data/seed.py`:
+- [X] T004 Extend `.om/ingestion/tests/integration/iris/data/seed.py`:
   - a pure row generator `clinic_rows()` (research R8, no `random`) that yields the `Clinic.Patient` and `Clinic.Encounter` rows, the three existing rows first;
   - `ROWS` built from it;
   - `EXPECTED["rows"]`;
   - version 5 with its history line.
 
   Makes T003 pass
-- [ ] T005 [P] Write `.om/ingestion/tests/integration/iris/data/expected.py` (license header). It computes, from `clinic_rows()` and `Types.AllTypes`' row, for each tested column, every supported metric of the matrix: counts, NULLs, distinct, unique, duplicate, min, max, mean, sum, standard deviation, min and max length, and discrete median and quartiles (as data-model "Expected values"). It also holds, per test case, the passing and failing parameters. Add a test in `fixtures/iris/test_seed.py` that checks three values against a hand count (null count of `Weight`, distinct `FullName`, `Notes = 'checkup'` rows)
-- [ ] T006 Run the loader twice on the three tracks (`FIXTURES OK v5`), `pytest fixtures` on each, and every existing integration test as `admin`, `reader` and `reader_dict` (no regression from the grown rows; in particular spec 002's view and spec 005's access tests)
-- [ ] T007 Add the harness to `.om/ingestion/tests/integration/iris/conftest.py` (research R9):
+- [X] T005 [P] Write `.om/ingestion/tests/integration/iris/data/expected.py` (license header). It computes, from `clinic_rows()` and `Types.AllTypes`' row, for each tested column, every supported metric of the matrix: counts, NULLs, distinct, unique, duplicate, min, max, mean, sum, standard deviation, min and max length, and discrete median and quartiles (as data-model "Expected values"). It also holds, per test case, the passing and failing parameters. Add a test that checks three values against a hand count. *Done in `.om/ingestion/tests/unit/topology/database/test_iris_expected.py`, which can import the module, instead of `fixtures/iris/test_seed.py`* (null count of `Weight`, distinct `FullName`, `Notes = 'checkup'` rows)
+- [X] T006 Run the loader twice on the three tracks (`FIXTURES OK v5`), `pytest fixtures` on each, and every existing integration test as `admin`, `reader` and `reader_dict` (no regression from the grown rows; in particular spec 002's view and spec 005's access tests)
+- [X] T007 Add the harness to `.om/ingestion/tests/integration/iris/conftest.py` (research R9):
   - a stub OpenMetadata client that answers the database and schema names and the built-in test definitions;
   - a `run_status` fixture that attaches a `StatusWarningHandler` to `ingestion_logger()` around a test and yields its `Status`;
   - `profiler_interface(table, sample_config=None)` and `test_suite_interface(table, sample_config=None)` builders, which resolve the sampler and test-suite classes through the IRIS `ServiceSpec` (with the base classes until T020 and T025 register the IRIS ones), set `threadCount=5`, and use `iris_cell`'s connection.
