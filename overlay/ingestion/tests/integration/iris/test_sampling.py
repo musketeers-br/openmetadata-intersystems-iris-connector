@@ -78,7 +78,7 @@ def test_percentage_sampling_skips_the_table(iris_service_connection, run_status
         for qualified in TABLES:
             with pytest.raises(IrisSamplingSkipped, match=f"{harness.table_fqn(qualified)} was not profiled"):
                 harness.profile(iris_service_connection, client, qualified, _config(ProfileSampleType.PERCENTAGE, 50))
-    reads = [s for s in statements if any(t.split(".")[1] in s for t in TABLES) and "TOP 0" not in s.upper()]
+    reads = [s for s in statements if any(t.split(".")[1] in s for t in TABLES) and not s.upper().startswith("SELECT TOP ?")]
     assert reads == [], reads
     warnings = harness.warnings_with(run_status, UNSUPPORTED)
     assert len(warnings) == 1 and "percentage sampling is not supported on IRIS" in warnings[0], warnings

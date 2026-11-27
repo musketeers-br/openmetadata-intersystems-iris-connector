@@ -20,6 +20,7 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.dialects import registry
 
 from metadata.generated.schema.entity.data.table import Column, ColumnName, DataType, Table
@@ -38,6 +39,7 @@ from metadata.generated.schema.type.staticSamplingConfig import StaticSamplingCo
 from metadata.utils.logger import StatusWarningHandler, ingestion_logger
 
 IRIS = registry.load("iris")()
+REAL_CHECK = IrisSampler._check_readable  # kept before the offline fixture replaces it
 RANDOM_FUNCTIONS = ("RAND", "RANDOM", "NEWID", "%", " MOD(", "ORDER BY")
 
 
@@ -157,3 +159,55 @@ def test_percentage_100_is_the_whole_table(status):
 def test_skips_are_skippable_for_the_sample_data_step():
     assert IrisSampler.is_skippable_sampling_error(IrisSamplingSkipped("x"))
     assert not IrisSampler.is_skippable_sampling_error(RuntimeError("x"))
+
+
+# --- spec 006 FR-013a: the readability check ---
+
+
+class _Session:
+    """A session whose execute raises `error` (or succeeds), recording the statements."""
+
+    def __init__(self, error, statements):
+        self.error, self.statements = error, statements
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def execute(self, statement):
+        self.statements.append(str(statement.compile(dialect=IRIS)))
+        if self.error is not None:
+            raise self.error
+
+
+def _refused(sqlcode: str) -> DBAPIError:
+    return DBAPIError("SELECT", None, Exception(f"<SQL ERROR>; Details: [SQLCODE: <{sqlcode}>:<Refused>]\nline two"))
+
+
+def test_readable_table_reads_no_rows():
+    sampler, statements = _sampler(Client()), []
+    sampler.session_factory = lambda: _Session(None, statements)
+    REAL_CHECK(sampler)
+    assert len(statements) == 1
+    assert statements[0].startswith("SELECT TOP 0") or "TOP" in statements[0]
+    assert '"Id"' in statements[0] and "*" not in statements[0]
+
+
+def test_privilege_refusal_skips_the_table_with_one_access_warning(status):
+    client, statements = Client(), []
+    for _ in range(2):
+        sampler = _sampler(client)
+        sampler.session_factory = lambda: _Session(_refused("-99"), statements)
+        with pytest.raises(IrisSamplingSkipped, match="IRIS-ACCESS: cannot read profile of Clinic.Patient"):
+            REAL_CHECK(sampler)
+    access = _warnings(status, "IRIS-ACCESS")
+    assert access == ["IRIS-ACCESS: cannot read profile of Clinic.Patient: <SQL ERROR>; Details: [SQLCODE: <-99>:<Refused>]"]
+
+
+def test_other_errors_are_raised():
+    sampler = _sampler(Client())
+    sampler.session_factory = lambda: _Session(_refused("-400"), [])
+    with pytest.raises(DBAPIError):
+        REAL_CHECK(sampler)

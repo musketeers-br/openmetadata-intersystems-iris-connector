@@ -178,37 +178,37 @@ unreadable tables give one `IRIS-ACCESS` each; the runs complete within the thre
 
 ### Tests
 
-- [ ] T022 [P] [US4] Write `.om/ingestion/tests/unit/topology/database/test_iris_test_suite.py` (license header), with a stub table entity (a `TEXT` column, a `BLOB` column, a `VARCHAR` column) and a stub `super().run_test_case`. Assert:
+- [X] T022 [P] [US4] Write `.om/ingestion/tests/unit/topology/database/test_iris_test_suite.py` (license header), with a stub table entity (a `TEXT` column, a `BLOB` column, a `VARCHAR` column) and a stub `super().run_test_case`. Assert:
   - each covered pair of data-model "IRIS test-suite interface" returns `Aborted`, with the contract text and the column, without calling the base;
   - every other pair calls the base once;
   - warnings are logged once per test type and column kind per run.
-- [ ] T023 [P] [US4] Add to `test_iris_sampler.py`, with a stub session:
+- [X] T023 [P] [US4] Add to `test_iris_sampler.py`, with a stub session:
   - a readability check that raises `SQLCODE -99` raises `IrisSamplingSkipped` and logs `IRIS-ACCESS: cannot read profile of <Schema>.<Table>: <first line>` once per table;
   - any other error is re-raised;
   - the check selects the entity's columns, not `*`, and reads no rows (`TOP 0`).
-- [ ] T024 [P] [US4] In `test_data_quality.py`, the aborted cases on every cell:
+- [X] T024 [P] [US4] In `test_data_quality.py`, the aborted cases on every cell:
   - **[CUT]** match regex and not match regex on `FullName`;
   - in set, not in set, value lengths between, unique and missing count on `Clinic.Encounter.Notes` (the last two added after T016).
 
   Each result is `Aborted` with the contract text, never `Success` or `Failed`. The warning count is one per test type. The other tests in the same suite still give their verdicts.
-- [ ] T025 [P] [US4] In `test_profiler.py`:
+- [X] T025 [P] [US4] In `test_profiler.py`:
   - **access**: as `reader` and `reader_dict`, profiling `Restricted.Secret` and `Restricted.ColumnGrant` gives one `IRIS-ACCESS` each and no metric query; as `admin`, there is no such warning;
   - **threshold**: through `Step.run` of `ProfilerProcessor` over every fixture table the login can see, the step's success ratio is 90% or more; the stream columns and decimal histograms show as the profiler's own failures. Record the ratio per cell.
 
 ### Implementation
 
-- [ ] T026 [US4] Write `…/iris/test_suite_interface.py` (license header): `IrisTestSuiteInterface(SQATestSuiteInterface)`, which overrides only `run_test_case` (research R5). The covered set is a module constant. Register `test_suite_class=IrisTestSuiteInterface` in `…/iris/service_spec.py`. Makes T022 pass (**[CUT]** for the regex rows only: if regex is cut, the interface still covers the stream rows)
-- [ ] T027 [US4] Add the readability check to `IrisSampler.__init__` (spec FR-013a, research R3):
+- [X] T026 [US4] Write `…/iris/test_suite_interface.py` (license header): `IrisTestSuiteInterface(SQATestSuiteInterface)`, which overrides only `run_test_case` (research R5). The covered set is a module constant. Register `test_suite_class=IrisTestSuiteInterface` in `…/iris/service_spec.py`. Makes T022 pass (**[CUT]** for the regex rows only: if regex is cut, the interface still covers the stream rows)
+- [X] T027 [US4] Add the readability check to `IrisSampler.__init__` (spec FR-013a, research R3):
   - `select(<entity columns>).limit(0)` through the sampler's session;
   - only a privilege error (`SQLCODE -99`) logs `IRIS-ACCESS` once per table and raises `IrisSamplingSkipped`.
 
   Makes T023 pass
-- [ ] T028 [US4] Run T024–T025 on the nine local cells. If the threshold fails on any cell, apply research R7's fallback (`excludeColumns` for stream columns in the test config, plus a docs line) and record why
-- [ ] T029 [US4] Run spec 005's guard test (`test_iris_access_guard.py`) and confirm that `sampler.py` and `test_suite_interface.py` pass it with no allow-list entry
+- [X] T028 [US4] Run T024–T025 on the nine local cells. If the threshold fails on any cell, apply research R7's fallback (`excludeColumns` for stream columns in the test config, plus a docs line) and record why
+- [X] T029 [US4] Run spec 005's guard test (`test_iris_access_guard.py`) and confirm that `sampler.py` and `test_suite_interface.py` pass it with no allow-list entry
 
 ## Phase 7: Polish and cross-cutting
 
-- [ ] T030 Fill the supported-metrics matrix in `quickstart.md` from the results of T012, T016, T021 and T028: the "measured" cells, the dimensional median and the VECTOR behaviour
+- [X] T030 Fill the supported-metrics matrix in `quickstart.md` from the results of T012, T016, T021 and T028: the "measured" cells, the dimensional median and the VECTOR behaviour
 - [ ] T031 Add the eight entries of data-model "Gap Report entries" (the eighth, COALESCE on 2026.3, found in T012) to `GAP-REPORT.md`, ids after the last one, each with reproduction, actual result per track, connector behaviour and `Upstream:` line. Link them from the matrix. `pytest fixtures/iris/test_gap_report.py` passes
 - [ ] T032 Amend `docs/adr/0016-iris-sampler.md` (spec FR-020):
   - **Decision:** add the test-suite interface (research R5), the warning route through the step's handler (R2), the table skip at construction with one framework failure (R3), and the readability check (FR-013a);

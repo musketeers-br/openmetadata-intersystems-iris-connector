@@ -112,3 +112,76 @@ def test_all_null_column(iris_cell, iris_admin_service_connection, iris_admin_en
     assert columns["Val"]["valuesCount"] == 0
     assert columns["Val"].get("median") is None
     assert not failures, [f.error for f in failures]
+
+
+# --- spec 006 User Story 4: unreadable tables and the success threshold ---
+
+
+def test_unreadable_table_is_skipped_with_one_access_warning(iris_cell, iris_service_connection, run_status):
+    """FR-013a: Restricted.Secret is visible to the readers but not readable; Restricted.ColumnGrant is cataloged
+    with the one column they may read, so it is profiled on that column."""
+    from metadata.ingestion.source.database.iris.sampler import IrisSamplingSkipped
+
+    client = harness.StubClient()
+    if iris_cell.is_admin:
+        _, columns, _ = harness.profile(iris_service_connection, client, "Restricted.Secret")
+        assert columns["Id"]["valuesCount"] == 1
+        assert harness.warnings_with(run_status, "IRIS-ACCESS") == []
+        return
+    with harness.count_statements() as statements:
+        for _ in range(2):  # the same table twice in a run: still one warning
+            with pytest.raises(IrisSamplingSkipped, match="IRIS-ACCESS: cannot read profile of Restricted.Secret"):
+                harness.profile(iris_service_connection, client, "Restricted.Secret")
+    # Only the readability check (SELECT TOP ? <cataloged columns>, limit 0) touched the table.
+    assert [s for s in statements if "Secret" in s and not s.upper().startswith("SELECT TOP ?")] == []
+    access = harness.warnings_with(run_status, "IRIS-ACCESS")
+    assert len(access) == 1 and access[0].startswith("IRIS-ACCESS: cannot read profile of Restricted.Secret: "), access
+    _, columns, failures = harness.profile(iris_service_connection, client, "Restricted.ColumnGrant")
+    assert columns["Id"]["valuesCount"] == 1
+    # IRIS refuses COUNT(*) without a table-level SELECT: the row count is the one failure, with the IRIS error.
+    assert len(failures) == 1 and "<-99>" in failures[0].error and "count(*)" in failures[0].error, failures
+
+
+def test_run_meets_the_success_threshold(iris_cell, iris_service_connection, run_status):
+    """
+    FR-013: a profiler run over every fixture table the login sees completes and meets the default threshold (90%).
+    The step's records and failures are counted as ProfilerProcessor._run copies them, and a table the sampler skips
+    counts as one failure, as Step.run records it (T-probe).
+    """
+    from metadata.ingestion.source.database.iris.sampler import IrisSamplingSkipped
+
+    tables = list(harness.PROFILED) + list(harness.RESTRICTED) + ["AI.Embedding"]
+    vector = harness.DataType.ARRAY if iris_cell.has_dict_grant else harness.DataType.VARCHAR
+    harness.TABLES["AI.Embedding"] = [("Id", harness.DataType.INT), ("Content", harness.DataType.VARCHAR)] + [
+        (c, vector, harness.DataType.DOUBLE) if vector == harness.DataType.ARRAY else (c, vector)
+        for c in ("Vec", "Vec4", "vec_low")
+    ]
+    records, failures, skipped, failed_on = 0, 0, [], []
+    client = harness.StubClient()
+    try:
+        for qualified in tables:
+            interface = None
+            try:
+                interface = harness.profiler_interface(iris_service_connection, client, qualified)
+            except IrisSamplingSkipped:
+                failures += 1
+                skipped.append(qualified)
+                continue
+            try:
+                # Without the dictionary grant VECTOR columns look like VARCHAR and their metrics fail (research);
+                # the docs tell such users to exclude them, as this run does.
+                exclude = ["Vec", "Vec4", "vec_low"] if qualified == "AI.Embedding" and not iris_cell.has_dict_grant else None
+                harness.DefaultProfiler(
+                    profiler_interface=interface, metrics_registry=harness.Metrics, exclude_columns=exclude
+                ).compute_metrics()
+                records += len(interface.status.records)
+                failures += len(interface.status.failures)
+                failed_on += [f.error.split(" metric_type")[0] for f in interface.status.failures]
+            finally:
+                harness.release(interface)
+    finally:
+        harness.TABLES.pop("AI.Embedding")
+    ratio = 100 * records / (records + failures)
+    print(f"{iris_cell.name}: records={records} failures={failures} skipped={skipped} success={ratio:.1f}% failed_on={sorted(failed_on)}")
+    assert ratio >= 90, f"{iris_cell.name}: {ratio:.1f}% (records={records}, failures={failures}, skipped={skipped})"
+    assert skipped == ([] if iris_cell.is_admin else ["Restricted.Secret"])

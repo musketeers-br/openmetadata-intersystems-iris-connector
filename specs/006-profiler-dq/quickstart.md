@@ -39,12 +39,12 @@ login. "GAP" points to `GAP-REPORT.md`; the ids are assigned when the entries ar
 
 | Metric | IRIS | Note |
 |---|---|---|
-| Values count, null count, null proportion | supported | |
+| Values count, null count, null proportion | supported | On IRIS 2026.3 the connector writes COALESCE's constant as a literal, because 2026.3 refuses an untyped parameter there. GAP: COALESCE with a bound parameter |
 | Distinct, unique and duplicate counts and proportions | supported | |
 | Min, max | supported | |
-| Mean, sum, standard deviation | supported | For text columns these are based on value length, as on other databases |
+| Mean, sum, standard deviation | supported | For text columns these are based on value length, as on other databases. The sum is OpenMetadata's `SUM(CAST(x AS BIGINT))`: IRIS truncates each value to an integer first. Standard deviation is the population one |
 | Min length, max length | supported | |
-| Median, first quartile, third quartile | supported | Discrete percentile (the IRIS override). GAP: no percentile function |
+| Median, first quartile, third quartile | supported | Discrete percentile (the IRIS override). Computed on the sample when the profile is sampled. The per-dimension median (dimensional test results) is not supported. GAP: no percentile function |
 | Interquartile range, non-parametric skew | supported | Derived from the above |
 | Cardinality distribution | supported | |
 | Histogram | **not supported in v1** | IRIS rejects `.` in the bin labels the profiler builds. Integer-only bins may work, but this is not guaranteed. GAP: `.` in delimited identifiers |
@@ -55,6 +55,14 @@ login. "GAP" points to `GAP-REPORT.md`; the ids are assigned when the entries ar
 | Metric | IRIS | Note |
 |---|---|---|
 | Every static metric, null count included | **not supported** | IRIS does not run `LEN`, `COUNT(DISTINCT …)`, `MIN`, `MAX` or `CAST` on streams. The profiler computes a column's static metrics in one query, so all of them fail, and the status shows the profiler's failure for the column. Workaround: exclude stream columns in the table's profiler settings. GAP: aggregates on streams |
+| Median and quartiles of a text stream | **not supported** | The same limitation: one more profiler failure for the column |
+
+### VECTOR columns
+
+| Login | IRIS | Note |
+|---|---|---|
+| With the dictionary grant (catalogued as `ARRAY`) | not profiled | The profiler skips array columns. There is no failure |
+| Without it (catalogued as `VARCHAR`) | **not supported**: exclude them | Their static metrics fail (`SQLCODE -400`, `-255` "A value of SQL type Vector is not allowed"), and the median of their length comes back as a meaningless number. Exclude VECTOR columns in the table's profiler settings |
 
 ### Sampling
 
@@ -104,3 +112,7 @@ IRIS Community runs out of licenses (`Unable to allocate a license`), which lose
 
 `SELECT` on the tables is enough for profiling and tests. A table the login can list but not read
 gets one `IRIS-ACCESS: cannot read profile of <Schema>.<Table>` warning and is not profiled.
+
+With a column-level grant (`GRANT SELECT (col) ON …`), the table is profiled on the columns the
+login can read. Its row count fails with the IRIS error, because IRIS refuses `COUNT(*)` without a
+table-level `SELECT`.

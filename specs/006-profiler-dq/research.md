@@ -406,3 +406,26 @@ error on IRIS). The IRIS test-suite interface also covers `columnValuesToBeUniqu
 `columnValuesMissingCount` on stream columns, with the reasons "IRIS does not compare stream values
 in GROUP BY" and "conditions on stream columns are not supported". Not null stays supported. The
 spec (FR-012a), data-model, contract and matrix are updated.
+
+## Unreadable tables and the success threshold (T025, 2026-11-27, `latest-em`)
+
+- **`Restricted.Secret`:** visible to the readers through `REFERENCES`, not readable. The readability
+  check (one `SELECT TOP ? <cataloged columns>`, limit 0) is refused with `-99`. The sampler skips
+  the table with one `IRIS-ACCESS: cannot read profile of Restricted.Secret: …` per run, and no other
+  statement touches the table. As administrator the table is profiled.
+- **`Restricted.ColumnGrant`:** the readers have `SELECT (Id)` and the table is catalogued with `Id`
+  only. The check passes, and the `Id` metrics are computed. **IRIS refuses `COUNT(*)` without a
+  table-level `SELECT`** (`-99`), so the row count is the one failure, carrying the IRIS error. The
+  matrix and the grants docs say that a column-level grant gives column metrics but no row count.
+- **Success ratio over every visible fixture table, default profiler:**
+
+  | Login | Ratio | Records | Failures | Skipped |
+  |---|---|---|---|---|
+  | admin | 95.3% | 101 | 5 | — |
+  | reader_dict | 92.8% | 90 | 7 | `Restricted.Secret` |
+  | reader | 92.8% | 90 | 7 | `Restricted.Secret` |
+
+  The failed metric tasks are listed per cell by the test (`failed_on`). The reader ratio holds only with its VECTOR columns excluded. Without the
+  dictionary grant they are catalogued as `VARCHAR`, and their six failures put the ratio at 87.7%.
+  This is research R7's fallback: the docs tell users without the grant to exclude VECTOR columns,
+  and the test does the same.

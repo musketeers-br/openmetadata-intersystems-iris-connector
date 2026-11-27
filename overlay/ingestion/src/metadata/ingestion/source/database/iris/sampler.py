@@ -23,6 +23,9 @@ OpenMetadata 2.1.1 lets a sampler skip a table without a substitute result (rese
 
 from weakref import WeakKeyDictionary
 
+from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError
+
 from metadata.generated.schema.type.basic import ProfileSampleType
 from metadata.sampler.sqlalchemy.sampler import SQASampler
 from metadata.utils.logger import ingestion_logger
@@ -31,6 +34,7 @@ logger = ingestion_logger()
 
 UNSUPPORTED = "IRIS-PROFILER-UNSUPPORTED"
 NO_RANDOM = "no random function"
+PRIVILEGE_REFUSED = "<-99>"  # IRIS: [SQLCODE: <-99>:<Privilege violation>]
 
 # What was already reported in a run. A workflow's samplers and test-suite interfaces share its OpenMetadata client,
 # and a new workflow has a new client, so the client identifies the run.
@@ -59,20 +63,13 @@ class IrisSampler(SQASampler):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._check_readable()
-        static = self._resolve_sample_config
-        if static is not None and static.profileSampleType == ProfileSampleType.PERCENTAGE and static.profileSample:
-            if static.profileSample < 100:
-                report_once(
-                    self.ometa_client,
-                    "percentage",
-                    f"{UNSUPPORTED}: percentage sampling is not supported on IRIS ({NO_RANDOM}); set a row-count "
-                    f"sample instead. {table_fqn(self.entity)} was not profiled",
-                )
-                raise IrisSamplingSkipped(
-                    f"{UNSUPPORTED}: percentage sampling is not supported on IRIS ({NO_RANDOM}); "
-                    f"{table_fqn(self.entity)} was not profiled"
-                )
+        try:
+            self._check_readable()
+            self._check_percentage()
+        except IrisSamplingSkipped:
+            # Nobody closes a sampler whose constructor failed: release its engine (IRIS Community has few licenses).
+            self.connection.dispose()
+            raise
         # A user sample query is never randomized by the base sampler, so only a configured sample is reported.
         if self.sample_config.randomizedSample is True and self.applies_sampling and not self.sample_query:
             report_once(
@@ -85,8 +82,46 @@ class IrisSampler(SQASampler):
             # The base sampler orders by ModuloFn(RandomNumFn(), ...) when randomized; IRIS has no random function.
             self.sample_config = self.sample_config.model_copy(update={"randomizedSample": False})
 
+    def _check_percentage(self) -> None:
+        """Percentage sampling below 100% needs a random function: skip the table, with one warning per run."""
+        static = self._resolve_sample_config
+        if (
+            static is not None
+            and static.profileSampleType == ProfileSampleType.PERCENTAGE
+            and static.profileSample
+            and static.profileSample < 100
+        ):
+            report_once(
+                self.ometa_client,
+                "percentage",
+                f"{UNSUPPORTED}: percentage sampling is not supported on IRIS ({NO_RANDOM}); set a row-count "
+                f"sample instead. {table_fqn(self.entity)} was not profiled",
+            )
+            raise IrisSamplingSkipped(
+                f"{UNSUPPORTED}: percentage sampling is not supported on IRIS ({NO_RANDOM}); "
+                f"{table_fqn(self.entity)} was not profiled"
+            )
+
     def _check_readable(self) -> None:
-        """Spec 006 FR-013a: filled in by the readability check (T027)."""
+        """
+        Spec 006 FR-013a: skip a table whose cataloged columns the login cannot read, before any metric or test
+        query, with one IRIS-ACCESS warning (spec 005's form) instead of one failure per metric. The check reads no
+        rows (TOP 0) and uses the cataloged columns, so a column-level grant is checked on what was cataloged. Only a
+        privilege refusal skips the table; any other error is raised.
+        """
+        statement = select(*self.raw_dataset.__table__.columns).limit(0)
+        try:
+            with self.session_factory() as session:
+                session.execute(statement)
+        except DBAPIError as exc:
+            reason = str(getattr(exc, "orig", None) or exc).strip()
+            if PRIVILEGE_REFUSED not in reason:
+                raise
+            first_line = reason.splitlines()[0]
+            table = self.raw_dataset.__table__
+            message = f"IRIS-ACCESS: cannot read profile of {table.schema}.{table.name}: {first_line}"
+            report_once(self.ometa_client, f"access:{table_fqn(self.entity)}", message)
+            raise IrisSamplingSkipped(message) from exc
 
     @classmethod
     def is_skippable_sampling_error(cls, exc: Exception) -> bool:

@@ -284,8 +284,8 @@ then check that the run completes and that every unsupported item is in the matr
   login can read the table's cataloged columns. The check reads no rows. If the login cannot, the
   sampler MUST:
   - record one `IRIS-ACCESS: cannot read profile of <Schema>.<Table>: <first line of SQL error>`
-    warning, in the form spec 005's contract gives (feature `sample data` when only sample data is
-    fetched);
+    warning, in the form spec 005's contract gives (feature `profile` in every step, because the
+    sampler cannot tell which step built it);
   - skip the table, so no metric query runs on it.
 
   The framework records the table once as failed, as in FR-009, instead of once per metric.
@@ -388,8 +388,11 @@ then check that the run completes and that every unsupported item is in the matr
   and the test-suite interface.
 - **SC-008**: No test gives a wrong verdict on any cell. The regex tests and the stream in-set tests
   end as `Aborted` with one warning per test type per run.
-- **SC-009**: As `omd_reader`, each `Restricted` table it can see but not read gives exactly one
-  `IRIS-ACCESS` warning in a profiler run, and no metric query runs on it.
+- **SC-009**: As `omd_reader`, a `Restricted` table it can see but not read (`Restricted.Secret`)
+  gives exactly one `IRIS-ACCESS` warning in a profiler run, and no metric query runs on it. A table
+  catalogued through a column-level grant (`Restricted.ColumnGrant`) is profiled on that column, and
+  its row count fails with the IRIS error, because IRIS refuses `COUNT(*)` without a table-level
+  `SELECT` (research).
 
 ## Assumptions
 

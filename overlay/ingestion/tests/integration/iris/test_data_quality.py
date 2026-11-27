@@ -49,3 +49,23 @@ def test_basic_column_tests(iris_service_connection, case):
 def test_advanced_column_tests(iris_service_connection, case):
     """Spec 006 cut candidate: median, mean, standard deviation, sum, max, min and value lengths between."""
     _check(iris_service_connection, case)
+
+
+def test_aborted_tests(iris_service_connection, run_status):
+    """
+    Spec 006 FR-012a: the regex tests (any column) and in set, not in set, value lengths, unique and missing count on
+    a stream column end Aborted with the reason, never with a verdict, and one warning per test type per run. The
+    other tests of the same run keep their verdicts.
+    """
+    client = harness.StubClient()
+    for case in expected.ABORTED_CASES:
+        status, text = harness.run_test_case(
+            iris_service_connection, client, case.table, case.column, case.definition, case.passing
+        )
+        assert status == "Aborted", f"{_id(case)}: {status} {text[:200]}"
+        assert text.startswith(f"IRIS-PROFILER-UNSUPPORTED: test {case.definition} on "), text
+    warnings = harness.warnings_with(run_status, "IRIS-PROFILER-UNSUPPORTED: test ")
+    assert len(warnings) == len({c.definition for c in expected.ABORTED_CASES}), warnings
+    status, _ = harness.run_test_case(iris_service_connection, client, "Clinic.Encounter", "Notes",
+                                      "columnValuesToBeNotNull", {})
+    assert status == "Failed"  # not null is supported on streams: Notes has NULLs

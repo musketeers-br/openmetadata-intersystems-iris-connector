@@ -228,6 +228,8 @@ ABORTED_CASES = [
     Case("columnValuesToBeInSet", "Clinic.Encounter", "Notes", {"allowedValues": json.dumps(["checkup"])}),
     Case("columnValuesToBeNotInSet", "Clinic.Encounter", "Notes", {"forbiddenValues": json.dumps(["none"])}),
     Case("columnValueLengthsToBeBetween", "Clinic.Encounter", "Notes", {"minLength": "1", "maxLength": "50"}),
+    Case("columnValuesToBeUnique", "Clinic.Encounter", "Notes"),
+    Case("columnValuesMissingCount", "Clinic.Encounter", "Notes", {"missingCountValue": "7"}),
 ]
 
 # Hand-counted from the generator's rules (seed.clinic_rows), to check this module against something it did not

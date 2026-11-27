@@ -13,6 +13,7 @@ from metadata.ingestion.source.database.iris.connection import IrisConnection
 from metadata.ingestion.source.database.iris.lineage import IrisLineageSource
 from metadata.ingestion.source.database.iris.metadata import IrisSource
 from metadata.ingestion.source.database.iris.sampler import IrisSampler
+from metadata.ingestion.source.database.iris.test_suite_interface import IrisTestSuiteInterface
 from metadata.utils.service_spec.default import DefaultDatabaseSpec
 
 ServiceSpec = DefaultDatabaseSpec(
@@ -20,4 +21,5 @@ ServiceSpec = DefaultDatabaseSpec(
     lineage_source_class=IrisLineageSource,
     connection_class=IrisConnection,
     sampler_class=IrisSampler,
+    test_suite_class=IrisTestSuiteInterface,
 )
