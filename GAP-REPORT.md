@@ -312,3 +312,202 @@ handles itself with nothing to report. An issue is opened only after both develo
   chooses between two user-visible configuration values.
 - **User workaround:** none needed.
 - **Upstream:** not applicable: the connector handles it.
+
+### GAP-013 — Delimited CTE names are rejected
+
+- **Component:** IRIS SQL
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
+- **Found in spec:** 006-profiler-dq
+- **Reproduction:** as `omd_reader`, with `.om/env/bin/python`
+
+  ```python
+  import iris
+  cur = iris.connect("127.0.0.1", 1972, "USER", "omd_reader", "Reader123").cursor()
+  cur.execute('WITH abc AS (SELECT 1 AS x) SELECT x FROM abc')       # works
+  cur.execute('WITH "abc" AS (SELECT 1 AS x) SELECT x FROM "abc"')   # SQLCODE -400
+  ```
+
+- **Expected:** a delimited identifier is valid as a CTE name, as everywhere else.
+- **Actual:** `SQLCODE -400` "Fatal error occurred" for every delimited CTE name, even `"ABC"`. OpenMetadata's
+  sampler names its CTEs after an MD5 digest, which is quoted when it starts with a digit, so every sampled profile
+  of such a table failed (SPIKE-04).
+- **Connector behavior:** `IrisSampler` (`iris/sampler.py`, ADR-0016) puts a letter before the digest, so the name
+  is a valid unquoted identifier. Nothing else in the query changes.
+- **User workaround:** none needed.
+- **Upstream:** not raised yet.
+
+### GAP-014 — No random function in IRIS SQL
+
+- **Component:** IRIS SQL
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
+- **Found in spec:** 006-profiler-dq
+- **Reproduction:** as `omd_reader`
+
+  ```python
+  import iris
+  cur = iris.connect("127.0.0.1", 1972, "USER", "omd_reader", "Reader123").cursor()
+  for sql in ("SELECT RAND()", "SELECT RANDOM()", "SELECT NEWID()", "SELECT {fn RAND()}"):
+      try:
+          cur.execute(sql)
+      except Exception as exc:
+          print(sql, str(exc).splitlines()[0])
+  ```
+
+- **Expected:** a random-number function, which OpenMetadata compiles from `RandomNumFn` for percentage and
+  randomized sampling.
+- **Actual:** `SQLCODE -359` for `RAND`, `RANDOM` and `NEWID`, and `SQLCODE -40` for `{fn RAND()}`. Extrinsic
+  functions are disabled.
+- **Connector behavior:** randomized row-count sampling runs unrandomized (the first `n` rows). Percentage sampling
+  below 100% skips the table. Each gives one `IRIS-PROFILER-UNSUPPORTED` warning per run (ADR-0016). Nothing is
+  emulated.
+- **User workaround:** use a row-count sample.
+- **Upstream:** not raised yet.
+
+### GAP-015 — No percentile function in IRIS SQL
+
+- **Component:** IRIS SQL
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
+- **Found in spec:** 006-profiler-dq
+- **Reproduction:** as `omd_reader`
+
+  ```python
+  import iris
+  cur = iris.connect("127.0.0.1", 1972, "USER", "omd_reader", "Reader123").cursor()
+  cur.execute("SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY Weight) FROM Clinic.Patient")  # SQLCODE -359
+  ```
+
+- **Expected:** `percentile_cont … WITHIN GROUP`, `MEDIAN` or `PERCENTILE`, which OpenMetadata's generic median uses.
+- **Actual:** `SQLCODE -359` for each. Before spec 006, median, quartiles, interquartile range and
+  non-parametric skew were silently missing from IRIS profiles, and the "median between" test aborted.
+- **Connector behavior:** one `@compiles(MedianFn, "iris")` override
+  (`patches/ingestion__src__metadata__profiler__orm__functions__median.py.patch`) computes a discrete percentile with
+  a window over the schema-qualified table or the sample (ADR-0010). The per-dimension median is not supported.
+- **User workaround:** none needed. The median is the discrete percentile, not an interpolated one.
+- **Upstream:** not raised yet.
+
+### GAP-016 — A delimited identifier cannot contain `.`
+
+- **Component:** IRIS SQL
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
+- **Found in spec:** 006-profiler-dq
+- **Reproduction:** as `omd_reader`
+
+  ```python
+  import iris
+  cur = iris.connect("127.0.0.1", 1972, "USER", "omd_reader", "Reader123").cursor()
+  cur.execute('SELECT 1 AS "1.5 to 2.5"')  # SQLCODE -1
+  ```
+
+- **Expected:** any character is valid inside a delimited identifier.
+- **Actual:** `SQLCODE -1` "Invalid SQL statement". OpenMetadata labels histogram bins `AS "61.500 to 71.750"`,
+  so the histogram fails on every numeric column whose bin bounds have decimals.
+- **Connector behavior:** the histogram is listed as unsupported in v1. The profiler's own failure for the column is
+  in the status. The shared histogram file is not patched (ADR-0016).
+- **User workaround:** none. Integer-only bins may work.
+- **Upstream:** not raised yet.
+
+### GAP-017 — Aggregate and scalar functions are not supported on stream columns
+
+- **Component:** IRIS SQL
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
+- **Found in spec:** 006-profiler-dq
+- **Reproduction:** as `omd_reader`. `Clinic.Encounter.Notes` is `LONGVARCHAR`
+
+  ```python
+  import iris
+  cur = iris.connect("127.0.0.1", 1972, "USER", "omd_reader", "Reader123").cursor()
+  for sql in ("SELECT MIN(Notes) FROM Clinic.Encounter", "SELECT LEN(Notes) FROM Clinic.Encounter",
+              "SELECT COUNT(DISTINCT Notes) FROM Clinic.Encounter"):
+      try:
+          cur.execute(sql)
+      except Exception as exc:
+          print(sql, str(exc).splitlines()[0])
+  ```
+
+- **Expected:** `MIN`, `MAX`, `LEN`, `COUNT(DISTINCT …)` and `CAST` on text and binary columns, as on other databases.
+- **Actual:** `SQLCODE -37` "SQL scalar/aggregate/unary function not supported for stream fields". The profiler
+  computes a column's static metrics in one query, so a stream column gets none of them, null count included.
+  "Missing count" on a stream ends with `SQLCODE -313`.
+- **Connector behavior:** stream columns (`LONGVARCHAR` → `TEXT`, `LONGVARBINARY` → `BLOB`) are documented as not
+  profiled, and the profiler's failure is in the status. The IRIS test-suite interface aborts "value lengths between"
+  and "missing count" on streams with the reason (spec 006 FR-012a).
+- **User workaround:** exclude stream columns in the table's profiler settings.
+- **Upstream:** not raised yet.
+
+### GAP-018 — `IN`, `LIKE` and `GROUP BY` ignore the content of stream values
+
+- **Component:** IRIS SQL
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
+- **Found in spec:** 006-profiler-dq
+- **Reproduction:** as `omd_reader`. 19 rows of `Clinic.Encounter.Notes` hold `checkup`, and the 53 non-NULL rows
+  hold 3 distinct texts
+
+  ```python
+  import iris
+  cur = iris.connect("127.0.0.1", 1972, "USER", "omd_reader", "Reader123").cursor()
+  cur.execute("SELECT COUNT(*) FROM Clinic.Encounter WHERE Notes IN ('checkup')"); print(cur.fetchall())   # 0
+  cur.execute("SELECT COUNT(*) FROM Clinic.Encounter WHERE Notes LIKE '%check%'"); print(cur.fetchall())   # 0
+  cur.execute("SELECT COUNT(*) FROM Clinic.Encounter WHERE SUBSTRING(Notes, 1, 50) = 'checkup'"); print(cur.fetchall())  # 19
+  cur.execute("SELECT COUNT(*) FROM (SELECT Notes FROM Clinic.Encounter WHERE Notes IS NOT NULL GROUP BY Notes)")
+  print(cur.fetchall())  # 53
+  ```
+
+- **Expected:** 19, 19, 19 and 3, or an error.
+- **Actual:** 0, 0, 19 and 53, with no error. OpenMetadata's "in set", "not in set" and "unique" tests on a stream
+  column give wrong verdicts without any error.
+- **Connector behavior:** the IRIS test-suite interface aborts "in set", "not in set" and "unique" on stream columns,
+  with the reason and one `IRIS-PROFILER-UNSUPPORTED` warning per test type per run (spec 006 FR-012a).
+- **User workaround:** none for these tests on stream columns.
+- **Upstream:** not raised yet.
+
+### GAP-019 — No regular-expression predicate in IRIS SQL
+
+- **Component:** IRIS SQL
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced
+- **Found in spec:** 006-profiler-dq
+- **Reproduction:** as `omd_reader`
+
+  ```python
+  import iris
+  cur = iris.connect("127.0.0.1", 1972, "USER", "omd_reader", "Reader123").cursor()
+  for sql in ("SELECT COUNT(*) FROM Clinic.Patient WHERE FullName REGEXP '^A'",
+              "SELECT COUNT(*) FROM Clinic.Patient WHERE REGEXP_LIKE(FullName, '^A')"):
+      try:
+          cur.execute(sql)
+      except Exception as exc:
+          print(sql, str(exc).splitlines()[0])
+  ```
+
+- **Expected:** a regular-expression predicate, which OpenMetadata's regex tests use.
+- **Actual:** `SQLCODE -14` for `REGEXP` and `SQLCODE -359` for `REGEXP_LIKE`. `%MATCHES` (glob) and `%PATTERN`
+  (ObjectScript patterns) are not regular expressions. OpenMetadata catches the error and falls back to `LIKE` with
+  the regex text as the pattern, so its regex tests give wrong verdicts without any error (SPIKE-04).
+- **Connector behavior:** the IRIS test-suite interface aborts "values to match regex" and "values to not match
+  regex" with the reason, and gives one warning per test type per run (spec 006 FR-012a).
+- **User workaround:** none.
+- **Upstream:** not raised yet.
+
+### GAP-020 — IRIS 2026.3 refuses `COALESCE` with an untyped bound parameter
+
+- **Component:** IRIS SQL
+- **IRIS tracks:** latest-em not reproduced; latest-cd reproduced; latest-preview reproduced
+- **Found in spec:** 006-profiler-dq
+- **Reproduction:** as `omd_reader`
+
+  ```python
+  import iris
+  cur = iris.connect("127.0.0.1", 1972, "USER", "omd_reader", "Reader123").cursor()
+  cur.execute("SELECT COALESCE(SUM(PatientId), 0) FROM Clinic.Patient")       # works
+  cur.execute("SELECT COALESCE(SUM(PatientId), ?) FROM Clinic.Patient", (0,))  # SQLCODE -378 on 2026.3
+  ```
+
+- **Expected:** a bound parameter takes the type of the other `COALESCE` arguments, as on 2026.1.
+- **Actual:** `SQLCODE -378` "Datatype mismatch, explicit CAST is required" on 2026.3 (Build 212U). OpenMetadata's
+  null count is `coalesce(SUM(…), 0)` with the 0 bound, and the profiler runs a column's static metrics in one query,
+  so every static metric of every column failed on 2026.3. The between-bounds checker of the data-quality tests has
+  the same form.
+- **Connector behavior:** `iris/compiles.py` compiles `COALESCE` for the IRIS dialect with its bound values written as
+  literals (`COALESCE(…, 0)`): the same SQL, with a constant in place of `?`. It is removable when IRIS accepts the
+  parameter again.
+- **User workaround:** none needed.
+- **Upstream:** not raised yet.

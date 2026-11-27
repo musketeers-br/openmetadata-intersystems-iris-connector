@@ -64,7 +64,11 @@ class IrisTestSuiteInterface(SQATestSuiteInterface):
         return self._aborted(test_case, message)
 
     def _column(self, test_case: TestCase):
-        name = entity_link.get_decoded_column(test_case.entityLink.root) if "::columns::" in test_case.entityLink.root else None
+        name = (
+            entity_link.get_decoded_column(test_case.entityLink.root)
+            if "::columns::" in test_case.entityLink.root
+            else None
+        )
         return next((c for c in self.table_entity.columns or [] if c.name.root == name), None)
 
     def _aborted(self, test_case: TestCase, message: str) -> TestCaseResultResponse:

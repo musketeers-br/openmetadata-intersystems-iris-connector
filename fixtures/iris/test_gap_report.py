@@ -21,6 +21,7 @@ LABELS = (
     "Upstream",
 )
 COMPONENTS = {
+    "IRIS SQL",
     "IRIS SQL catalog",
     "class dictionary",
     "official driver",

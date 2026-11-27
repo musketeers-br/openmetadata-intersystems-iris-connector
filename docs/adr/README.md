@@ -19,7 +19,7 @@ Each ADR records one architecture decision (AD-n) with its context, alternatives
 | [0013](0013-gap-report.md) | Limitations go to the Gap Report, never into workarounds | Accepted | spec 009 | all |
 | [0015](0015-dialect-state-presets.md) | Preset the official dialect's version and dictionary-access state so least-privilege logins work (narrow exception to 0013) | Accepted | SPIKE-01 → spec 000 | 000, 002, 005 |
 | [0014](0014-repository-topology.md) | Repository layout: overlay on a pinned OpenMetadata release; fork only for the upstream PR | Accepted | spec 000, 001 | all |
-| [0016](0016-iris-sampler.md) | An IRIS sampler: unquoted CTE names; percentage and randomized sampling unsupported (refines 0010) | Accepted | SPIKE-04 → spec 006 | 006 |
+| [0016](0016-iris-sampler.md) | An IRIS sampler: unquoted CTE names; percentage and randomized sampling unsupported (refines 0010) | Accepted; amended by spec 006 (test-suite interface, warning route, table skip, COALESCE) | SPIKE-04 → spec 006 | 006 |
 
 **Status values:** *Proposed* (to be confirmed in the first spec that uses it), *Accepted*, *Accepted, … pending* (decision stands; one detail is settled by the named spike before its spec), *Superseded by ADR-NNNN*.
 

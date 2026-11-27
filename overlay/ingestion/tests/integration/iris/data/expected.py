@@ -110,9 +110,23 @@ def column_metrics(kind: str, values: list) -> dict:
 # The column metrics of OpenMetadata's default profiler (profiler/processor/default.py); the others of the matrix
 # (duplicateCount, minLength, maxLength) are computed by asking for them.
 DEFAULT_METRICS = (
-    "median", "firstQuartile", "thirdQuartile", "mean", "valuesCount", "distinctCount", "distinctProportion",
-    "min", "max", "nullCount", "nullProportion", "stddev", "sum", "uniqueCount", "uniqueProportion",
-    "interQuartileRange", "nonParametricSkew",
+    "median",
+    "firstQuartile",
+    "thirdQuartile",
+    "mean",
+    "valuesCount",
+    "distinctCount",
+    "distinctProportion",
+    "min",
+    "max",
+    "nullCount",
+    "nullProportion",
+    "stddev",
+    "sum",
+    "uniqueCount",
+    "uniqueProportion",
+    "interQuartileRange",
+    "nonParametricSkew",
 )
 EXTRA_METRICS = ("duplicateCount", "minLength", "maxLength")
 
@@ -168,38 +182,78 @@ def _between(prefix: str, value) -> tuple[dict, dict]:
 
 
 TABLE_CASES = [
-    Case("tableRowCountToBeBetween", "Clinic.Patient", None,
-         {"minValue": str(_P - 1), "maxValue": str(_P + 1)}, {"minValue": str(_P + 1), "maxValue": str(_P + 10)}),
+    Case(
+        "tableRowCountToBeBetween",
+        "Clinic.Patient",
+        None,
+        {"minValue": str(_P - 1), "maxValue": str(_P + 1)},
+        {"minValue": str(_P + 1), "maxValue": str(_P + 10)},
+    ),
     Case("tableRowCountToEqual", "Clinic.Patient", None, {"value": str(_P)}, {"value": str(_P + 1)}),
-    Case("tableColumnCountToBeBetween", "Clinic.Patient", None,
-         {"minColValue": "1", "maxColValue": "4"}, {"minColValue": "5", "maxColValue": "9"}),
+    Case(
+        "tableColumnCountToBeBetween",
+        "Clinic.Patient",
+        None,
+        {"minColValue": "1", "maxColValue": "4"},
+        {"minColValue": "5", "maxColValue": "9"},
+    ),
     Case("tableColumnCountToEqual", "Clinic.Patient", None, {"columnCount": "4"}, {"columnCount": "5"}),
     Case("tableColumnNameToExist", "Clinic.Patient", None, {"columnName": "FullName"}, {"columnName": "Nobody"}),
-    Case("tableColumnToMatchSet", "Clinic.Patient", None,
-         {"columnNames": "PatientId,FullName,BirthDate,Weight", "ordered": "false"},
-         {"columnNames": "PatientId,FullName", "ordered": "false"}),
-    Case("tableCustomSQLQuery", "Clinic.Patient", None,
-         {"sqlExpression": "SELECT * FROM Clinic.Patient WHERE Weight < 0", "strategy": "ROWS"},
-         {"sqlExpression": "SELECT * FROM Clinic.Patient WHERE Weight IS NULL", "strategy": "ROWS"}),
+    Case(
+        "tableColumnToMatchSet",
+        "Clinic.Patient",
+        None,
+        {"columnNames": "PatientId,FullName,BirthDate,Weight", "ordered": "false"},
+        {"columnNames": "PatientId,FullName", "ordered": "false"},
+    ),
+    Case(
+        "tableCustomSQLQuery",
+        "Clinic.Patient",
+        None,
+        {"sqlExpression": "SELECT * FROM Clinic.Patient WHERE Weight < 0", "strategy": "ROWS"},
+        {"sqlExpression": "SELECT * FROM Clinic.Patient WHERE Weight IS NULL", "strategy": "ROWS"},
+    ),
 ]
 
 COLUMN_CASES = [
     Case("columnValuesToBeNotNull", "Clinic.Patient", "FullName", failing_column="BirthDate"),
     Case("columnValuesToBeUnique", "Clinic.Patient", "PatientId", failing_column="FullName"),
-    Case("columnValuesMissingCount", "Clinic.Patient", "BirthDate",
-         {"missingCountValue": str(_BIRTH_NULLS)}, {"missingCountValue": "0"}),
-    Case("columnValuesToBeBetween", "Clinic.Patient", "Weight",
-         {"minValue": _num(_W["min"]), "maxValue": _num(_W["max"])},
-         {"minValue": _num(_W["min"] + 1), "maxValue": _num(_W["max"])}),
-    Case("columnValuesToBeBetween", "Clinic.Encounter", "StartedAt",
-         {"minValue": _epoch_ms(_S["min"]), "maxValue": _epoch_ms(_S["max"])},
-         {"minValue": _epoch_ms(_S["min"] + datetime.timedelta(hours=1)), "maxValue": _epoch_ms(_S["max"])}),
+    Case(
+        "columnValuesMissingCount",
+        "Clinic.Patient",
+        "BirthDate",
+        {"missingCountValue": str(_BIRTH_NULLS)},
+        {"missingCountValue": "0"},
+    ),
+    Case(
+        "columnValuesToBeBetween",
+        "Clinic.Patient",
+        "Weight",
+        {"minValue": _num(_W["min"]), "maxValue": _num(_W["max"])},
+        {"minValue": _num(_W["min"] + 1), "maxValue": _num(_W["max"])},
+    ),
+    Case(
+        "columnValuesToBeBetween",
+        "Clinic.Encounter",
+        "StartedAt",
+        {"minValue": _epoch_ms(_S["min"]), "maxValue": _epoch_ms(_S["max"])},
+        {"minValue": _epoch_ms(_S["min"] + datetime.timedelta(hours=1)), "maxValue": _epoch_ms(_S["max"])},
+    ),
     # matchEnum: every value must be in the set (without it the test passes when any value is).
-    Case("columnValuesToBeInSet", "Clinic.Patient", "FullName",
-         {"allowedValues": json.dumps(list(NAMES)), "matchEnum": "true"},
-         {"allowedValues": json.dumps(list(NAMES[:2])), "matchEnum": "true"}),
-    Case("columnValuesToBeNotInSet", "Clinic.Patient", "FullName",
-         {"forbiddenValues": json.dumps(["Nobody"])}, {"forbiddenValues": json.dumps(["Ana Souza"])}),
+    Case(
+        "columnValuesToBeInSet",
+        "Clinic.Patient",
+        "FullName",
+        {"allowedValues": json.dumps(list(NAMES)), "matchEnum": "true"},
+        {"allowedValues": json.dumps(list(NAMES[:2])), "matchEnum": "true"},
+    ),
+    Case(
+        "columnValuesToBeNotInSet",
+        "Clinic.Patient",
+        "FullName",
+        {"forbiddenValues": json.dumps(["Nobody"])},
+        {"forbiddenValues": json.dumps(["Ana Souza"])},
+    ),
 ]
 
 _ADVANCED = [
@@ -213,12 +267,22 @@ ADVANCED_CASES = [
     Case(definition, "Clinic.Patient", "Weight", *_between(prefix, value), advanced=True)
     for definition, prefix, value in _ADVANCED
 ] + [
-    Case("columnValuesSumToBeBetween", "Clinic.Patient", "Weight",
-         {"minValueForColSum": _num(_W["sum"] - 1), "maxValueForColSum": _num(_W["sum"] + 1)},
-         {"minValueForColSum": _num(_W["sum"] + 1), "maxValueForColSum": _num(_W["sum"] + 2)}, advanced=True),
-    Case("columnValueLengthsToBeBetween", "Clinic.Patient", "FullName",
-         {"minLength": str(_N["minLength"]), "maxLength": str(_N["maxLength"])},
-         {"minLength": str(_N["minLength"] + 1), "maxLength": str(_N["maxLength"])}, advanced=True),
+    Case(
+        "columnValuesSumToBeBetween",
+        "Clinic.Patient",
+        "Weight",
+        {"minValueForColSum": _num(_W["sum"] - 1), "maxValueForColSum": _num(_W["sum"] + 1)},
+        {"minValueForColSum": _num(_W["sum"] + 1), "maxValueForColSum": _num(_W["sum"] + 2)},
+        advanced=True,
+    ),
+    Case(
+        "columnValueLengthsToBeBetween",
+        "Clinic.Patient",
+        "FullName",
+        {"minLength": str(_N["minLength"]), "maxLength": str(_N["maxLength"])},
+        {"minLength": str(_N["minLength"] + 1), "maxLength": str(_N["maxLength"])},
+        advanced=True,
+    ),
 ]
 
 # Spec 006 FR-012a: aborted by the IRIS test-suite interface, never a pass or fail verdict.

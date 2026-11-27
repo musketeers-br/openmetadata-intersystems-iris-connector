@@ -144,9 +144,9 @@ warning, and percentage requests are skipped with one warning.
   - every CTE name starts with a letter and is not quoted, including for `Patient`, whose digest starts with `0`;
   - randomization off and on give the same SQL: `TOP n`, no `ORDER BY`;
   - no compiled query contains a random function, `%` or `MOD`;
-  - percentage below 100 raises `IrisSamplingSkipped` with the contract text;
+  - percentage below 100 raises `IrisSamplingSkippedError` with the contract text;
   - percentage 100 returns the raw table;
-  - `is_skippable_sampling_error` is true only for `IrisSamplingSkipped`;
+  - `is_skippable_sampling_error` is true only for `IrisSamplingSkippedError`;
   - with a `StatusWarningHandler` on `ingestion_logger()`, the randomized and percentage warnings appear once for two samplers sharing a client, and again for a new client.
 
   See it fail
@@ -159,7 +159,7 @@ warning, and percentage requests are skipped with one warning.
 
 ### Implementation
 
-- [X] T020 [US3] Write `…/iris/sampler.py` (license header): `IrisSampler(SQASampler)`, `IrisSamplingSkipped`, and the per-run record `_REPORTED` (data-model, contract).
+- [X] T020 [US3] Write `…/iris/sampler.py` (license header): `IrisSampler(SQASampler)`, `IrisSamplingSkippedError`, and the per-run record `_REPORTED` (data-model, contract).
   - `get_sampler_table_name()` returns `"s" + super()`.
   - `get_sample_query()` reads the randomization flag through a local copy of `sample_config` with `randomizedSample=False`, so the base code builds the query; if the flag was on, log the randomized warning once.
   - In the constructor, after `super().__init__`, a percentage below 100 logs the percentage warning once and raises; percentage 100 is treated as no sampling.
@@ -183,7 +183,7 @@ unreadable tables give one `IRIS-ACCESS` each; the runs complete within the thre
   - every other pair calls the base once;
   - warnings are logged once per test type and column kind per run.
 - [X] T023 [P] [US4] Add to `test_iris_sampler.py`, with a stub session:
-  - a readability check that raises `SQLCODE -99` raises `IrisSamplingSkipped` and logs `IRIS-ACCESS: cannot read profile of <Schema>.<Table>: <first line>` once per table;
+  - a readability check that raises `SQLCODE -99` raises `IrisSamplingSkippedError` and logs `IRIS-ACCESS: cannot read profile of <Schema>.<Table>: <first line>` once per table;
   - any other error is re-raised;
   - the check selects the entity's columns, not `*`, and reads no rows (`TOP 0`).
 - [X] T024 [P] [US4] In `test_data_quality.py`, the aborted cases on every cell:
@@ -200,7 +200,7 @@ unreadable tables give one `IRIS-ACCESS` each; the runs complete within the thre
 - [X] T026 [US4] Write `…/iris/test_suite_interface.py` (license header): `IrisTestSuiteInterface(SQATestSuiteInterface)`, which overrides only `run_test_case` (research R5). The covered set is a module constant. Register `test_suite_class=IrisTestSuiteInterface` in `…/iris/service_spec.py`. Makes T022 pass (**[CUT]** for the regex rows only: if regex is cut, the interface still covers the stream rows)
 - [X] T027 [US4] Add the readability check to `IrisSampler.__init__` (spec FR-013a, research R3):
   - `select(<entity columns>).limit(0)` through the sampler's session;
-  - only a privilege error (`SQLCODE -99`) logs `IRIS-ACCESS` once per table and raises `IrisSamplingSkipped`.
+  - only a privilege error (`SQLCODE -99`) logs `IRIS-ACCESS` once per table and raises `IrisSamplingSkippedError`.
 
   Makes T023 pass
 - [X] T028 [US4] Run T024–T025 on the nine local cells. If the threshold fails on any cell, apply research R7's fallback (`excludeColumns` for stream columns in the test config, plus a docs line) and record why
@@ -209,22 +209,22 @@ unreadable tables give one `IRIS-ACCESS` each; the runs complete within the thre
 ## Phase 7: Polish and cross-cutting
 
 - [X] T030 Fill the supported-metrics matrix in `quickstart.md` from the results of T012, T016, T021 and T028: the "measured" cells, the dimensional median and the VECTOR behaviour
-- [ ] T031 Add the eight entries of data-model "Gap Report entries" (the eighth, COALESCE on 2026.3, found in T012) to `GAP-REPORT.md`, ids after the last one, each with reproduction, actual result per track, connector behaviour and `Upstream:` line. Link them from the matrix. `pytest fixtures/iris/test_gap_report.py` passes
-- [ ] T032 Amend `docs/adr/0016-iris-sampler.md` (spec FR-020):
+- [X] T031 Add the eight entries of data-model "Gap Report entries" (the eighth, COALESCE on 2026.3, found in T012) to `GAP-REPORT.md`, ids after the last one, each with reproduction, actual result per track, connector behaviour and `Upstream:` line. Link them from the matrix. `pytest fixtures/iris/test_gap_report.py` passes
+- [X] T032 Amend `docs/adr/0016-iris-sampler.md` (spec FR-020):
   - **Decision:** add the test-suite interface (research R5), the warning route through the step's handler (R2), the table skip at construction with one framework failure (R3), and the readability check (FR-013a);
   - **Context:** correct the randomization default (R4);
   - **Validation:** add the aborted tests and the access check;
   - **Status line:** "Accepted, amended 2026-11-…".
 
   Update `docs/adr/README.md` if the status text changes, and `docs/adr/0010-profiler-registry.md` only if its wording about overrides needs the median pointer
-- [ ] T033 Mark spec 005's grants table (`specs/005-least-privilege/quickstart.md`, profiler and data-quality rows) confirmed, pointing at this spec's matrix
-- [ ] T034 [P] Prepare the planning-repository contract changes on a local branch `contracts/006-profiler-dq`:
+- [X] T033 Mark spec 005's grants table (`specs/005-least-privilege/quickstart.md`, profiler and data-quality rows) confirmed, pointing at this spec's matrix
+- [X] T034 [P] Prepare the planning-repository contract changes on a local branch `contracts/006-profiler-dq`:
   - `docs/contracts/warnings.md`: the `IRIS-PROFILER-UNSUPPORTED` row as [contracts/profiler-warnings.md](contracts/profiler-warnings.md), and the `IRIS-ACCESS` features `profile` and `sample data`;
   - `docs/contracts/fixtures.md`: catalog v5 and the row counts; the 006 planned-additions row done.
 
   Push only with the user's go-ahead
-- [ ] T035 `make py_format` on the touched OpenMetadata files, then `make om-export` and `make om-check` (no diff; only `overlay/` and the two patches changed). Run ruff on dev-repo files, and `pytest fixtures`
-- [ ] T036 Run quickstart Q1–Q7 on the final commit and tick `checklists/requirements.md` with a "Success criteria" section (SC-001..009, with evidence), as spec 001 did
+- [X] T035 `make py_format` on the touched OpenMetadata files, then `make om-export` and `make om-check` (no diff; only `overlay/` and the two patches changed). Run ruff on dev-repo files, and `pytest fixtures`
+- [X] T036 Run quickstart Q1–Q7 on the final commit and tick `checklists/requirements.md` with a "Success criteria" section (SC-001..009, with evidence), as spec 001 did
 
 ## Dependencies
 

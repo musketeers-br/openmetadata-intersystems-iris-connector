@@ -151,7 +151,7 @@ result, and that is when it is built.
   `sampler_class.is_skippable_sampling_error(exc)`. When the answer is true, it records one status
   warning (`Skipping sample collection for [<fqn>]: <exc>`) and goes on, with no failure.
 
-**Decision:** the IRIS sampler raises one exception type, `IrisSamplingSkipped`, from its
+**Decision:** the IRIS sampler raises one exception type, `IrisSamplingSkippedError`, from its
 constructor in two cases:
 
 - **(a)** percentage sampling below 100% is configured;
@@ -159,7 +159,7 @@ constructor in two cases:
 
 The exception message is the warning text. In case (a), the sampler also logs the once-per-run
 `IRIS-PROFILER-UNSUPPORTED` warning (R2). In case (b), it logs the `IRIS-ACCESS` warning, once per
-table. `is_skippable_sampling_error` returns true for `IrisSamplingSkipped`.
+table. `is_skippable_sampling_error` returns true for `IrisSamplingSkippedError`.
 
 - **The readability check:** `select(<the table entity's columns>).limit(0)` through the sampler's
   own session, built with SQLAlchemy and not as raw SQL. It reads no rows.

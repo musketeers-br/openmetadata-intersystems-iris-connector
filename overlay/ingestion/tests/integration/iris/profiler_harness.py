@@ -167,8 +167,9 @@ def sampler(connection, client: StubClient, table: Table, sample_config: SampleC
 def profiler_interface(connection, client: StubClient, qualified: str, sample_config: SampleConfig | None = None):
     table = client.table(qualified)
     profiler_class = import_profiler_class(ServiceType.Database, source_type=SOURCE_TYPE)
-    return profiler_class(connection, client, table, None, sampler(connection, client, table, sample_config),
-                          THREAD_COUNT, 600)
+    return profiler_class(
+        connection, client, table, None, sampler(connection, client, table, sample_config), THREAD_COUNT, 600
+    )
 
 
 def profile(connection, client: StubClient, qualified: str, sample_config: SampleConfig | None = None):
@@ -177,15 +178,18 @@ def profile(connection, client: StubClient, qualified: str, sample_config: Sampl
     try:
         profiler = DefaultProfiler(profiler_interface=interface, metrics_registry=Metrics)
         profiler.compute_metrics()
-        return dict(profiler._table_results or {}), dict(profiler._column_results or {}), list(
-            interface.status.failures
+        return (
+            dict(profiler._table_results or {}),
+            dict(profiler._column_results or {}),
+            list(interface.status.failures),
         )
     finally:
         release(interface)
 
 
-def profile_metrics(connection, client: StubClient, qualified: str, names: tuple[str, ...],
-                    sample_config: SampleConfig | None = None):
+def profile_metrics(
+    connection, client: StubClient, qualified: str, names: tuple[str, ...], sample_config: SampleConfig | None = None
+):
     """Chosen metrics (with the inputs composed metrics need) on one table. Returns the column results."""
     needs = {"duplicateCount": ("valuesCount", "distinctCount")}
     wanted = list(dict.fromkeys(n for name in names for n in (name, *needs.get(name, ()))))
@@ -198,8 +202,15 @@ def profile_metrics(connection, client: StubClient, qualified: str, names: tuple
         release(interface)
 
 
-def run_test_case(connection, client: StubClient, qualified: str, column: str | None, definition: str,
-                  params: dict, sample_config: SampleConfig | None = None):
+def run_test_case(
+    connection,
+    client: StubClient,
+    qualified: str,
+    column: str | None,
+    definition: str,
+    params: dict,
+    sample_config: SampleConfig | None = None,
+):
     """One built-in test through the connector's test-suite class. Returns (status, result text)."""
     table = client.table(qualified)
     test_definition = client.definition(definition)

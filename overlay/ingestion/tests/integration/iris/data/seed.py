@@ -99,8 +99,18 @@ ENCOUNTER_INSERT = (
 PATIENT_ROWS = 60
 ENCOUNTER_IDS = range(10, 70)
 NAMES = (
-    "Ana Souza", "Bruno Lima", "Carla Dias", "Diego Rocha", "Elisa Prado", "Fabio Nunes",
-    "Gina Alves", "Hugo Melo", "Iara Costa", "Joao Reis", "Karen Luz", "Lucas Moura",
+    "Ana Souza",
+    "Bruno Lima",
+    "Carla Dias",
+    "Diego Rocha",
+    "Elisa Prado",
+    "Fabio Nunes",
+    "Gina Alves",
+    "Hugo Melo",
+    "Iara Costa",
+    "Joao Reis",
+    "Karen Luz",
+    "Lucas Moura",
 )
 NOTES = ("checkup", "follow-up", "lab results")
 

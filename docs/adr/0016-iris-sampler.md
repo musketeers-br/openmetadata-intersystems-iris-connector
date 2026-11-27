@@ -1,6 +1,6 @@
 # ADR-0016 — An IRIS sampler: unquoted CTE names, no percentage or randomized sampling
 
-- **Status:** Accepted · **Date:** 2026-11-27 · **Deciders:** Henry Pereira, Henrique Dias
+- **Status:** Accepted, amended 2026-11-27 by spec 006 (see [Amendment](#amendment-spec-006-2026-11-27)) · **Date:** 2026-11-27 · **Deciders:** Henry Pereira, Henrique Dias
 - **Spine:** AD-16 (new) · **Binds:** FR-16, FR-17 · **Constitution:** I, V
 - **Refines:** [ADR-0010](0010-profiler-registry.md) (the "new ADR" it requires for a sampler) · **Evidence:** SPIKE-04
 
@@ -16,7 +16,7 @@ Without sampling, the profiler and most tests work through the dialect registry,
   - The name is chosen by the sampler class, not by a SQL function, so there is nothing to `@compiles`.
 - **IRIS SQL has no random function.** `RAND`, `RANDOM`, `NEWID`, `{fn RAND()}` and `$RANDOM` are all refused, and extrinsic functions are disabled.
   - Percentage sampling and randomized row sampling are both built on `ModuloFn(RandomNumFn(), …)`.
-  - Randomized row sampling is the default (`randomizedSample: true`).
+  - Randomized row sampling is the default for data-quality test runs (`SampleConfig.randomizedSample = True`). The profiler pipeline's default is `false` (corrected by the amendment).
   - There is no IRIS function to compile `RandomNumFn` to. A deterministic stand-in (for example a hash of `%ID`) would be emulation, which [ADR-0010](0010-profiler-registry.md) and [ADR-0013](0013-gap-report.md) rule out.
 
 When SPIKE-04 prefixed the digest with a letter, row-count sampling with `randomizedSample: false` returned 10 of 100 rows and every metric ran.
@@ -75,3 +75,26 @@ Spec 006, on all matrix cells, as the least-privilege login too:
 - Row-count sampling, randomized or not, returns `n` rows, and the supported metrics run on the sample. The randomized request raises exactly one `IRIS-PROFILER-UNSUPPORTED` warning per run.
 - Percentage sampling computes no sampled metric and raises exactly one warning per run. No query reads the whole table in its place.
 - Unit tests check that no compiled CTE name is quoted, including for a table whose digest starts with a digit, and that no compiled sample query contains a random function or `%`.
+
+## Amendment (spec 006, 2026-11-27)
+
+Spec 006 implemented this decision and found four things it had to add. The evidence is in `specs/006-profiler-dq/research.md` (R2–R5, T-probe results, implementation measurements).
+
+- **The test-suite interface (spec FR-012a), chosen by Henrique Dias:** `iris/test_suite_interface.py` defines `IrisTestSuiteInterface(SQATestSuiteInterface)`, registered as `test_suite_class`. It returns an `Aborted` result with the reason instead of running the validator for these tests, and logs one warning per test type per run:
+  - on any column, the regex tests. OpenMetadata falls back to `LIKE` and gives wrong verdicts (GAP-019);
+  - on stream columns, "in set", "not in set" and "unique", which give wrong verdicts with no error (GAP-018), and "value lengths between" and "missing count", which end in raw SQL errors (GAP-017).
+
+  The interface decides only from the test's definition name and the column's type. It adds no SQL and computes no verdict. Every other test runs through the base interface.
+- **How the warnings reach the status:** a sampler holds no `Status`, and the profiler step copies only the interface's records and failures. The sampler and the test-suite interface therefore log their warnings at `WARNING` through `ingestion_logger()`, and the step's own `StatusWarningHandler` records them in the step's status. The key is the module name, and the message names the table. No shared file changes.
+- **How a table is skipped:** OpenMetadata 2.1.1 lets a sampler skip a table without a substitute result at one point only, its constructor. `IrisSampler` raises `IrisSamplingSkippedError` there in two cases:
+  - percentage sampling below 100%;
+  - a login that cannot read the table's catalogued columns. A `SELECT TOP 0` of those columns is refused with `-99`, and the sampler records one `IRIS-ACCESS` warning per table, in spec 005's form.
+
+  In both cases the profiler and test steps record one framework failure for the table, and the sample-data step records the framework's skip warning instead (`is_skippable_sampling_error`). The sampler disposes its engine before raising.
+- **`COALESCE` on IRIS 2026.3:** 2026.3 refuses `COALESCE(<expr>, ?)` with an untyped parameter (`SQLCODE -378`). OpenMetadata's null count generates exactly that, so every static metric failed on `latest-cd` (GAP-020). `iris/compiles.py` compiles `COALESCE` for the IRIS dialect with its bound values written as literals, and `service_spec.py` imports it. This was chosen by Henrique Dias. It is removable when IRIS accepts the parameter again.
+
+**Validation added:**
+
+- the aborted tests and their warnings, on all cells;
+- the access check as `omd_reader` (`Restricted.Secret`);
+- a profiler run over every visible fixture table that meets the 90% success threshold on all cells (`tests/integration/iris/test_profiler.py`, `test_data_quality.py`, `test_sampling.py`).

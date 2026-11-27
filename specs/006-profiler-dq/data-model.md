@@ -11,11 +11,11 @@
 | Row count `n`, randomization off | `TOP n` | unchanged |
 | Row count `n`, randomization on | orders by `ModuloFn(RandomNumFn(), count)` | runs as randomization off, plus one warning per run |
 | Percentage 100 | the whole table (randomized: random order) | the whole table, plus the randomization warning if randomization is on |
-| Percentage < 100 | filters on `ModuloFn(RandomNumFn(), 100)` | raises `IrisSamplingSkipped` in the constructor, plus one warning per run (research R3) |
+| Percentage < 100 | filters on `ModuloFn(RandomNumFn(), 100)` | raises `IrisSamplingSkippedError` in the constructor, plus one warning per run (research R3) |
 | User sample query | `_rdn_sample_from_user_query` | unchanged except the CTE name |
-| Login cannot read the cataloged columns | every metric task fails | raises `IrisSamplingSkipped`, plus one `IRIS-ACCESS` per table |
+| Login cannot read the cataloged columns | every metric task fails | raises `IrisSamplingSkippedError`, plus one `IRIS-ACCESS` per table |
 
-`is_skippable_sampling_error(exc)` is true for `IrisSamplingSkipped`. The randomization flag is
+`is_skippable_sampling_error(exc)` is true for `IrisSamplingSkippedError`. The randomization flag is
 read from `self.sample_config.randomizedSample`. The constructor runs the base constructor first,
 then the readability check, then the percentage check.
 

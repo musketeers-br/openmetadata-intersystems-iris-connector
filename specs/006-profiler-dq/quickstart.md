@@ -25,7 +25,7 @@ How to check this feature, and the supported-metrics matrix for spec 008's docs.
 ## Supported-metrics matrix (for spec 008)
 
 These are the results on IRIS Community 2026.1 and 2026.3, as administrator and as a `SELECT`-only
-login. "GAP" points to `GAP-REPORT.md`; the ids are assigned when the entries are added.
+login. GAP ids point to `GAP-REPORT.md`.
 
 ### Table metrics
 
@@ -39,22 +39,22 @@ login. "GAP" points to `GAP-REPORT.md`; the ids are assigned when the entries ar
 
 | Metric | IRIS | Note |
 |---|---|---|
-| Values count, null count, null proportion | supported | On IRIS 2026.3 the connector writes COALESCE's constant as a literal, because 2026.3 refuses an untyped parameter there. GAP: COALESCE with a bound parameter |
+| Values count, null count, null proportion | supported | On IRIS 2026.3 the connector writes COALESCE's constant as a literal, because 2026.3 refuses an untyped parameter there. GAP-020 |
 | Distinct, unique and duplicate counts and proportions | supported | |
 | Min, max | supported | |
 | Mean, sum, standard deviation | supported | For text columns these are based on value length, as on other databases. The sum is OpenMetadata's `SUM(CAST(x AS BIGINT))`: IRIS truncates each value to an integer first. Standard deviation is the population one |
 | Min length, max length | supported | |
-| Median, first quartile, third quartile | supported | Discrete percentile (the IRIS override). Computed on the sample when the profile is sampled. The per-dimension median (dimensional test results) is not supported. GAP: no percentile function |
+| Median, first quartile, third quartile | supported | Discrete percentile (the IRIS override). Computed on the sample when the profile is sampled. The per-dimension median (dimensional test results) is not supported. GAP-015 |
 | Interquartile range, non-parametric skew | supported | Derived from the above |
 | Cardinality distribution | supported | |
-| Histogram | **not supported in v1** | IRIS rejects `.` in the bin labels the profiler builds. Integer-only bins may work, but this is not guaranteed. GAP: `.` in delimited identifiers |
+| Histogram | **not supported in v1** | IRIS rejects `.` in the bin labels the profiler builds. Integer-only bins may work, but this is not guaranteed. GAP-016 |
 | Custom metrics | not tested | Out of scope |
 
 ### Stream columns (`LONGVARCHAR`/`TEXT`/`CLOB`, `LONGVARBINARY`/`BLOB`/`IMAGE`)
 
 | Metric | IRIS | Note |
 |---|---|---|
-| Every static metric, null count included | **not supported** | IRIS does not run `LEN`, `COUNT(DISTINCT …)`, `MIN`, `MAX` or `CAST` on streams. The profiler computes a column's static metrics in one query, so all of them fail, and the status shows the profiler's failure for the column. Workaround: exclude stream columns in the table's profiler settings. GAP: aggregates on streams |
+| Every static metric, null count included | **not supported** | IRIS does not run `LEN`, `COUNT(DISTINCT …)`, `MIN`, `MAX` or `CAST` on streams. The profiler computes a column's static metrics in one query, so all of them fail, and the status shows the profiler's failure for the column. Workaround: exclude stream columns in the table's profiler settings. GAP-017 |
 | Median and quartiles of a text stream | **not supported** | The same limitation: one more profiler failure for the column |
 
 ### VECTOR columns
@@ -70,11 +70,11 @@ login. "GAP" points to `GAP-REPORT.md`; the ids are assigned when the entries ar
 |---|---|---|
 | None (whole table) | supported | |
 | Row count, not randomized | supported | The first `n` rows in IRIS's order |
-| Row count, randomized | **not randomized** | The first `n` rows, with one warning per run. Randomized is the default for data-quality test runs in OpenMetadata 2.1.1. GAP: no random function |
-| Percentage below 100 | **not supported** | The table is not profiled. You get one warning per run and one failure per table. Set a row count instead. GAP: no random function |
+| Row count, randomized | **not randomized** | The first `n` rows, with one warning per run. Randomized is the default for data-quality test runs in OpenMetadata 2.1.1. GAP-014 |
+| Percentage below 100 | **not supported** | The table is not profiled. You get one warning per run and one failure per table. Set a row count instead. GAP-014 |
 | Percentage 100 | supported | The whole table |
 | Custom sample query | supported | |
-| Any sampled profile, by table name | supported | IRIS rejects delimited CTE names, and the IRIS sampler avoids them. GAP: delimited CTE names |
+| Any sampled profile, by table name | supported | IRIS rejects delimited CTE names, and the IRIS sampler avoids them. GAP-013 |
 
 ### Table tests
 
@@ -93,12 +93,12 @@ login. "GAP" points to `GAP-REPORT.md`; the ids are assigned when the entries ar
 |---|---|---|
 | Not null | supported | supported (`IS NULL` works on streams) |
 | Missing count | supported | **aborted**: conditions on stream columns are not supported (IRIS gives `SQLCODE -313`) |
-| Unique | supported | **aborted**: IRIS does not compare stream values in `GROUP BY`, so OpenMetadata would report no duplicates. GAP: `IN`/`LIKE`/`GROUP BY` on streams |
+| Unique | supported | **aborted**: IRIS does not compare stream values in `GROUP BY`, so OpenMetadata would report no duplicates. GAP-018 |
 | Between (numeric, timestamp) | supported | not applicable |
-| In set, not in set | supported | **aborted**: `IN` on a stream returns no rows. GAP: `IN`/`LIKE` on streams |
+| In set, not in set | supported | **aborted**: `IN` on a stream returns no rows. GAP-018 |
 | Value lengths between | supported | **aborted**: no length function on streams |
 | Max, min, mean, median, standard deviation, sum between | supported | not applicable |
-| Match regex, not match regex | **aborted**: no regex predicate. OpenMetadata would fall back to `LIKE` and give wrong verdicts. GAP: no regex predicate | **aborted** |
+| Match regex, not match regex | **aborted**: no regex predicate. OpenMetadata would fall back to `LIKE` and give wrong verdicts. GAP-019 | **aborted** |
 
 "Aborted" means the test ends with an `Aborted` result and the reason, never with a pass or fail
 verdict. The run records one warning per test type.

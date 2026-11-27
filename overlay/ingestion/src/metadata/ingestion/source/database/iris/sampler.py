@@ -17,7 +17,7 @@ sampling without randomization, and no percentage sampling. It adds no SQL of it
 
 Unsupported requests are reported once per run as IRIS-PROFILER-UNSUPPORTED warnings, logged through
 ingestion_logger() so that the step's own warning handler records them in the step's status (research R2). A table
-that cannot be sampled is skipped by raising IrisSamplingSkipped from the constructor, the only point where
+that cannot be sampled is skipped by raising IrisSamplingSkippedError from the constructor, the only point where
 OpenMetadata 2.1.1 lets a sampler skip a table without a substitute result (research R3).
 """
 
@@ -41,7 +41,7 @@ PRIVILEGE_REFUSED = "<-99>"  # IRIS: [SQLCODE: <-99>:<Privilege violation>]
 _REPORTED: "WeakKeyDictionary[object, set[str]]" = WeakKeyDictionary()
 
 
-class IrisSamplingSkipped(Exception):
+class IrisSamplingSkippedError(Exception):
     """The table is not sampled on IRIS; the message is the reason, naming the table."""
 
 
@@ -66,7 +66,7 @@ class IrisSampler(SQASampler):
         try:
             self._check_readable()
             self._check_percentage()
-        except IrisSamplingSkipped:
+        except IrisSamplingSkippedError:
             # Nobody closes a sampler whose constructor failed: release its engine (IRIS Community has few licenses).
             self.connection.dispose()
             raise
@@ -97,7 +97,7 @@ class IrisSampler(SQASampler):
                 f"{UNSUPPORTED}: percentage sampling is not supported on IRIS ({NO_RANDOM}); set a row-count "
                 f"sample instead. {table_fqn(self.entity)} was not profiled",
             )
-            raise IrisSamplingSkipped(
+            raise IrisSamplingSkippedError(
                 f"{UNSUPPORTED}: percentage sampling is not supported on IRIS ({NO_RANDOM}); "
                 f"{table_fqn(self.entity)} was not profiled"
             )
@@ -121,12 +121,12 @@ class IrisSampler(SQASampler):
             table = self.raw_dataset.__table__
             message = f"IRIS-ACCESS: cannot read profile of {table.schema}.{table.name}: {first_line}"
             report_once(self.ometa_client, f"access:{table_fqn(self.entity)}", message)
-            raise IrisSamplingSkipped(message) from exc
+            raise IrisSamplingSkippedError(message) from exc
 
     @classmethod
     def is_skippable_sampling_error(cls, exc: Exception) -> bool:
         """The sample-data step skips a table this sampler refused, with a warning instead of a failure."""
-        return isinstance(exc, IrisSamplingSkipped)
+        return isinstance(exc, IrisSamplingSkippedError)
 
     def get_sampler_table_name(self) -> str:
         """IRIS rejects delimited CTE names; a digest starting with a digit would be quoted. Prefix a letter."""

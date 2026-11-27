@@ -15,14 +15,14 @@ warning per run, and no query reads a skipped table.
 """
 
 import pytest
+from tests.integration.iris import profiler_harness as harness
+from tests.integration.iris.data import expected
 
 from metadata.generated.schema.type.basic import ProfileSampleType
 from metadata.generated.schema.type.samplingConfig import SampleConfigType
 from metadata.generated.schema.type.staticSamplingConfig import StaticSamplingConfig
-from metadata.ingestion.source.database.iris.sampler import IrisSamplingSkipped
+from metadata.ingestion.source.database.iris.sampler import IrisSamplingSkippedError
 from metadata.sampler.models import ProfileSampleConfig, SampleConfig
-from tests.integration.iris import profiler_harness as harness
-from tests.integration.iris.data import expected
 
 pytestmark = pytest.mark.iris
 
@@ -55,9 +55,9 @@ def _table_rows(qualified: str) -> int:
 def test_row_count_sampling(iris_service_connection, run_status, randomized):
     client = harness.StubClient()
     for qualified in TABLES:
-        assert _rows_seen(iris_service_connection, client, qualified, _config(ProfileSampleType.ROWS, 10, randomized)) == min(
-            10, _table_rows(qualified)
-        ), qualified
+        assert _rows_seen(
+            iris_service_connection, client, qualified, _config(ProfileSampleType.ROWS, 10, randomized)
+        ) == min(10, _table_rows(qualified)), qualified
     warnings = harness.warnings_with(run_status, UNSUPPORTED)
     if randomized:
         assert len(warnings) == 1, warnings
@@ -68,7 +68,9 @@ def test_row_count_sampling(iris_service_connection, run_status, randomized):
 
 def test_row_count_larger_than_the_table(iris_service_connection, run_status):
     config = _config(ProfileSampleType.ROWS, 1000)
-    assert _rows_seen(iris_service_connection, harness.StubClient(), "Clinic.Patient", config) == _table_rows("Clinic.Patient")
+    assert _rows_seen(iris_service_connection, harness.StubClient(), "Clinic.Patient", config) == _table_rows(
+        "Clinic.Patient"
+    )
     assert harness.warnings_with(run_status, UNSUPPORTED) == []
 
 
@@ -76,9 +78,11 @@ def test_percentage_sampling_skips_the_table(iris_service_connection, run_status
     client = harness.StubClient()
     with harness.count_statements() as statements:
         for qualified in TABLES:
-            with pytest.raises(IrisSamplingSkipped, match=f"{harness.table_fqn(qualified)} was not profiled"):
+            with pytest.raises(IrisSamplingSkippedError, match=f"{harness.table_fqn(qualified)} was not profiled"):
                 harness.profile(iris_service_connection, client, qualified, _config(ProfileSampleType.PERCENTAGE, 50))
-    reads = [s for s in statements if any(t.split(".")[1] in s for t in TABLES) and not s.upper().startswith("SELECT TOP ?")]
+    reads = [
+        s for s in statements if any(t.split(".")[1] in s for t in TABLES) and not s.upper().startswith("SELECT TOP ?")
+    ]
     assert reads == [], reads
     warnings = harness.warnings_with(run_status, UNSUPPORTED)
     assert len(warnings) == 1 and "percentage sampling is not supported on IRIS" in warnings[0], warnings
@@ -86,7 +90,9 @@ def test_percentage_sampling_skips_the_table(iris_service_connection, run_status
 
 def test_percentage_100_is_the_whole_table(iris_service_connection, run_status):
     config = _config(ProfileSampleType.PERCENTAGE, 100)
-    assert _rows_seen(iris_service_connection, harness.StubClient(), "Clinic.Patient", config) == _table_rows("Clinic.Patient")
+    assert _rows_seen(iris_service_connection, harness.StubClient(), "Clinic.Patient", config) == _table_rows(
+        "Clinic.Patient"
+    )
     assert harness.warnings_with(run_status, UNSUPPORTED) == []
 
 
@@ -94,14 +100,24 @@ def test_the_test_runner_uses_the_same_sampler(iris_service_connection, run_stat
     """US3 scenario 5: data-quality tests on a sampled table, with the same rows and warnings."""
     client = harness.StubClient()
     status, text = harness.run_test_case(
-        iris_service_connection, client, "Clinic.Patient", None, "tableRowCountToEqual", {"value": "10"},
+        iris_service_connection,
+        client,
+        "Clinic.Patient",
+        None,
+        "tableRowCountToEqual",
+        {"value": "10"},
         sample_config=_config(ProfileSampleType.ROWS, 10, randomized=True),
     )
     assert status == "Success", text
     assert len(harness.warnings_with(run_status, UNSUPPORTED)) == 1
-    with pytest.raises(IrisSamplingSkipped):
+    with pytest.raises(IrisSamplingSkippedError):
         harness.run_test_case(
-            iris_service_connection, client, "Clinic.Patient", None, "tableRowCountToEqual", {"value": "10"},
+            iris_service_connection,
+            client,
+            "Clinic.Patient",
+            None,
+            "tableRowCountToEqual",
+            {"value": "10"},
             sample_config=_config(ProfileSampleType.PERCENTAGE, 50),
         )
     assert len(harness.warnings_with(run_status, UNSUPPORTED)) == 2

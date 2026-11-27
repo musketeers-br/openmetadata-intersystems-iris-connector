@@ -15,15 +15,16 @@ to the base interface. No IRIS: the base run_test_case is replaced by a recorder
 """
 
 import uuid
+
 import pytest
 
 from metadata.data_quality.interface.sqlalchemy.sqa_test_suite_interface import SQATestSuiteInterface
 from metadata.generated.schema.entity.data.table import Column, ColumnName, DataType, Table
 from metadata.generated.schema.entity.services.databaseService import DatabaseServiceType
 from metadata.generated.schema.tests.basic import TestCaseResult, TestCaseStatus
-from metadata.generated.schema.type.basic import Timestamp
 from metadata.generated.schema.tests.testCase import TestCase
 from metadata.generated.schema.tests.testDefinition import EntityType, TestDefinition
+from metadata.generated.schema.type.basic import Timestamp
 from metadata.generated.schema.type.entityReference import EntityReference
 from metadata.ingestion.api.status import Status
 from metadata.ingestion.source.database.iris.test_suite_interface import IrisTestSuiteInterface
@@ -65,8 +66,12 @@ def _table() -> Table:
 def _case(client: Client, definition: str, column: str | None) -> TestCase:
     entity_type = EntityType.TABLE if definition.startswith("table") else EntityType.COLUMN
     test_definition = TestDefinition(
-        id=uuid.uuid4(), name=definition, fullyQualifiedName=definition, description="d",
-        entityType=entity_type, testPlatforms=["OpenMetadata"],
+        id=uuid.uuid4(),
+        name=definition,
+        fullyQualifiedName=definition,
+        description="d",
+        entityType=entity_type,
+        testPlatforms=["OpenMetadata"],
     )
     client.definitions[str(test_definition.id.root)] = test_definition
     return TestCase(

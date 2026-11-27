@@ -19,12 +19,14 @@ from tests.integration.iris.data.seed import EXPECTED, clinic_rows
 
 def test_hand_counts():
     hand = expected.HAND_COUNTS
-    assert expected.METRICS[("Clinic", "Patient", "BirthDate")]["nullCount"] == hand[
-        ("Clinic", "Patient", "BirthDate", "nullCount")
-    ]
-    assert expected.METRICS[("Clinic", "Patient", "FullName")]["distinctCount"] == hand[
-        ("Clinic", "Patient", "FullName", "distinctCount")
-    ]
+    assert (
+        expected.METRICS[("Clinic", "Patient", "BirthDate")]["nullCount"]
+        == hand[("Clinic", "Patient", "BirthDate", "nullCount")]
+    )
+    assert (
+        expected.METRICS[("Clinic", "Patient", "FullName")]["distinctCount"]
+        == hand[("Clinic", "Patient", "FullName", "distinctCount")]
+    )
     assert expected.notes_checkup_count() == hand[("Clinic", "Encounter", "Notes", "checkup")]
 
 

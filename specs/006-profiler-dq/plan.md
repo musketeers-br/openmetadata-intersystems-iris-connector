@@ -33,7 +33,7 @@ silent.
     process with no OpenMetadata server (R9).
 - **Docs**:
   - the supported-metrics matrix ([quickstart.md](quickstart.md));
-  - seven Gap Report entries;
+  - eight Gap Report entries (GAP-013..020);
   - the ADR-0016 amendment;
   - the warnings and fixtures contracts in the planning repository.
 
@@ -83,7 +83,7 @@ problem). The readability check is one statement per table that reads no rows.
 
 - 2 patches and 2 new connector modules;
 - about 30 metrics, 20 test definitions and 6 sampling modes in the matrix;
-- 7 Gap Report entries;
+- 8 Gap Report entries;
 - 60 + 60 fixture rows.
 
 ## Constitution Check
@@ -128,7 +128,7 @@ patches/ingestion__src__metadata__profiler__orm__registry.py.patch              
 patches/ingestion__src__metadata__profiler__orm__functions__median.py.patch      # @compiles(MedianFn, Iris)
 overlay/ingestion/src/metadata/ingestion/source/database/iris/
 ├── service_spec.py            # + sampler_class, test_suite_class
-├── sampler.py                 # new: IrisSampler, IrisSamplingSkipped, per-run report record
+├── sampler.py                 # new: IrisSampler, IrisSamplingSkippedError, per-run report record
 └── test_suite_interface.py    # new: IrisTestSuiteInterface
 overlay/ingestion/tests/unit/topology/database/
 ├── test_iris_sampler.py       # new
@@ -144,7 +144,7 @@ overlay/ingestion/tests/integration/iris/
 
 # Dev-repo files
 fixtures/iris/test_seed.py     # v5 row counts, expected.py check
-GAP-REPORT.md                  # seven entries
+GAP-REPORT.md                  # GAP-013..020
 docs/adr/0016-iris-sampler.md  # amendment
 docs/adr/0010-profiler-registry.md   # pointer to the median override, if wording needs it
 ```

@@ -14,7 +14,6 @@ with parameters that must fail, on every cell and for every login (expected.py d
 """
 
 import pytest
-
 from tests.integration.iris import profiler_harness as harness
 from tests.integration.iris.data import expected
 
@@ -66,6 +65,7 @@ def test_aborted_tests(iris_service_connection, run_status):
         assert text.startswith(f"IRIS-PROFILER-UNSUPPORTED: test {case.definition} on "), text
     warnings = harness.warnings_with(run_status, "IRIS-PROFILER-UNSUPPORTED: test ")
     assert len(warnings) == len({c.definition for c in expected.ABORTED_CASES}), warnings
-    status, _ = harness.run_test_case(iris_service_connection, client, "Clinic.Encounter", "Notes",
-                                      "columnValuesToBeNotNull", {})
+    status, _ = harness.run_test_case(
+        iris_service_connection, client, "Clinic.Encounter", "Notes", "columnValuesToBeNotNull", {}
+    )
     assert status == "Failed"  # not null is supported on streams: Notes has NULLs

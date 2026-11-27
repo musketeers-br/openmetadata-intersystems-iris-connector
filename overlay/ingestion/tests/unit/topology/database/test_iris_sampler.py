@@ -15,13 +15,14 @@ runs) and its SQL is compiled with the IRIS dialect.
 """
 
 import hashlib
+import re
 import uuid
 from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine, select
-from sqlalchemy.exc import DBAPIError
 from sqlalchemy.dialects import registry
+from sqlalchemy.exc import DBAPIError
 
 from metadata.generated.schema.entity.data.table import Column, ColumnName, DataType, Table
 from metadata.generated.schema.entity.services.connections.database.common.basicAuth import BasicAuth
@@ -29,13 +30,13 @@ from metadata.generated.schema.entity.services.connections.database.irisConnecti
 from metadata.generated.schema.entity.services.databaseService import DatabaseServiceType
 from metadata.generated.schema.type.basic import ProfileSampleType
 from metadata.generated.schema.type.entityReference import EntityReference
+from metadata.generated.schema.type.samplingConfig import SampleConfigType
+from metadata.generated.schema.type.staticSamplingConfig import StaticSamplingConfig
 from metadata.ingestion.api.status import Status
-from metadata.ingestion.source.database.iris.sampler import IrisSampler, IrisSamplingSkipped
+from metadata.ingestion.source.database.iris.sampler import IrisSampler, IrisSamplingSkippedError
 from metadata.sampler.models import ProfileSampleConfig, SampleConfig
 from metadata.sampler.sampler_config import DatabaseSamplerConfig
 from metadata.sampler.sqlalchemy import sampler as sqa_sampler
-from metadata.generated.schema.type.samplingConfig import SampleConfigType
-from metadata.generated.schema.type.staticSamplingConfig import StaticSamplingConfig
 from metadata.utils.logger import StatusWarningHandler, ingestion_logger
 
 IRIS = registry.load("iris")()
@@ -141,7 +142,7 @@ def test_no_warning_without_sampling_or_randomization(status):
 def test_percentage_below_100_skips_the_table(status):
     client = Client()
     for name in ("Patient", "Encounter"):
-        with pytest.raises(IrisSamplingSkipped, match=f"iris_test.USER.Clinic.{name} was not profiled"):
+        with pytest.raises(IrisSamplingSkippedError, match=f"iris_test.USER.Clinic.{name} was not profiled"):
             _sampler(client, name, ProfileSampleType.PERCENTAGE, 50)
     assert len(_warnings(status)) == 1
     assert "percentage sampling is not supported on IRIS" in _warnings(status)[0]
@@ -157,7 +158,7 @@ def test_percentage_100_is_the_whole_table(status):
 
 
 def test_skips_are_skippable_for_the_sample_data_step():
-    assert IrisSampler.is_skippable_sampling_error(IrisSamplingSkipped("x"))
+    assert IrisSampler.is_skippable_sampling_error(IrisSamplingSkippedError("x"))
     assert not IrisSampler.is_skippable_sampling_error(RuntimeError("x"))
 
 
@@ -200,10 +201,14 @@ def test_privilege_refusal_skips_the_table_with_one_access_warning(status):
     for _ in range(2):
         sampler = _sampler(client)
         sampler.session_factory = lambda: _Session(_refused("-99"), statements)
-        with pytest.raises(IrisSamplingSkipped, match="IRIS-ACCESS: cannot read profile of Clinic.Patient"):
+        with pytest.raises(
+            IrisSamplingSkippedError, match=re.escape("IRIS-ACCESS: cannot read profile of Clinic.Patient")
+        ):
             REAL_CHECK(sampler)
     access = _warnings(status, "IRIS-ACCESS")
-    assert access == ["IRIS-ACCESS: cannot read profile of Clinic.Patient: <SQL ERROR>; Details: [SQLCODE: <-99>:<Refused>]"]
+    assert access == [
+        "IRIS-ACCESS: cannot read profile of Clinic.Patient: <SQL ERROR>; Details: [SQLCODE: <-99>:<Refused>]"
+    ]
 
 
 def test_other_errors_are_raised():
