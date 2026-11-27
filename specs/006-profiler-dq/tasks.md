@@ -75,7 +75,7 @@ on every cell and login.
 
 ### Tests
 
-- [ ] T008 [P] [US1] Write `.om/ingestion/tests/unit/topology/database/test_iris_median.py` (license header):
+- [X] T008 [P] [US1] Write `.om/ingestion/tests/unit/topology/database/test_iris_median.py` (license header):
   - `Dialects.Iris == "iris"`;
   - the IRIS compilation of `MedianFn(col, "Patient", 0.5)` inside `select(...).select_from(<Clinic.Patient table>)`:
     - contains no `percentile_cont`;
@@ -88,7 +88,7 @@ on every cell and login.
   - a `Billing.Patient` select compiles against `Billing`, not `Clinic` (Principle III).
 
   See it fail
-- [ ] T009 [P] [US1] Write `.om/ingestion/tests/integration/iris/test_profiler.py` (marked `iris`), with T007's builder and no sampling. It profiles `Clinic.Patient`, `Clinic.Encounter` and `Types.AllTypes` and asserts:
+- [X] T009 [P] [US1] Write `.om/ingestion/tests/integration/iris/test_profiler.py` (marked `iris`), with T007's builder and no sampling. It profiles `Clinic.Patient`, `Clinic.Encounter` and `Types.AllTypes` and asserts:
   - row and column counts;
   - every supported metric of every non-stream column equals `expected.py`, with numeric values within 1e-6;
   - median, first and third quartile, IQR and non-parametric skew on `Clinic.Patient.Weight`;
@@ -99,9 +99,10 @@ on every cell and login.
 
 ### Implementation
 
-- [ ] T010 [US1] Add `Iris = "iris"` to `PythonDialects` in `.om/ingestion/src/metadata/profiler/orm/registry.py`, one line in alphabetical place. This becomes `patches/ingestion__src__metadata__profiler__orm__registry.py.patch` on export
-- [ ] T011 [US1] Add `@compiles(MedianFn, Dialects.Iris)` to `.om/ingestion/src/metadata/profiler/orm/functions/median.py`, in the SPIKE-04 window form (research R6), next to the MySQL one. If the dimensional variant (fourth argument) does not compile on IRIS, raise `NotImplementedError` with the reason, and record it for the matrix. Makes T008 pass
+- [X] T010 [US1] Add `Iris = "iris"` to `PythonDialects` in `.om/ingestion/src/metadata/profiler/orm/registry.py`, one line in alphabetical place. This becomes `patches/ingestion__src__metadata__profiler__orm__registry.py.patch` on export
+- [X] T011 [US1] Add `@compiles(MedianFn, Dialects.Iris)` to `.om/ingestion/src/metadata/profiler/orm/functions/median.py`, in the SPIKE-04 window form (research R6), next to the MySQL one. If the dimensional variant (fourth argument) does not compile on IRIS, raise `NotImplementedError` with the reason, and record it for the matrix. Makes T008 pass
 - [ ] T012 [US1] Run T009 on the nine local cells. Record in research.md, section "Implementation measurements":
+  *Blocked 2026-11-27: green on `latest-em` (all logins); on `latest-cd` and `latest-preview` every static metric fails with `SQLCODE -378` (`COALESCE(<expr>, ?)` refused by IRIS 2026.3; research "Implementation measurements"). Decision pending with the developers.*
   - the standard-deviation kind IRIS gives (population or sample), with `expected.py` fixed to match;
   - the metric-task counts;
   - what the profiler does on `AI.Embedding`'s VECTOR columns, with and without the dictionary grant (spec edge case).

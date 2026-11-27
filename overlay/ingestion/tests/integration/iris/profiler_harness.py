@@ -37,6 +37,7 @@ from metadata.generated.schema.tests.testDefinition import TestDefinition
 from metadata.generated.schema.type.entityReference import EntityReference
 from metadata.ingestion.api.status import Status
 from metadata.profiler.metrics.registry import Metrics
+from metadata.profiler.processor.core import Profiler
 from metadata.profiler.processor.default import DefaultProfiler
 from metadata.sampler.models import SampleConfig
 from metadata.sampler.sampler_config import DatabaseSamplerConfig
@@ -143,7 +144,10 @@ class StubClient:
             serviceType=DatabaseServiceType.Iris,
             database=EntityReference(id=db_id, type="database"),
             databaseSchema=EntityReference(id=schema_id, type="databaseSchema"),
-            columns=[Column(name=ColumnName(col), dataType=dt) for col, dt in TABLES[qualified]],
+            columns=[
+                Column(name=ColumnName(col), dataType=dt, arrayDataType=(rest[0] if rest else None))
+                for col, dt, *rest in TABLES[qualified]
+            ],
         )
 
 
@@ -176,6 +180,19 @@ def profile(connection, client: StubClient, qualified: str, sample_config: Sampl
         return dict(profiler._table_results or {}), dict(profiler._column_results or {}), list(
             interface.status.failures
         )
+    finally:
+        release(interface)
+
+
+def profile_metrics(connection, client: StubClient, qualified: str, names: tuple[str, ...]):
+    """Chosen metrics (with the inputs composed metrics need) on one table. Returns the column results."""
+    needs = {"duplicateCount": ("valuesCount", "distinctCount")}
+    wanted = list(dict.fromkeys(n for name in names for n in (name, *needs.get(name, ()))))
+    interface = profiler_interface(connection, client, qualified)
+    try:
+        profiler = Profiler(*(Metrics.get(name) for name in wanted), profiler_interface=interface)
+        profiler.compute_metrics()
+        return dict(profiler._column_results or {})
     finally:
         release(interface)
 

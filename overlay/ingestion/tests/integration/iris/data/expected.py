@@ -82,36 +82,39 @@ def column_metrics(kind: str, values: list) -> dict:
         "uniqueProportion": unique / len(present),
         "duplicateCount": len(present) - len(counts),
     }
-    if kind == "number":
-        mean, std = sum(present) / len(present), pstdev(present)
-        q1, median, q3 = (percentile(present, p) for p in (0.25, 0.5, 0.75))
+    if kind in ("number", "text"):
+        # Text columns: every quantity is over the value length (OpenMetadata wraps the column in LEN).
+        numbers = present if kind == "number" else [len(v) for v in present]
+        mean, std = sum(numbers) / len(numbers), pstdev(numbers)
+        q1, median, q3 = (percentile(numbers, p) for p in (0.25, 0.5, 0.75))
         metrics.update(
-            min=min(present),
-            max=max(present),
+            min=min(numbers),
+            max=max(numbers),
             mean=mean,
-            sum=sum(present),
+            # OpenMetadata's generic SUM is SUM(CAST(x AS BIGINT)); IRIS's CAST to BIGINT truncates each value.
+            sum=sum(math.trunc(v) for v in numbers),
             stddev=std,
             firstQuartile=q1,
             median=median,
             thirdQuartile=q3,
             interQuartileRange=q3 - q1,
-            nonParametricSkew=(mean - median) / std,
+            nonParametricSkew=(mean - median) / std if std else None,
         )
-    elif kind == "text":
-        lengths = [len(v) for v in present]
-        metrics.update(
-            min=min(lengths),
-            max=max(lengths),
-            mean=sum(lengths) / len(lengths),
-            sum=sum(lengths),
-            stddev=pstdev(lengths),
-            minLength=min(lengths),
-            maxLength=max(lengths),
-        )
+        if kind == "text":
+            metrics.update(minLength=min(numbers), maxLength=max(numbers))
     elif kind in ("date", "timestamp"):
         metrics.update(min=min(present), max=max(present))
     return metrics
 
+
+# The column metrics of OpenMetadata's default profiler (profiler/processor/default.py); the others of the matrix
+# (duplicateCount, minLength, maxLength) are computed by asking for them.
+DEFAULT_METRICS = (
+    "median", "firstQuartile", "thirdQuartile", "mean", "valuesCount", "distinctCount", "distinctProportion",
+    "min", "max", "nullCount", "nullProportion", "stddev", "sum", "uniqueCount", "uniqueProportion",
+    "interQuartileRange", "nonParametricSkew",
+)
+EXTRA_METRICS = ("duplicateCount", "minLength", "maxLength")
 
 METRICS = {
     (schema, table, column): column_metrics(kind, values)

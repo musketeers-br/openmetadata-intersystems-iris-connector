@@ -348,3 +348,43 @@ sample-data step, with stub records.
   sample-data step.
 - **In the sample-data step the table gets two warnings, ours and the framework's.** The contract
   allows this: the `sample data` `IRIS-ACCESS` warning is still recorded once per table.
+
+## Implementation measurements (T012, 2026-11-27)
+
+These measurements are from `latest-em` 2026.1 (Build 234U) and `latest-cd`/`latest-preview` 2026.3
+(Build 212U), fixture catalog v5, with the median override in place.
+
+- **`latest-em`:** every default-profiler metric of the six tested columns equals `expected.py` for
+  all three logins. `duplicateCount`, `minLength` and `maxLength` also match when they are asked
+  for. Median and quartiles match the discrete percentile. `test_profiler.py` gives 15 passed for
+  admin, and 14 passed plus 1 skip (the admin-only all-NULL table) for each reader.
+- **Standard deviation:** OpenMetadata compiles `STDDEV_POP`, and IRIS gives the population value.
+- **Sum:** OpenMetadata's generic `SumFn` is `SUM(CAST(x AS BIGINT))`, and IRIS's `CAST` to
+  `BIGINT` **truncates** each value. `Clinic.Patient.Weight` sums to 3596, not 3615.25. This is how
+  OpenMetadata behaves, not an IRIS limitation: other databases round or truncate the same way.
+  `expected.py` follows it.
+- **Default profiler:** it computes 17 column metrics (`profiler/processor/default.py`).
+  `duplicateCount`, `minLength` and `maxLength` are outside the default and run only when a
+  configuration asks for them.
+- **VECTOR columns (`AI.Embedding`):**
+  - catalogued as `ARRAY` (dictionary grant): the profiler skips them, with no metric and no
+    failure;
+  - catalogued as `VARCHAR` (no grant): the static metrics fail (`SQLCODE -400`, and `-255` "A value
+    of SQL type Vector is not allowed"), and the median of the value length comes back as **40, a
+    meaningless value with no error**.
+
+  The docs and the matrix tell users without the grant to exclude VECTOR columns from profiling.
+- **`latest-cd` and `latest-preview` (2026.3): every static metric fails.** The column's
+  static-metric query fails with `SQLCODE -378` ("Datatype mismatch, explicit CAST is required").
+  - **Cause:** `NullCount` compiles to `coalesce(SUM(CAST(CASE … END AS BIGINT)), ?)`. IRIS 2026.3
+    rejects `COALESCE(<expr>, ?)` when the second argument is an untyped bound parameter. 2026.1
+    accepts it.
+  - **Reproduction:**
+    - fails on 2026.3: `SELECT COALESCE(SUM(PatientId), ?) FROM Clinic.Patient` with `(0,)`;
+    - works on both: `COALESCE(…, 0)` and `COALESCE(…, CAST(? AS BIGINT))`.
+  - **Impact:** the profiler runs all of a column's static metrics in one query, so the column loses
+    all of them on the blocking track `latest-cd`. Median and quartiles run separately and still
+    work.
+  - **Second site:** `data_quality/validations/checkers/between_bounds_checker.py` has the same
+    `coalesce(…, literal(0))`.
+  - **Decision pending:** see the T012 note in tasks.md.
