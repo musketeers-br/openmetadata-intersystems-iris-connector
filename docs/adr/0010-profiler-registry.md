@@ -18,7 +18,7 @@ Sampling may rely on functions such as `TABLESAMPLE` or `RANDOM()` that IRIS may
   - the Gap Report.
 
   They are not emulated.
-- No custom profiler or sampler unless SPIKE-04 shows sampling cannot work otherwise. That would need a new ADR.
+- No custom profiler or sampler unless SPIKE-04 shows sampling cannot work otherwise. That would need a new ADR. SPIKE-04 showed it cannot: see [ADR-0016](0016-iris-sampler.md).
 
 ## Consequences
 
