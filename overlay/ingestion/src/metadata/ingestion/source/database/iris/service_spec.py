@@ -12,10 +12,12 @@ from metadata.ingestion.source.database.iris import compiles  # noqa: F401  regi
 from metadata.ingestion.source.database.iris.connection import IrisConnection
 from metadata.ingestion.source.database.iris.lineage import IrisLineageSource
 from metadata.ingestion.source.database.iris.metadata import IrisSource
+from metadata.ingestion.source.database.iris.sampler import IrisSampler
 from metadata.utils.service_spec.default import DefaultDatabaseSpec
 
 ServiceSpec = DefaultDatabaseSpec(
     metadata_source_class=IrisSource,
     lineage_source_class=IrisLineageSource,
     connection_class=IrisConnection,
+    sampler_class=IrisSampler,
 )

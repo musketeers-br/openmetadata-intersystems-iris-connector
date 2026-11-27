@@ -140,7 +140,7 @@ warning, and percentage requests are skipped with one warning.
 
 ### Tests
 
-- [ ] T018 [P] [US3] Write `.om/ingestion/tests/unit/topology/database/test_iris_sampler.py` (license header), with no IRIS. It compiles with the IRIS dialect, using a stub entity and connection, for each data-model "IRIS sampler" case, and asserts:
+- [X] T018 [P] [US3] Write `.om/ingestion/tests/unit/topology/database/test_iris_sampler.py` (license header), with no IRIS. It compiles with the IRIS dialect, using a stub entity and connection, for each data-model "IRIS sampler" case, and asserts:
   - every CTE name starts with a letter and is not quoted, including for `Patient`, whose digest starts with `0`;
   - randomization off and on give the same SQL: `TOP n`, no `ORDER BY`;
   - no compiled query contains a random function, `%` or `MOD`;
@@ -150,7 +150,7 @@ warning, and percentage requests are skipped with one warning.
   - with a `StatusWarningHandler` on `ingestion_logger()`, the randomized and percentage warnings appear once for two samplers sharing a client, and again for a new client.
 
   See it fail
-- [ ] T019 [P] [US3] Write `.om/ingestion/tests/integration/iris/test_sampling.py` (marked `iris`). With row count 10, on `Clinic.Patient`, `Clinic.Encounter` and `Types.AllTypes`:
+- [X] T019 [P] [US3] Write `.om/ingestion/tests/integration/iris/test_sampling.py` (marked `iris`). With row count 10, on `Clinic.Patient`, `Clinic.Encounter` and `Types.AllTypes`:
   - randomization off: the metrics saw 10 rows (row count of the sample), and no warning;
   - randomization on: the same 10 rows, and exactly one `IRIS-PROFILER-UNSUPPORTED` randomized warning for the three tables;
   - percentage 50: no metric query (count statements), the sampler raises, and exactly one percentage warning for the three tables;
@@ -159,14 +159,14 @@ warning, and percentage requests are skipped with one warning.
 
 ### Implementation
 
-- [ ] T020 [US3] Write `…/iris/sampler.py` (license header): `IrisSampler(SQASampler)`, `IrisSamplingSkipped`, and the per-run record `_REPORTED` (data-model, contract).
+- [X] T020 [US3] Write `…/iris/sampler.py` (license header): `IrisSampler(SQASampler)`, `IrisSamplingSkipped`, and the per-run record `_REPORTED` (data-model, contract).
   - `get_sampler_table_name()` returns `"s" + super()`.
   - `get_sample_query()` reads the randomization flag through a local copy of `sample_config` with `randomizedSample=False`, so the base code builds the query; if the flag was on, log the randomized warning once.
   - In the constructor, after `super().__init__`, a percentage below 100 logs the percentage warning once and raises; percentage 100 is treated as no sampling.
   - `is_skippable_sampling_error`.
 
   Register `sampler_class=IrisSampler` in `…/iris/service_spec.py`. Makes T018 pass
-- [ ] T021 [US3] Run T019 on the nine local cells and record results in research.md
+- [X] T021 [US3] Run T019 on the nine local cells and record results in research.md
 
 ## Phase 6: User Story 4 — What IRIS cannot do is listed and never breaks the run (P2)
 

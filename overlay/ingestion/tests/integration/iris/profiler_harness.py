@@ -184,11 +184,12 @@ def profile(connection, client: StubClient, qualified: str, sample_config: Sampl
         release(interface)
 
 
-def profile_metrics(connection, client: StubClient, qualified: str, names: tuple[str, ...]):
+def profile_metrics(connection, client: StubClient, qualified: str, names: tuple[str, ...],
+                    sample_config: SampleConfig | None = None):
     """Chosen metrics (with the inputs composed metrics need) on one table. Returns the column results."""
     needs = {"duplicateCount": ("valuesCount", "distinctCount")}
     wanted = list(dict.fromkeys(n for name in names for n in (name, *needs.get(name, ()))))
-    interface = profiler_interface(connection, client, qualified)
+    interface = profiler_interface(connection, client, qualified, sample_config)
     try:
         profiler = Profiler(*(Metrics.get(name) for name in wanted), profiler_interface=interface)
         profiler.compute_metrics()
