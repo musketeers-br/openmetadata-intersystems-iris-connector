@@ -194,8 +194,10 @@ COLUMN_CASES = [
     Case("columnValuesToBeBetween", "Clinic.Encounter", "StartedAt",
          {"minValue": _epoch_ms(_S["min"]), "maxValue": _epoch_ms(_S["max"])},
          {"minValue": _epoch_ms(_S["min"] + datetime.timedelta(hours=1)), "maxValue": _epoch_ms(_S["max"])}),
+    # matchEnum: every value must be in the set (without it the test passes when any value is).
     Case("columnValuesToBeInSet", "Clinic.Patient", "FullName",
-         {"allowedValues": json.dumps(list(NAMES))}, {"allowedValues": json.dumps(list(NAMES[:2]))}),
+         {"allowedValues": json.dumps(list(NAMES)), "matchEnum": "true"},
+         {"allowedValues": json.dumps(list(NAMES[:2])), "matchEnum": "true"}),
     Case("columnValuesToBeNotInSet", "Clinic.Patient", "FullName",
          {"forbiddenValues": json.dumps(["Nobody"])}, {"forbiddenValues": json.dumps(["Ana Souza"])}),
 ]

@@ -265,8 +265,9 @@ then check that the run completes and that every unsupported item is in the matr
   warning per test type per run, as FR-011 says. The framework counts each `Aborted` result as one
   failure of the test step, as it does for any test that cannot be evaluated.
   - Covered on any column: "values to match regex" and "values to not match regex".
-  - Covered on stream columns only: "values to be in set", "values to be not in set" and "value
-    lengths between".
+  - Covered on stream columns only: "values to be in set", "values to be not in set", "value
+    lengths between", "values to be unique" and "values missing count". The last two were added
+    after T016 found a wrong "unique" verdict and a raw stream error (research).
   - Every other test MUST run through the base interface unchanged.
 - **FR-012b**: The test-suite interface MUST decide only from the test's definition name and the
   column's type in the table entity. It MUST NOT add SQL, rewrite a test or compute a verdict.

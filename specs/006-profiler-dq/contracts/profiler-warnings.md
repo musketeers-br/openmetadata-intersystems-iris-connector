@@ -27,7 +27,9 @@ test step (research R2).
 
 - `IRIS SQL has no regular-expression predicate` (match and not-match regex);
 - `IN on a stream column returns no rows` (in set, not in set);
-- `length functions are not supported on stream columns` (value lengths between).
+- `length functions are not supported on stream columns` (value lengths between);
+- `IRIS does not compare stream values in GROUP BY` (unique);
+- `conditions on stream columns are not supported` (missing count).
 
 ## Rules
 

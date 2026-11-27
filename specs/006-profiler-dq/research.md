@@ -388,3 +388,21 @@ These measurements are from `latest-em` 2026.1 (Build 234U) and `latest-cd`/`lat
   - **Second site:** `data_quality/validations/checkers/between_bounds_checker.py` has the same
     `coalesce(…, literal(0))`.
   - **Decision (Henrique Dias, 2026-11-27):** `@compiles(coalesce, "iris")` in the connector (`iris/compiles.py`, imported by `service_spec.py`). For the IRIS dialect it writes the bound values of COALESCE as literals (`COALESCE(…, 0)`): the same SQL with a constant in place of `?`, and no shared file changes. It gets a Gap Report entry (the eighth), a note in the ADR-0016 amendment, and an upstream report only once both developers agree. After it, `tests/integration/iris` passes on all nine cells (47/47/46 passed per track).
+
+## Stream columns in data-quality tests (T016, 2026-11-27)
+
+The tests ran on `Clinic.Encounter.Notes` (`LONGVARCHAR`, 53 non-NULL values in 3 distinct texts, 7
+NULLs) as `omd_reader`, on the three tracks, before the IRIS test-suite interface existed. The
+results are identical on all three.
+
+| Test | Result | Verdict |
+|---|---|---|
+| Not null | `Failed`, "Found 7 null rows" | **correct**, so it is supported on streams |
+| Missing count | `Aborted`, `SQLCODE -313` "Condition expression not supported for stream" | loud, but a raw SQL error |
+| Unique | `Success`, "Found 0 duplicate values out of 53" | **wrong, with no error.** The values repeat. IRIS groups stream values without comparing their content, as with `IN`/`LIKE` |
+
+**Decision** (same rule as spec FR-012a: abort every test that gives a wrong verdict or a raw stream
+error on IRIS). The IRIS test-suite interface also covers `columnValuesToBeUnique` and
+`columnValuesMissingCount` on stream columns, with the reasons "IRIS does not compare stream values
+in GROUP BY" and "conditions on stream columns are not supported". Not null stays supported. The
+spec (FR-012a), data-model, contract and matrix are updated.

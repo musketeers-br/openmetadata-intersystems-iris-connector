@@ -83,8 +83,9 @@ login. "GAP" points to `GAP-REPORT.md`; the ids are assigned when the entries ar
 
 | Test | Non-stream columns | Stream columns |
 |---|---|---|
-| Not null, missing count | supported | measured on `Clinic.Encounter.Notes` by the integration tests. `IS NULL` and `COUNT(col)` work on streams (SPIKE-04) |
-| Unique | supported | measured as above. `COUNT(DISTINCT …)` fails on streams, so this one is expected to abort |
+| Not null | supported | supported (`IS NULL` works on streams) |
+| Missing count | supported | **aborted**: conditions on stream columns are not supported (IRIS gives `SQLCODE -313`) |
+| Unique | supported | **aborted**: IRIS does not compare stream values in `GROUP BY`, so OpenMetadata would report no duplicates. GAP: `IN`/`LIKE`/`GROUP BY` on streams |
 | Between (numeric, timestamp) | supported | not applicable |
 | In set, not in set | supported | **aborted**: `IN` on a stream returns no rows. GAP: `IN`/`LIKE` on streams |
 | Value lengths between | supported | **aborted**: no length function on streams |

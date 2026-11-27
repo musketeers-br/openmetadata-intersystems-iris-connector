@@ -29,6 +29,8 @@ then the readability check, then the percentage check.
 | `columnValuesToMatchRegex`, `columnValuesToNotMatchRegex` | any | `Aborted`, reason "no regular-expression predicate" |
 | `columnValuesToBeInSet`, `columnValuesToBeNotInSet` | `TEXT`, `BLOB` | `Aborted`, reason "IN on a stream column returns no rows" |
 | `columnValueLengthsToBeBetween` | `TEXT`, `BLOB` | `Aborted`, reason "length functions are not supported on stream columns" |
+| `columnValuesToBeUnique` | `TEXT`, `BLOB` | `Aborted`, reason "IRIS does not compare stream values in GROUP BY" (T016: wrong `Success`) |
+| `columnValuesMissingCount` | `TEXT`, `BLOB` | `Aborted`, reason "conditions on stream columns are not supported" (T016: raw `SQLCODE -313`) |
 | anything else | any | the base `run_test_case` |
 
 ## Per-run report record
@@ -86,6 +88,6 @@ sample, as `StdDev` compiles on IRIS). The first integration run confirms which.
 | No percentile function | `percentile_cont(0.5) WITHIN GROUP (ORDER BY x)` → `-359`. Handled by the median override |
 | `.` in a delimited identifier | `SELECT 1 AS "1.5 to 2.5"` → `SQLCODE -1` (histogram) |
 | Aggregates on streams | `SELECT MIN(Notes) FROM Clinic.Encounter` → `-37`. The same for `LEN`, `COUNT(DISTINCT …)`, `MAX`, `CAST` |
-| `IN`/`LIKE` on streams | `SELECT COUNT(*) FROM Clinic.Encounter WHERE Notes IN ('checkup')` → 0 |
+| `IN`/`LIKE`/`GROUP BY` on streams | `SELECT COUNT(*) FROM Clinic.Encounter WHERE Notes IN ('checkup')` → 0; `SELECT Notes, COUNT(*) FROM Clinic.Encounter GROUP BY Notes` gives one group per row |
 | No regex predicate | `REGEXP`, `REGEXP_LIKE` refused. OpenMetadata's `LIKE` fallback gives wrong verdicts |
 | `COALESCE` with a bound parameter refused (2026.3) | `SELECT COALESCE(SUM(PatientId), ?) FROM Clinic.Patient` with `(0,)` → `SQLCODE -378` on 2026.3, works on 2026.1. Handled by `iris/compiles.py` |

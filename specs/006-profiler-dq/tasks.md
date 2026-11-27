@@ -114,21 +114,21 @@ login.
 
 **Independent test**: `pytest tests/integration/iris/test_data_quality.py -m iris` on one cell.
 
-- [ ] T013 [P] [US2] Write `.om/ingestion/tests/integration/iris/test_data_quality.py` (marked `iris`), with T007's `test_suite_interface`. For each supported table test, run a passing and a failing case from `expected.py` and assert `Success` and `Failed`. The tests are:
+- [X] T013 [P] [US2] Write `.om/ingestion/tests/integration/iris/test_data_quality.py` (marked `iris`), with T007's `test_suite_interface`. For each supported table test, run a passing and a failing case from `expected.py` and assert `Success` and `Failed`. The tests are:
   - row count between and equal;
   - column count between and equal;
   - column name exists;
   - columns match set;
   - custom SQL.
-- [ ] T014 [P] [US2] In the same file, the basic supported column tests on non-stream columns of `Clinic.Patient` and `Clinic.Encounter`, each with a passing and a failing case. The tests are:
+- [X] T014 [P] [US2] In the same file, the basic supported column tests on non-stream columns of `Clinic.Patient` and `Clinic.Encounter`, each with a passing and a failing case. The tests are:
   - not null;
   - unique;
   - missing count;
   - between, numeric (`Weight`) and timestamp (`StartedAt`);
   - in set and not in set (`FullName`).
-- [ ] T015 [US2] Run T013–T014 on the nine local cells, as each login; verdicts identical across logins (US2 scenario 3)
-- [ ] T016 [US2] Measure the stream behaviour of not null, missing count and unique on `Clinic.Encounter.Notes` (quickstart matrix rows marked "measured"). Record the verdict or the abort per track in research.md, and fill the two matrix cells. These cases are reported, not asserted to pass
-- [ ] T017 [P] [US2] **[CUT]** In `test_data_quality.py`, the advanced column tests: value lengths between (`FullName`), and max, min, mean, median, standard deviation and sum between (`Weight`). Each has a passing and a failing case; median between depends on T011. Run on the nine cells
+- [X] T015 [US2] Run T013–T014 on the nine local cells, as each login; verdicts identical across logins (US2 scenario 3)
+- [X] T016 [US2] Measure the stream behaviour of not null, missing count and unique on `Clinic.Encounter.Notes` (quickstart matrix rows marked "measured"). Record the verdict or the abort per track in research.md, and fill the two matrix cells. These cases are reported, not asserted to pass
+- [X] T017 [P] [US2] **[CUT]** In `test_data_quality.py`, the advanced column tests: value lengths between (`FullName`), and max, min, mean, median, standard deviation and sum between (`Weight`). Each has a passing and a failing case; median between depends on T011. Run on the nine cells
 
 ## Phase 5: User Story 3 — Sample by row count (P2)
 
@@ -188,7 +188,7 @@ unreadable tables give one `IRIS-ACCESS` each; the runs complete within the thre
   - the check selects the entity's columns, not `*`, and reads no rows (`TOP 0`).
 - [ ] T024 [P] [US4] In `test_data_quality.py`, the aborted cases on every cell:
   - **[CUT]** match regex and not match regex on `FullName`;
-  - in set, not in set and value lengths between on `Clinic.Encounter.Notes`.
+  - in set, not in set, value lengths between, unique and missing count on `Clinic.Encounter.Notes` (the last two added after T016).
 
   Each result is `Aborted` with the contract text, never `Success` or `Failed`. The warning count is one per test type. The other tests in the same suite still give their verdicts.
 - [ ] T025 [P] [US4] In `test_profiler.py`:
