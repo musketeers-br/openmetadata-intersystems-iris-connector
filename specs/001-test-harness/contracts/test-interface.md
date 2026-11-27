@@ -12,6 +12,7 @@ New needs go through the fixture owner.
 | `IRIS_NAMESPACE` | `USER` | |
 | `IRIS_TAG` | `latest-cd` | reporting and tag-specific expectations only; fallback uses it as the image tag (default `latest-em`) |
 | `IRIS_LOGIN` | `reader_dict` | `admin` · `reader` · `reader_dict` (default `reader`) |
+| `IRIS_ADMIN_USER` / `IRIS_ADMIN_PASSWORD` | `_SYSTEM` / `SYS` | local runs only, same as the loader ([fixture-loader](fixture-loader.md)); default from the catalog's `admin` login; CI never sets them (FR-015, FR-017). The reader logins' credentials always come from the catalog |
 
 ## Fixtures (all `scope="session"`)
 

@@ -214,10 +214,14 @@ known entries, each with a reproduction runnable against the shared fixtures.
 - **FR-016**: A shared test fixture MUST give every integration test its cell: track, login, user
   name, password, whether the login is an administrator, and whether it can read the class
   dictionary; plus a connection for the cell's login, an administrator connection for setup and
-  assertions only, the connector's service-connection settings for the cell, and assurance that the
-  fixtures are loaded.
+  assertions only, the connector's service-connection settings for the cell, the administrator's
+  service-connection settings (for setup, assertions, and tests that run as administrator by
+  design), and assurance that the fixtures are loaded.
 - **FR-017**: CI MUST pass the cell to the tests only through environment configuration (address,
-  port, Namespace, track, login); user names and passwords come from the fixture catalog.
+  port, Namespace, track, login); user names and passwords come from the fixture catalog. The one
+  exception is the administrator's: a developer whose IRIS has another administrator password may
+  override it through the environment, with the catalog's values as defaults, as the fixture loader
+  allows. CI never sets it (FR-015).
 - **FR-018**: Tests MUST NOT create IRIS users or datasets of their own; objects created during a test
   go in `Scratch`, are removed by the test, and are never asserted on by other tests.
 - **FR-019**: A test that does not apply to a cell MUST skip with a reason naming the cell.

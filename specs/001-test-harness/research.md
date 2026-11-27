@@ -405,3 +405,19 @@ digest and `$ZVERSION`.
 - Billed minutes, the sum of per-job minutes rounded up: **38**.
 - The one slow cell (`iris-latest-preview-admin`, 413 s) spent 258 s starting IRIS, which is the image
   pull from `containers.intersystems.com`; its other steps took the usual time.
+
+## Failure paths in CI (T027)
+
+Throwaway draft pull request #17 (`ci/001-break-cells`, base `001-test-harness`), 2026-11-27, two runs.
+Every cell needs `overlay-roundtrip`, so one run cannot break the cells and the round trip together.
+The pull request was closed and the branch deleted afterwards.
+
+- **Run [46021601333](https://github.com/musketeers-br/openmetadata-intersystems-iris-connector/actions/runs/46021601333)**, three cells broken on purpose:
+  - `iris-latest-em-reader` and `iris-latest-preview-reader` fail on a step that exits 1.
+  - `iris-latest-cd-admin` installs `sqlalchemy-iris` before the guard, which fails and names it: `check_dialect: FAIL: distribution sqlalchemy-iris 0.20.0 is installed`, then the module and the entry point (SC-006, FR-013).
+  - The other six cells and `overlay-roundtrip` pass. One broken cell does not stop the others (`fail-fast: false`).
+- **Run [46022601387](https://github.com/musketeers-br/openmetadata-intersystems-iris-connector/actions/runs/46022601387)**, a stray file under `overlay/openmetadata-ui/src/main/resources/ui/src/generated/`, a path `om-export` never exports:
+  - `overlay-roundtrip` fails in `make om-check`: `om-import: .om has changes that are not exported (overlay differs)`.
+  - Every cell is skipped (US2 scenario 4).
+- **Finding on `continue-on-error` (R8):** the failed `iris-latest-preview-reader` shows as a failed check, not a green one. Job-level `continue-on-error` only keeps that job from failing the workflow run. Its check stays red. So a preview failure is informative only because branch protection does not require the preview checks (T028), as R8 already says.
+- Billed minutes, the sum of per-job minutes rounded up: 24 for run 1, 2 for run 2.
