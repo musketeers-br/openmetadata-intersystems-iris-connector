@@ -9,10 +9,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 from metadata.ingestion.source.database.iris.connection import IrisConnection
+from metadata.ingestion.source.database.iris.lineage import IrisLineageSource
 from metadata.ingestion.source.database.iris.metadata import IrisSource
 from metadata.utils.service_spec.default import DefaultDatabaseSpec
 
 ServiceSpec = DefaultDatabaseSpec(
     metadata_source_class=IrisSource,
+    lineage_source_class=IrisLineageSource,
     connection_class=IrisConnection,
 )

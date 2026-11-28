@@ -18,13 +18,11 @@ The catalog can also describe some classes as generated or deprecated. Hard-code
 - SPIKE-01 found that the `USER` Namespace of IRIS Community is interoperability-enabled. It has about 100 `Ens*` / `EnsLib*` / `EnsPortal*` schemas, so `^Ens` is a default exclude.
 - Users can override every default in the UI or YAML.
 - No skip logic exists in Python code.
+- The defaults live in `irisConnection.json`, and the IRIS source applies them when the ingestion pipeline has no `schemaFilterPattern`; a pipeline pattern replaces them completely (no merge). This holds for UI, YAML and CLI runs, because the framework itself filters with the pipeline's pattern only.
 
-## Open detail
+## Outcome (spec 002)
 
-Spec 002 decides, from SPIKE-02 evidence, whether these become default excludes as well:
-- classes whose `INFORMATION_SCHEMA.TABLES.DESCRIPTION` marks them as generated or deprecated.
-
-If generated or deprecated classes cannot be expressed as a name pattern, they are **not** excluded by code. They are documented instead, and the case is a Gap Report entry.
+The catalog (`INFORMATION_SCHEMA.TABLES.DESCRIPTION`) was checked for the fixture objects: no table or schema carries a generated or deprecated marker, so no name pattern exists to express it. No default pattern is added, nothing is excluded in code, and the case stays open until a Namespace shows one (the spec-002 integration tests assert the three defaults only).
 
 ## Consequences
 
