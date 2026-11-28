@@ -18,6 +18,8 @@ documentation arrives with spec 009.
 | `scripts/`, `Makefile` | The commands below |
 | `specs/`, `.specify/`, `docs/adr/` | Spec Kit specs, constitution and architecture decisions |
 | `GAP-REPORT.md` | Limitations of IRIS, its driver and dialect, with reproductions |
+| `fixtures/iris/` | Shared IRIS test fixtures: container start, loader entry point, fixture tests |
+| `.github/workflows/` | The CI matrix (`iris-matrix.yml`) |
 | `.om/` | Git-ignored working tree, rebuilt by `make om-import` |
 
 ## Working on the connector
@@ -39,15 +41,53 @@ Edit inside `.om/`. A commit without `make om-export` loses the work on the next
 Before exporting, format the touched modules inside `.om/` (`make py_format` in `.om/ingestion`,
 `mvn spotless:apply` and the UI formatters for Java and UI files).
 
-Unit tests (no IRIS needed), from `.om/ingestion`:
+## Running tests
+
+Tests run against IRIS Community containers (`containers.intersystems.com/intersystems/iris-community`)
+loaded with one shared fixture set. CI runs every release track (`latest-em`, `latest-cd`,
+`latest-preview`) with every login (`admin`, `reader`, `reader_dict`); locally you run one cell at a
+time. The examples use host port 11972, because 1972 is often taken by another IRIS.
+
+**One cell, one command** (needs `make om-import` once; it also installs the test dependencies, the
+`iris` extra and `testcontainers`, into `.om/env`, the connector's interpreter):
 
 ```bash
-python -m pytest tests/unit/topology/database/test_iris.py
+make test-cell TAG=latest-em LOGIN=reader                  # start omd-test-iris-latest-em, load the fixtures, run the tests
+make test-cell TAG=latest-cd LOGIN=reader_dict PORT=11974  # another track at the same time needs another port
+make iris-down TAG=latest-em                               # remove the container
 ```
 
-Integration tests need an IRIS Community container with the shared fixtures. They read `IRIS_HOST`,
-`IRIS_PORT`, `IRIS_NAMESPACE` and `IRIS_LOGIN` (`admin`, `reader` or `reader_dict`) and need the
-`iris` extra installed in `.om/env`.
+`test-cell` runs, from `.om/ingestion`, `../env/bin/python -m pytest tests/integration/iris -m iris -rs`
+with `IRIS_HOST`, `IRIS_PORT`, `IRIS_TAG` and `IRIS_LOGIN` set. The connector's tests always run from
+`.om/ingestion`, as OpenMetadata's own do. Unit tests need no IRIS:
+`cd .om/ingestion && ../env/bin/python -m pytest tests/unit/topology/database/test_iris.py`.
+
+**Automatic single instance.** Without `IRIS_HOST`, the integration tests start one `latest-em`
+container themselves (or `IRIS_TAG`), load the fixtures, run, and remove it:
+
+```bash
+cd .om/ingestion && IRIS_LOGIN=reader ../env/bin/python -m pytest tests/integration/iris -m iris -rs
+```
+
+**The fixture loader and its tests** need only a plain Python 3.11 venv:
+
+```bash
+python -m venv .venv && .venv/bin/pip install -r fixtures/iris/requirements.txt
+fixtures/iris/start-iris.sh latest-em 11972 omd-test-iris-latest-em   # start, wait, unexpire; prints digest and $ZVERSION
+IRIS_PORT=11972 .venv/bin/python fixtures/iris/seed.py                # load, then self-check
+IRIS_HOST=127.0.0.1 IRIS_PORT=11972 .venv/bin/python -m pytest fixtures -q
+.venv/bin/python fixtures/iris/check_dialect.py                       # fails if the community sqlalchemy-iris is installed
+```
+
+`seed.py` exits 0 with `FIXTURES OK v<N>`, 1 when the self-check fails (it names the object, the
+expected and the actual value), 2 when IRIS is unreachable or not prepared (run `start-iris.sh`), and
+3 when a statement fails. It is idempotent. Its source is
+`overlay/ingestion/tests/integration/iris/data/seed.py`, which also holds the catalog tests assert
+on (`LOGINS`, `EXPECTED`); `fixtures/iris/seed.py` runs it.
+
+Rules for tests: branch on `iris_cell.is_admin` and `iris_cell.has_dict_grant`, never on login names;
+create objects only in the `Scratch` schema and never touch `Scratch.Keep`; never create users or
+grants. A new case goes into the shared fixtures, reviewed by the fixture owner.
 
 ## Licensing
 

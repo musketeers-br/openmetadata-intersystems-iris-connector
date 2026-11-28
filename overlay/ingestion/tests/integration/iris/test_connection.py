@@ -9,26 +9,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 """
-Test connection against a real IRIS. Needs only an IRIS container (no OpenMetadata server).
-
-Environment:
-  IRIS_HOST (default 127.0.0.1), IRIS_PORT (default 1972), IRIS_NAMESPACE (default USER),
-  IRIS_LOGIN: admin | reader | reader_dict (default reader)
-
-spec 001's conftest replaces this ad-hoc environment reading when it lands.
+Test connection against a real IRIS. Needs only an IRIS instance with the shared fixtures (no
+OpenMetadata server). The cell's login, its credentials and its dictionary grant come from the
+conftest (`iris_cell`, `iris_service_connection`).
 """
 
 import json
-import os
 from pathlib import Path
 
 import pytest
 
 from metadata.generated.schema.entity.services.connections.database.common.basicAuth import (
     BasicAuth,
-)
-from metadata.generated.schema.entity.services.connections.database.irisConnection import (
-    IrisConnection as IrisConnectionConfig,
 )
 from metadata.generated.schema.entity.services.connections.testConnectionDefinition import (
     TestConnectionDefinition,
@@ -40,11 +32,6 @@ from metadata.ingestion.source.database.iris.connection import IrisConnection
 
 pytestmark = pytest.mark.iris
 
-LOGINS = {
-    "admin": ("_SYSTEM", "SYS", True),
-    "reader": ("omd_reader", "Reader123", False),
-    "reader_dict": ("omd_reader_dict", "Reader123", True),
-}
 STEPS = ["CheckAccess", "GetSchemas", "GetTables", "GetViews", "GetClassDictionary"]
 DEFINITION = (
     Path(__file__).resolve().parents[4]
@@ -60,23 +47,8 @@ class _MetadataStub:
         return TestConnectionDefinition.model_validate(json.loads(DEFINITION.read_text()))
 
 
-def _login() -> str:
-    return os.environ.get("IRIS_LOGIN", "reader")
-
-
-def _connection(login=None, **overrides) -> IrisConnection:
-    username, password, _ = LOGINS[login or _login()]
-    values = {
-        "username": username,
-        "authType": BasicAuth(password=password),
-        "hostPort": f"{os.environ.get('IRIS_HOST', '127.0.0.1')}:{os.environ.get('IRIS_PORT', '1972')}",
-        "namespace": os.environ.get("IRIS_NAMESPACE", "USER"),
-    }
-    values.update(overrides)
-    return IrisConnection(IrisConnectionConfig(**values))
-
-
-def _run(connection: IrisConnection):
+def _run(config, **overrides):
+    connection = IrisConnection(config.model_copy(update=overrides) if overrides else config)
     return connection.test_connection(_MetadataStub(), timeout_seconds=60)
 
 
@@ -84,28 +56,25 @@ def _steps(result):
     return {step.name: step for step in result.steps}
 
 
-def test_steps_follow_the_contract_table():
-    login = _login()
-    _, _, dictionary_readable = LOGINS[login]
-    steps = _steps(_run(_connection()))
+def test_steps_follow_the_contract_table(iris_cell, iris_service_connection):
+    steps = _steps(_run(iris_service_connection))
 
     assert list(steps) == STEPS
     for name in STEPS[:4]:
-        assert steps[name].passed, f"{login}: {name} failed: {steps[name].errorLog}"
-    assert steps["GetClassDictionary"].passed is (login != "reader"), login
+        assert steps[name].passed, f"{iris_cell.name}: {name} failed: {steps[name].errorLog}"
+    assert steps["GetClassDictionary"].passed is iris_cell.has_dict_grant, iris_cell.name
     assert steps["GetClassDictionary"].mandatory is False
-    if login == "reader":
+    if not iris_cell.has_dict_grant:
         assert "GRANT SELECT ON %Dictionary.PropertyDefinition" in steps["GetClassDictionary"].message
-    assert dictionary_readable is (login != "reader")
 
 
-def test_overall_result_has_no_mandatory_failure():
-    result = _run(_connection())
+def test_overall_result_has_no_mandatory_failure(iris_service_connection):
+    result = _run(iris_service_connection)
     assert not [step for step in result.steps if step.mandatory and not step.passed]
 
 
-def test_wrong_password_fails_on_connect_only():
-    steps = _steps(_run(_connection(authType=BasicAuth(password="definitely-wrong"))))
+def test_wrong_password_fails_on_connect_only(iris_service_connection):
+    steps = _steps(_run(iris_service_connection, authType=BasicAuth(password="definitely-wrong")))
     assert list(steps) == ["CheckAccess"]
     assert steps["CheckAccess"].passed is False
     assert "Check host, superserver port, Namespace, username and password" in steps["CheckAccess"].message
@@ -121,16 +90,14 @@ def test_wrong_password_fails_on_connect_only():
     ],
     ids=["wrong-port", "wrong-host", "wrong-namespace"],
 )
-def test_wrong_host_port_or_namespace_fails_on_connect(override):
-    steps = _steps(_run(_connection(**override)))
+def test_wrong_host_port_or_namespace_fails_on_connect(iris_service_connection, override):
+    steps = _steps(_run(iris_service_connection, **override))
     assert list(steps) == ["CheckAccess"]
     assert steps["CheckAccess"].passed is False
     assert "Failed to connect to IRIS" in steps["CheckAccess"].message
 
 
-def test_credentials_never_reach_step_output():
-    login = _login()
-    _, password, _ = LOGINS[login]
-    result = _run(_connection())
-    assert password not in result.model_dump_json()
+def test_credentials_never_reach_step_output(iris_cell, iris_service_connection):
+    result = _run(iris_service_connection)
+    assert iris_cell.password not in result.model_dump_json()
     assert result.status in (StatusType.Running, StatusType.Successful)

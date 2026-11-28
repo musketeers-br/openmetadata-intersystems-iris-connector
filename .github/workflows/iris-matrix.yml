@@ -1,0 +1,181 @@
+# IRIS test matrix (spec 001, contracts/ci-matrix.md): the overlay round-trip, then one job per
+# release track x login. latest-preview is informative; branch protection requires only
+# overlay-roundtrip and the six latest-em / latest-cd cells.
+name: iris-matrix
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iris-matrix-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Generated UI files are never exported, so the round trip does not need them (research R7).
+  OM_SKIP_UI_CODEGEN: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  overlay-roundtrip:
+    name: overlay-roundtrip
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .cache/antlr-4.9.2-complete.jar
+          key: om-${{ hashFiles('openmetadata.version', 'patches/**', 'scripts/**', 'Makefile') }}
+          restore-keys: om-
+      - name: Build the OpenMetadata tree (tag + overlay + patches)
+        run: make om-import
+      - name: Round trip leaves overlay/ and patches/ unchanged
+        run: make om-check
+
+  iris:
+    name: iris-${{ matrix.tag }}-${{ matrix.login }}
+    needs: overlay-roundtrip
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: ${{ matrix.tag == 'latest-preview' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: [latest-em, latest-cd, latest-preview]
+        login: [admin, reader, reader_dict]
+    env:
+      IRIS_HOST: 127.0.0.1
+      IRIS_PORT: "1972"
+      IRIS_NAMESPACE: USER
+      IRIS_TAG: ${{ matrix.tag }}
+      IRIS_LOGIN: ${{ matrix.login }}
+    steps:
+      # 1
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .cache/antlr-4.9.2-complete.jar
+          key: om-${{ hashFiles('openmetadata.version', 'patches/**', 'scripts/**', 'Makefile') }}
+          restore-keys: om-
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 2: plain environment for the loader, the readiness probe and the fixture tests
+      - name: Fixture environment
+        run: python -m pip install -q -r fixtures/iris/requirements.txt
+
+      # 3
+      - name: Start and prepare IRIS
+        id: iris
+        run: |
+          s=$(date +%s); rc=0
+          PYTHON=python fixtures/iris/start-iris.sh "$IRIS_TAG" 1972 iris || rc=$?
+          echo "T_START=$(( $(date +%s) - s ))" >> "$GITHUB_ENV"
+          exit $rc
+
+      # 4: .om/ does not exist yet, so this runs the overlay/ copy of the loader
+      - name: Load and self-check the fixtures
+        run: |
+          s=$(date +%s); rc=0
+          python fixtures/iris/seed.py || rc=$?
+          echo "T_SEED=$(( $(date +%s) - s ))" >> "$GITHUB_ENV"
+          exit $rc
+
+      # 5
+      - name: Guard, no community dialect (fixture environment)
+        run: python fixtures/iris/check_dialect.py
+
+      # 6
+      - name: Fixture tests (fixtures, gap report format, repository rules, the cell's login)
+        run: |
+          s=$(date +%s); rc=0
+          python -m pytest fixtures -q -rs 2>&1 | tee -a pytest.log || rc=$?
+          echo "T_FIXTURE_TESTS=$(( $(date +%s) - s ))" >> "$GITHUB_ENV"
+          exit $rc
+
+      # 7: ends with scripts/om-test-deps.sh (iris extra and testcontainers)
+      - name: Build the OpenMetadata tree
+        run: |
+          s=$(date +%s); rc=0
+          make om-import || rc=$?
+          echo "T_OM_IMPORT=$(( $(date +%s) - s ))" >> "$GITHUB_ENV"
+          exit $rc
+
+      # 8
+      - name: Guard, no community dialect (.om/env)
+        run: .om/env/bin/python fixtures/iris/check_dialect.py
+
+      # 9
+      - name: Connector unit tests
+        working-directory: .om/ingestion
+        run: |
+          s=$(date +%s); rc=0
+          ../env/bin/python -m pytest tests/unit/topology/database/test_iris.py -rs 2>&1 \
+            | tee -a "$GITHUB_WORKSPACE/pytest.log" || rc=$?
+          echo "T_UNIT=$(( $(date +%s) - s ))" >> "$GITHUB_ENV"
+          exit $rc
+
+      # 10
+      - name: Connector integration tests
+        working-directory: .om/ingestion
+        run: |
+          s=$(date +%s); rc=0
+          ../env/bin/python -m pytest tests/integration/iris -m iris -rs 2>&1 \
+            | tee -a "$GITHUB_WORKSPACE/pytest.log" || rc=$?
+          echo "T_INTEGRATION=$(( $(date +%s) - s ))" >> "$GITHUB_ENV"
+          exit $rc
+
+      # 11
+      - name: Summary
+        if: always()
+        env:
+          DIGEST: ${{ steps.iris.outputs.digest }}
+          ZVERSION: ${{ steps.iris.outputs.zversion }}
+        run: |
+          {
+            echo "### iris-${IRIS_TAG}-${IRIS_LOGIN}"
+            echo
+            echo "- image: \`${DIGEST:-not started}\`"
+            echo "- \`\$ZVERSION\`: ${ZVERSION:-not started}"
+            echo
+            echo "| step | seconds |"
+            echo "|---|---|"
+            for step in START SEED FIXTURE_TESTS OM_IMPORT UNIT INTEGRATION; do
+              var="T_${step}"
+              echo "| ${step,,} | ${!var:-not run} |"
+            done
+            echo
+            echo '```'
+            grep -E '(passed|failed|error|errors|skipped|deselected).* in [0-9.]+s( =+)?$|^(SKIPPED|FAILED|ERROR) ' pytest.log \
+              2>/dev/null || echo "no pytest output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # 12
+      - name: IRIS log on failure
+        if: failure()
+        run: docker logs --tail 200 iris
