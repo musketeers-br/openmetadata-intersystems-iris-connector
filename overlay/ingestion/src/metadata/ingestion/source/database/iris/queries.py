@@ -32,6 +32,15 @@ IRIS_UNIQUE_CONSTRAINTS = (
     "ORDER BY tc.CONSTRAINT_NAME, k.ORDINAL_POSITION"
 )
 
+# --- 003: type map ---
+
+# Raw column types for the type map (ADR-0006): the dialect's reflected types are wrong for VARCHAR(1) and lose
+# the name of an unknown type (GAP-008). Bound on the exact (schema, table); callers keep exact-case matches.
+IRIS_COLUMN_TYPES = (
+    "SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION, "
+    "NUMERIC_SCALE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = :schema AND TABLE_NAME = :table"
+)
+
 # --- 004: dictionary / VECTOR enrichment ---
 
 # --- 010: query log ---
