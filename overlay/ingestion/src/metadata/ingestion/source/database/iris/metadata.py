@@ -20,6 +20,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from metadata.generated.schema.entity.data.database import Database
+from metadata.generated.schema.entity.data.databaseSchema import DatabaseSchema
 from metadata.generated.schema.entity.data.table import Table, TableType
 from metadata.generated.schema.entity.services.connections.database.irisConnection import (
     IrisConnection,
@@ -29,9 +30,13 @@ from metadata.generated.schema.metadataIngestion.workflow import (
 )
 from metadata.ingestion.api.steps import InvalidSourceException
 from metadata.ingestion.ometa.ometa_api import OpenMetadata
-from metadata.ingestion.source.database.common_db_source import CommonDbSourceService
+from metadata.ingestion.source.database.common_db_source import (
+    CommonDbSourceService,
+    TableNameAndType,
+)
 from metadata.ingestion.source.database.iris.queries import (
     IRIS_COLUMN_TYPES,
+    IRIS_READ_PROBE,
     IRIS_UNIQUE_CONSTRAINTS,
 )
 from metadata.ingestion.source.database.iris.types import (
@@ -72,18 +77,22 @@ class IrisSource(CommonDbSourceService):
     # --- 002: catalog ---
 
     @contextmanager
-    def report_access_gap(self, fqn: str, feature: str, schema: str, name: str):
-        """Record one IRIS-ACCESS status warning (ADR-0008) for a failed read of one object feature, then go on."""
+    def report_access_gap(self, fqn: str, feature: str, schema: str, name: str | None = None):
+        """
+        Record one IRIS-ACCESS status warning (ADR-0008) for a failed read of one object feature, then go on.
+        A schema-level read (spec 005) passes no name, and the message names the schema alone.
+        """
         try:
             yield
         except SQLAlchemyError as exc:
             reason = str(getattr(exc, "orig", None) or exc).strip()
             first_line = reason.splitlines()[0] if reason else type(exc).__name__
+            where = schema if name is None else f"{schema}.{name}"
             # Once per object and feature: keys are read in three steps but count as one feature.
             reported = self.__dict__.setdefault("_access_gaps_reported", set())
             if (fqn, feature) not in reported:
                 reported.add((fqn, feature))
-                self.status.warning(fqn, f"IRIS-ACCESS: cannot read {feature} of {schema}.{name}: {first_line}")
+                self.status.warning(fqn, f"IRIS-ACCESS: cannot read {feature} of {where}: {first_line}")
 
     def _table_fqn(self, schema_name: str, table_name: str) -> str:
         return fqn_utils.build(
@@ -175,3 +184,44 @@ class IrisSource(CommonDbSourceService):
         )
 
     # --- 004: dictionary / VECTOR enrichment ---
+
+    # --- 005: access gaps ---
+
+    def _schema_fqn(self, schema_name: str) -> str:
+        return fqn_utils.build(
+            metadata=self.metadata,
+            entity_type=DatabaseSchema,
+            service_name=self.context.get().database_service,
+            database_name=self.context.get().database,
+            schema_name=schema_name,
+            skip_es_search=True,
+        )
+
+    def query_table_names_and_types(self, schema_name: str) -> Iterable[TableNameAndType]:
+        # The framework only logs a failed listing: the schema would be cataloged empty with no status entry.
+        with self.report_access_gap(self._schema_fqn(schema_name), "tables", schema_name):
+            return super().query_table_names_and_types(schema_name)
+        return []
+
+    def query_view_names_and_types(self, schema_name: str) -> Iterable[TableNameAndType]:
+        with self.report_access_gap(self._schema_fqn(schema_name), "views", schema_name):
+            return super().query_view_names_and_types(schema_name)
+        return []
+
+    def get_columns_and_constraints(self, schema_name, table_name, db_name, inspector, table_type=None):
+        # The framework calls this once per cataloged table and view; the readability check follows its reads.
+        result = super().get_columns_and_constraints(schema_name, table_name, db_name, inspector, table_type)
+        self.check_readable(schema_name, table_name)
+        return result
+
+    def check_readable(self, schema_name: str, table_name: str) -> None:
+        """
+        A table the login holds only REFERENCES or a column-level SELECT on is listed and its catalog reads succeed,
+        so nothing else tells that its rows cannot be read (and that columns may be hidden). One no-row read per
+        cataloged table and view; a refusal is one IRIS-ACCESS `data` warning.
+        """
+        quote = self.connection.dialect.identifier_preparer.quote_identifier
+        probe = IRIS_READ_PROBE.format(schema=quote(schema_name), table=quote(table_name))
+        with self.report_access_gap(self._table_fqn(schema_name, table_name), "data", schema_name, table_name):
+            # exec_driver_sql: a quoted name may hold a colon, which text() would read as a bind parameter.
+            self.connection.exec_driver_sql(probe).close()

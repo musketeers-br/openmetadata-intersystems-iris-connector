@@ -17,7 +17,7 @@ the cell's login (conftest: `iris_cell`, `iris_engine`, `iris_service_connection
 from types import SimpleNamespace
 
 import pytest
-from tests.integration.iris.data.seed import EXPECTED
+from tests.integration.iris.data.seed import EXPECTED, READER_SCHEMAS
 
 from metadata.generated.schema.entity.data.table import TableType
 from metadata.ingestion.api.status import Status
@@ -113,10 +113,9 @@ def test_view_columns_are_mapped_too(source, iris_cell):
 
 
 def test_the_fixtures_give_no_unknown_type_warning(source, iris_cell):
-    readable = [*EXPECTED["columns"]]
+    # Only the schemas every login can read; Scratch and Restricted have no reader grant (spec 005 covers them).
+    readable = [(schema, table) for schema, table in EXPECTED["columns"] if schema in READER_SCHEMAS]
     for schema, table in readable:
-        if schema == "Scratch":
-            continue  # the readers hold no grant on Scratch
         table_type = TableType.View if EXPECTED["objects"][(schema, table)] == "VIEW" else TableType.Regular
         assert _columns(source, schema, table, table_type), f"{iris_cell.name}: {schema}.{table}"
     assert _unknown_type_warnings(source) == [], iris_cell.name

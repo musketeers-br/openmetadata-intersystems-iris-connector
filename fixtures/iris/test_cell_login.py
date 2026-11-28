@@ -55,7 +55,7 @@ def test_login_reads_the_fixtures(login):
 
 def test_dictionary_access_matches_the_grant(login):
     name, account, cursor = login
-    error = _error(cursor, "SELECT TOP 1 Name FROM %Dictionary.CompiledProperty")
+    error = _error(cursor, "SELECT TOP 1 Name FROM %Dictionary.PropertyDefinition")
     if account.has_dict_grant:
         assert error is None, f"{name}: {error}"
     else:

@@ -59,5 +59,5 @@ Run selection: `-m iris`.
 | Test | Assertion | Cells |
 |---|---|---|
 | `test_select_one` | `SELECT 1` through `iris_engine` returns 1 | all 9 |
-| `test_dictionary_toggle` | `SELECT TOP 1 Name FROM %Dictionary.CompiledProperty` succeeds iff `has_dict_grant`; otherwise the error carries `-99` | all 9 |
+| `test_dictionary_toggle` | `SELECT TOP 1 Name FROM %Dictionary.PropertyDefinition` (`CompiledProperty` until fixture catalog v3) succeeds iff `has_dict_grant`; otherwise the error carries `-99` | all 9 |
 | `test_cell_identity` | `SELECT $ZVERSION` contains `IRIS`; the value is recorded as a test property for the job summary | all 9 |

@@ -59,15 +59,30 @@ handles itself with nothing to report. An issue is opened only after both develo
 ### GAP-003 — Objects invisible to a login cannot be detected by that login
 
 - **Component:** IRIS SQL catalog
-- **IRIS tracks:** latest-em not tested; latest-cd not tested; latest-preview not tested
-- **Found in spec:** 001-test-harness (seed entry, ADR-0008)
-- **Reproduction:** pending SPIKE-03 (spec 005), which also adds the fixture object it needs
-  (`Restricted.Secret`).
+- **IRIS tracks:** latest-em reproduced; latest-cd reproduced; latest-preview reproduced (2026-11-26)
+- **Found in spec:** 001-test-harness (seed entry, ADR-0008); confirmed by SPIKE-03 and spec 005
+- **Reproduction:** as `omd_reader`. Schema `Restricted` holds `Secret` (granted `REFERENCES`),
+  `ColumnGrant` (granted `SELECT (Id)`) and `Hidden` (no grant).
+
+  ```sql
+  SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'Restricted'
+  ```
+
 - **Expected:** the connector can tell the user which objects its login cannot read.
-- **Actual:** to be confirmed by SPIKE-03. ADR-0008 assumes that the catalog lists only objects the
-  login holds a privilege on, so an object the login cannot see leaves no trace.
-- **Connector behavior:** documented limitation (ADR-0008); spec 005 reports what it can detect.
-- **User workaround:** run ingestion with a login that has `SELECT` on every schema to catalog.
+- **Actual:**
+  - The query lists `ColumnGrant` and `Secret`, never `Hidden`: IRIS lists a table only to a login
+    that holds some privilege on it.
+  - `INFORMATION_SCHEMA.TABLE_PRIVILEGES` and `COLUMN_PRIVILEGES` do not exist (`SQLCODE -30`).
+  - Only `SELECT` on `%Dictionary.CompiledClass`, a further dictionary grant, would list the missing
+    tables, by comparing its SQL names with `INFORMATION_SCHEMA.TABLES`.
+  - `SELECT TOP 1 * FROM Restricted.Hidden` answers `SQLCODE -99`, not -30, so a login that already
+    knows a name can tell the table exists.
+- **Connector behavior:** invisible objects stay a documented limitation (ADR-0008); the connector
+  does not guess names. A visible object the login cannot read (`REFERENCES`, `INSERT` or `UPDATE`
+  only, or a column-level `SELECT`) is cataloged with what the catalog shows, plus one
+  `IRIS-ACCESS: cannot read data of <Schema>.<Table>: …` warning (spec 005).
+- **User workaround:** run ingestion with a login that has `SELECT` on every schema to catalog. To
+  find what a login misses, compare the query above, run as an administrator, with the catalog.
 - **Upstream:** not raised yet.
 
 ### GAP-004 — Dialect reads the server version through the Native API

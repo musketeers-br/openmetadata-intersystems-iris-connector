@@ -12,7 +12,7 @@
 Shared IRIS fixtures for the connector's tests: the fixture catalog, its loader and its self-check.
 
 The loader drops and recreates every fixture object, row, login and grant in one Namespace, then
-verifies the result (checks C1-C11). Running it twice gives the same state. It uses only the official
+verifies the result (checks C1-C12). Running it twice gives the same state. It uses only the official
 driver (`import iris`), imported inside functions, so importing this module has no side effects and
 needs no driver (the integration conftest reads `LOGINS` from it).
 
@@ -32,10 +32,12 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
-CATALOG_VERSION = 2
+CATALOG_VERSION = 3
 VERSION_HISTORY = {
     1: "spec 001: Clinic, Billing, AI, Scratch (sentinel Scratch.Keep); omd_reader, omd_reader_dict",
     2: "spec 003: Types.AllTypes, one column per DATA_TYPE the IRIS SQL catalog reports",
+    3: "spec 005: Restricted.Secret (REFERENCES), Restricted.ColumnGrant (one-column SELECT), Restricted.Hidden "
+    "(no grant); omd_reader_dict keeps only the PropertyDefinition grant (SPIKE-03)",
 }
 
 
@@ -72,6 +74,10 @@ DDL: list[str] = [
     "GuidCol UNIQUEIDENTIFIER, LongVarBinaryCol LONGVARBINARY, LongVarCharCol LONGVARCHAR, "
     "NumericCol NUMERIC(7,3), SmallIntCol SMALLINT, TimeCol TIME, TimestampCol TIMESTAMP, "
     "TinyIntCol TINYINT, VarBinaryCol VARBINARY(16), VarCharCol VARCHAR(40), VarChar1Col VARCHAR(1))",
+    # Spec 005: visible but unreadable objects. The readers hold no grant on the schema (RESTRICTED_GRANTS).
+    "CREATE TABLE Restricted.Secret (Id INT PRIMARY KEY, Code VARCHAR(10) NOT NULL, Note VARCHAR(50))",
+    "CREATE TABLE Restricted.ColumnGrant (Id INT PRIMARY KEY, Hidden VARCHAR(10))",
+    "CREATE TABLE Restricted.Hidden (Id INT PRIMARY KEY)",
     "CREATE VIEW Clinic.ActivePatient AS SELECT p.PatientId, p.FullName FROM Clinic.Patient p "
     "JOIN Clinic.Encounter e ON e.PatientId = p.PatientId WHERE e.Active = 1",
     "CREATE SCHEMA Scratch",
@@ -121,10 +127,15 @@ ROWS: list[tuple[str, tuple]] = [
             "Y",
         ),
     ),
+    ("INSERT INTO Restricted.Secret (Id, Code, Note) VALUES (?, ?, ?)", (1, "S-1", "not for readers")),
+    ("INSERT INTO Restricted.ColumnGrant (Id, Hidden) VALUES (?, ?)", (1, "H-1")),
+    ("INSERT INTO Restricted.Hidden (Id) VALUES (?)", (1,)),
 ]
 
 READERS = ("reader", "reader_dict")
-DICTIONARY_TABLES = ("%Dictionary.CompiledProperty", "%Dictionary.PropertyDefinition")
+# The one optional dictionary grant (ADR-0007, SPIKE-03): the dialect's full reflection and VECTOR detail read
+# PropertyDefinition only. Until catalog v3, omd_reader_dict also held %Dictionary.CompiledProperty.
+DICTIONARY_TABLES = ("%Dictionary.PropertyDefinition",)
 READER_SCHEMAS = ("Clinic", "Billing", "AI", "Types")
 
 GRANTS: list[str] = [
@@ -132,9 +143,30 @@ GRANTS: list[str] = [
     for schema in READER_SCHEMAS
 ] + [f"GRANT SELECT ON {table} TO {LOGINS['reader_dict'].user}" for table in DICTIONARY_TABLES]
 
+# Spec 005: one statement per reader (a column-level grant takes one grantee). REFERENCES makes Secret visible but
+# unreadable; SELECT (Id) shows ColumnGrant with its Id column only; Restricted.Hidden gets no grant at all.
+RESTRICTED_GRANTS: list[str] = [
+    statement
+    for login in READERS
+    for statement in (
+        f"GRANT REFERENCES ON Restricted.Secret TO {LOGINS[login].user}",
+        f"GRANT SELECT (Id) ON Restricted.ColumnGrant TO {LOGINS[login].user}",
+    )
+]
+GRANTS += RESTRICTED_GRANTS
+
 # Dropped in this order (view first, then FK-safe); Scratch tables are found at run time.
 CLEANUP_VIEWS = ("Clinic.ActivePatient",)
-CLEANUP_TABLES = ("Clinic.Encounter", "Clinic.Patient", "Billing.Patient", "AI.Embedding", "Types.AllTypes")
+CLEANUP_TABLES = (
+    "Clinic.Encounter",
+    "Clinic.Patient",
+    "Billing.Patient",
+    "AI.Embedding",
+    "Types.AllTypes",
+    "Restricted.Secret",
+    "Restricted.ColumnGrant",
+    "Restricted.Hidden",
+)
 
 PK = "PRIMARY KEY"
 FK = "FOREIGN KEY"
@@ -152,6 +184,9 @@ EXPECTED: dict = {
         ("Clinic", "ActivePatient"): "VIEW",
         ("Scratch", "Keep"): "BASE TABLE",
         ("Types", "AllTypes"): "BASE TABLE",
+        ("Restricted", "Secret"): "BASE TABLE",
+        ("Restricted", "ColumnGrant"): "BASE TABLE",
+        ("Restricted", "Hidden"): "BASE TABLE",
     },
     "columns": {
         ("Clinic", "Patient"): [
@@ -189,6 +224,9 @@ EXPECTED: dict = {
             ("VarCharCol", "varchar"),
             ("VarChar1Col", "varchar"),
         ],
+        ("Restricted", "Secret"): [("Id", "integer"), ("Code", "varchar"), ("Note", "varchar")],
+        ("Restricted", "ColumnGrant"): [("Id", "integer"), ("Hidden", "varchar")],
+        ("Restricted", "Hidden"): [("Id", "integer")],
     },
     "constraints": {
         ("Clinic", "Patient"): [(PK, ("PatientId",), None)],
@@ -200,6 +238,9 @@ EXPECTED: dict = {
         ("AI", "Embedding"): [(PK, ("Id",), None)],
         ("Scratch", "Keep"): [(PK, ("Id",), None)],
         ("Types", "AllTypes"): [(PK, ("Id",), None)],
+        ("Restricted", "Secret"): [(PK, ("Id",), None)],
+        ("Restricted", "ColumnGrant"): [(PK, ("Id",), None)],
+        ("Restricted", "Hidden"): [(PK, ("Id",), None)],
     },
     "table_descriptions": {("Clinic", "Patient"): "Patients registered in the clinic"},
     "column_descriptions": {("Clinic", "Patient", "PatientId"): "Patient identifier"},
@@ -209,6 +250,9 @@ EXPECTED: dict = {
         ("Billing", "Patient"): 1,
         ("AI", "Embedding"): 1,
         ("Types", "AllTypes"): 1,
+        ("Restricted", "Secret"): 1,
+        ("Restricted", "ColumnGrant"): 1,
+        ("Restricted", "Hidden"): 1,
     },
     "view_sources": {("Clinic", "ActivePatient"): ("Clinic.Patient", "Clinic.Encounter")},
     "scratch_tables": ["Keep"],
@@ -218,6 +262,14 @@ EXPECTED: dict = {
         "CREATE TABLE Scratch.ReaderProbe (Id INT)",
     ),
     "vector_type": (("AI", "Embedding", "Vec"), "varchar"),
+    # Spec 005, per reader: table -> (listed in INFORMATION_SCHEMA.TABLES, columns the reader sees). None of the
+    # three can be read with SELECT *; ColumnGrant's Id column can.
+    "restricted": {
+        "Secret": (True, ["Id", "Code", "Note"]),
+        "ColumnGrant": (True, ["Id"]),
+        "Hidden": (False, []),
+    },
+    "restricted_readable": "SELECT TOP 1 Id FROM Restricted.ColumnGrant",
 }
 
 # "Does not exist" during cleanup: table or view (-30), schema (-473), user (-118 with this text).
@@ -556,6 +608,43 @@ def _check_readers(check: _Checker, connect: Callable[[str, str], object], expec
             )
 
 
+def restricted_outcome(cursor, expected: dict) -> dict[str, object]:
+    """What a reader sees and reads in schema Restricted (C12)."""
+    listed = _query(
+        cursor, "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?", ("Restricted",)
+    )
+    outcome: dict[str, object] = {"listed": sorted(name for schema, name in listed if schema == "Restricted")}
+    for table in expected["restricted"]:
+        outcome[f"columns {table}"] = [column for column, _ in _columns(cursor, "Restricted", table)]
+        outcome[f"read {table}"] = _attempt(cursor, f"SELECT TOP 1 * FROM Restricted.{table}")
+    outcome["read one column"] = _attempt(cursor, expected["restricted_readable"])
+    return outcome
+
+
+def _check_restricted(check: _Checker, connect: Callable[[str, str], object], expected: dict) -> None:
+    """C12: each reader lists Secret and ColumnGrant but not Hidden, sees only the granted columns, reads no row."""
+    listed = sorted(table for table, (visible, _) in expected["restricted"].items() if visible)
+    for login in READERS:
+        account = LOGINS[login]
+        reader = connect(account.user, account.password)
+        try:
+            outcome = restricted_outcome(reader.cursor(), expected)
+        finally:
+            reader.close()
+        check("C12", "listed", f"{account.user} Restricted", listed, lambda o=outcome: o["listed"])
+        for table, (_, columns) in expected["restricted"].items():
+            obj = f"{account.user} Restricted.{table}"
+            check("C12", "columns", obj, columns, lambda k=f"columns {table}", o=outcome: o[k])
+            check("C12", "read refused", obj, "SQLCODE -99", lambda k=f"read {table}", o=outcome: o[k])
+        check(
+            "C12",
+            "read one column",
+            f"{account.user} Restricted.ColumnGrant",
+            "ok",
+            lambda o=outcome: o["read one column"],
+        )
+
+
 def self_check(  # pylint: disable=too-many-arguments
     host: str,
     port: int,
@@ -565,7 +654,7 @@ def self_check(  # pylint: disable=too-many-arguments
     expected: dict | None = None,
     report: Callable[[str], None] | None = None,
 ) -> list[tuple[str, str, str]]:
-    """Verify checks C1-C11 and return the passes as (check, what, object); raise SelfCheckError."""
+    """Verify checks C1-C12 and return the passes as (check, what, object); raise SelfCheckError."""
     expected = EXPECTED if expected is None else expected
     check = _Checker(report)
     conn = _connect(host, port, namespace, admin_user, admin_password)
@@ -582,6 +671,7 @@ def self_check(  # pylint: disable=too-many-arguments
             data_type,
             lambda: dict(_columns(cur, schema, name)).get(column, "missing"),
         )
+        _check_restricted(check, lambda user, password: _connect(host, port, namespace, user, password), expected)
     finally:
         conn.close()
     return check.passes
