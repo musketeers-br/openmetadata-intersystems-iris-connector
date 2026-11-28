@@ -32,12 +32,13 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
-CATALOG_VERSION = 3
+CATALOG_VERSION = 4
 VERSION_HISTORY = {
     1: "spec 001: Clinic, Billing, AI, Scratch (sentinel Scratch.Keep); omd_reader, omd_reader_dict",
     2: "spec 003: Types.AllTypes, one column per DATA_TYPE the IRIS SQL catalog reports",
     3: "spec 005: Restricted.Secret (REFERENCES), Restricted.ColumnGrant (one-column SELECT), Restricted.Hidden "
     "(no grant); omd_reader_dict keeps only the PropertyDefinition grant (SPIKE-03)",
+    4: "spec 004: AI.Embedding.Vec4 VECTOR(INT, 4) and AI.Embedding.vec_low VECTOR(FLOAT, 2)",
 }
 
 
@@ -67,7 +68,10 @@ DDL: list[str] = [
     "StartedAt TIMESTAMP, Notes LONGVARCHAR, Active BIT)",
     "CREATE TABLE Billing.Patient ("
     "Code VARCHAR(20) PRIMARY KEY, Balance DOUBLE, CONSTRAINT UqBillingCode UNIQUE (Code))",
-    "CREATE TABLE AI.Embedding (Id INT PRIMARY KEY, Content VARCHAR(500), Vec VECTOR(DOUBLE, 3))",
+    # Spec 004 adds Vec4 and "vec_low": another element type, and a column whose name is not a valid property name
+    # (the class property is veclow, with SqlFieldName vec_low).
+    "CREATE TABLE AI.Embedding (Id INT PRIMARY KEY, Content VARCHAR(500), Vec VECTOR(DOUBLE, 3), "
+    'Vec4 VECTOR(INT, 4), "vec_low" VECTOR(FLOAT, 2))',
     # Spec 003: one column per DATA_TYPE the catalog reports (Id covers integer), plus VARCHAR(1) (GAP-008).
     "CREATE TABLE Types.AllTypes ("
     "Id INT PRIMARY KEY, BigIntCol BIGINT, BitCol BIT, DateCol DATE, DoubleCol DOUBLE, "
@@ -101,8 +105,9 @@ ROWS: list[tuple[str, tuple]] = [
     ),
     ("INSERT INTO Billing.Patient (Code, Balance) VALUES (?, ?)", ("B-1", 120.5)),
     (
-        "INSERT INTO AI.Embedding (Id, Content, Vec) VALUES (?, ?, TO_VECTOR(?, DOUBLE))",
-        (1, "hello", "0.1,0.2,0.3"),
+        'INSERT INTO AI.Embedding (Id, Content, Vec, Vec4, "vec_low") '
+        "VALUES (?, ?, TO_VECTOR(?, DOUBLE), TO_VECTOR(?, INT), TO_VECTOR(?, FLOAT))",
+        (1, "hello", "0.1,0.2,0.3", "1,2,3,4", "0.5,0.25"),
     ),
     (
         "INSERT INTO Types.AllTypes (Id, BigIntCol, BitCol, DateCol, DoubleCol, GuidCol, LongVarBinaryCol, "
@@ -203,7 +208,13 @@ EXPECTED: dict = {
             ("Active", "bit"),
         ],
         ("Billing", "Patient"): [("Code", "varchar"), ("Balance", "double")],
-        ("AI", "Embedding"): [("Id", "integer"), ("Content", "varchar"), ("Vec", "varchar")],
+        ("AI", "Embedding"): [
+            ("Id", "integer"),
+            ("Content", "varchar"),
+            ("Vec", "varchar"),
+            ("Vec4", "varchar"),
+            ("vec_low", "varchar"),
+        ],
         ("Clinic", "ActivePatient"): [("PatientId", "integer"), ("FullName", "varchar")],
         ("Scratch", "Keep"): [("Id", "integer")],
         ("Types", "AllTypes"): [
@@ -262,6 +273,12 @@ EXPECTED: dict = {
         "CREATE TABLE Scratch.ReaderProbe (Id INT)",
     ),
     "vector_type": (("AI", "Embedding", "Vec"), "varchar"),
+    # Spec 004: (schema, table, column) -> (element type, dimension) as the class dictionary defines them.
+    "vectors": {
+        ("AI", "Embedding", "Vec"): ("DOUBLE", 3),
+        ("AI", "Embedding", "Vec4"): ("INT", 4),
+        ("AI", "Embedding", "vec_low"): ("FLOAT", 2),
+    },
     # Spec 005, per reader: table -> (listed in INFORMATION_SCHEMA.TABLES, columns the reader sees). None of the
     # three can be read with SELECT *; ColumnGrant's Id column can.
     "restricted": {

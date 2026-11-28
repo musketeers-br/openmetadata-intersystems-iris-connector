@@ -19,7 +19,7 @@ CREATE USER omd_ingest IDENTIFIED BY "<password>"
 | Profiler | the same `SELECT` (expected) | the table is cataloged with an `IRIS-ACCESS` warning and is not profiled | spec 006 |
 | Data-quality tests | the same `SELECT` (expected) | the test cannot run on that table | spec 006 |
 | dbt lineage | none in IRIS (expected; dbt artifacts are read outside IRIS) | — | spec 007 |
-| VECTOR element type and dimension (optional) | `GRANT SELECT ON %Dictionary.PropertyDefinition TO omd_ingest` | VECTOR columns are cataloged as `VARCHAR`, with one `IRIS-VECTOR-GRANT` hint per run | spec 004 |
+| VECTOR element type and dimension (optional) | `GRANT SELECT ON %Dictionary.PropertyDefinition TO omd_ingest` | VECTOR columns are cataloged as `VARCHAR`, with one `IRIS-VECTOR-GRANT` hint per run | spec 004, all tracks; see its [VECTOR columns note](../004-vector-enrichment/quickstart.md#vector-columns-docs-note-for-spec-008) |
 
 The `SELECT` can also be granted table by table (`GRANT SELECT ON Sales.Orders TO omd_ingest`); then
 only those tables are cataloged.

@@ -101,9 +101,7 @@ def test_the_other_fixture_columns(source, iris_cell):
     patient = _columns(source, "Clinic", "Patient")
     assert _cataloged(patient["Weight"]) == ("NUMERIC", None, (5, 2), "NUMERIC(5,2)"), iris_cell.name
     assert _cataloged(patient["FullName"]) == ("VARCHAR", 120, None, "VARCHAR(120)"), iris_cell.name
-    # VECTOR stays as the SQL catalog reports it; spec 004 enriches it.
-    embedding = _columns(source, "AI", "Embedding")
-    assert _cataloged(embedding["Vec"]) == ("VARCHAR", 1037, None, "VARCHAR(1037)"), iris_cell.name
+    # AI.Embedding's VECTOR columns depend on the dictionary grant: test_vector.py (spec 004).
 
 
 def test_view_columns_are_mapped_too(source, iris_cell):

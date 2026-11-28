@@ -116,8 +116,8 @@ def test_import_does_not_connect(monkeypatch):
     spec = importlib.util.spec_from_file_location("iris_fixture_seed_import_check", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    assert module.CATALOG_VERSION == 3
-    assert set(module.VERSION_HISTORY) == {1, 2, 3}
+    assert module.CATALOG_VERSION == 4
+    assert set(module.VERSION_HISTORY) == {1, 2, 3, 4}
     assert set(module.LOGINS) == {"admin", "reader", "reader_dict"}
 
 
@@ -351,6 +351,34 @@ def test_readers_see_but_cannot_read_the_restricted_tables(seed_module, loaded, 
             assert cursor.fetchall()[0][0] == 1, account.user
         finally:
             conn.close()
+
+
+# Spec 004: the three VECTOR columns, as the SQL catalog reports them (varchar, with these lengths).
+VECTOR_LENGTHS = {"Vec": 1037, "Vec4": 83, "vec_low": 691}
+
+
+def test_the_vector_fixture(seed_module, loaded, admin_conn):
+    cursor = admin_conn.cursor()
+    assert seed_module._columns(cursor, "AI", "Embedding") == [
+        ("Id", "integer"),
+        ("Content", "varchar"),
+        ("Vec", "varchar"),
+        ("Vec4", "varchar"),
+        ("vec_low", "varchar"),
+    ]
+    cursor.execute(
+        "SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS "
+        "WHERE TABLE_SCHEMA = 'AI' AND TABLE_NAME = 'Embedding'"
+    )
+    lengths = {name: length for name, length in cursor.fetchall() if name in VECTOR_LENGTHS}
+    assert lengths == VECTOR_LENGTHS
+    assert seed_module.EXPECTED["vectors"] == {
+        ("AI", "Embedding", "Vec"): ("DOUBLE", 3),
+        ("AI", "Embedding", "Vec4"): ("INT", 4),
+        ("AI", "Embedding", "vec_low"): ("FLOAT", 2),
+    }
+    cursor.execute('SELECT Vec4, "vec_low" FROM AI.Embedding WHERE Id = 1')
+    assert all(value is not None for value in cursor.fetchall()[0])
 
 
 def test_scratch_stays_listed(seed_module, loaded, admin_conn):

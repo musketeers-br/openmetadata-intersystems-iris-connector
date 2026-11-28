@@ -12,6 +12,8 @@
 InterSystems IRIS type mapping. One mapping module for the connector (ADR-0006).
 """
 
+import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import NamedTuple
 
@@ -131,6 +133,9 @@ def _display(name: str, row: IrisTypeRow, facts: ColumnFacts) -> str:
 def resolve(facts: ColumnFacts) -> ResolvedType:
     """The type the framework should catalog for one column, from its raw catalog facts (not the dialect's)."""
     raw = facts.data_type or ""
+    native = native_vector(raw)  # spec 004: a release that reports VECTOR in the SQL catalog
+    if native is not None:
+        return native
     row = IRIS_TYPES.get(raw.lower())
     if row is None:
         return ResolvedType(iris_unmapped_type(), raw.upper(), known=False)
@@ -168,3 +173,85 @@ def render_markdown_table() -> str:
 
 
 # --- 004: VECTOR enrichment ---
+
+
+class VectorElement(NamedTuple):
+    """One VECTOR element type: the arrayDataType the framework derives, and the SQLAlchemy item type that gives it."""
+
+    data_type: DataType
+    item_type: Callable[[], sqltypes.TypeEngine]
+
+
+# The element types IRIS DDL accepts (research R3). The framework reads arrayDataType from the ARRAY's item type
+# (SqlColumnHandlerMixin); each item type here is the one ColumnTypeParser maps to the row's DataType.
+VECTOR_ELEMENT_TYPES: dict[str, VectorElement] = {
+    "DOUBLE": VectorElement(DataType.DOUBLE, sqltypes.DOUBLE),
+    "FLOAT": VectorElement(DataType.FLOAT, sqltypes.FLOAT),
+    "DECIMAL": VectorElement(DataType.DECIMAL, sqltypes.DECIMAL),
+    "INT": VectorElement(DataType.INT, sqltypes.INTEGER),
+    "INTEGER": VectorElement(DataType.INT, sqltypes.INTEGER),
+    "STRING": VectorElement(DataType.STRING, sqltypes.String),
+}
+
+
+class VectorFacts(NamedTuple):
+    element: str  # the DATATYPE parameter, upper case
+    dimension: int
+
+
+def parse_vector_parameters(raw: str | None) -> VectorFacts | None:
+    """
+    A %Library.Vector property's Parameters ("DATATYPE,DOUBLE,LEN,3"): comma-separated key/value pairs, keys matched
+    case-insensitively. None when DATATYPE or a positive LEN is missing, or the pairs do not pair up.
+    """
+    items = [item.strip() for item in (raw or "").split(",")]
+    if len(items) < 2 or len(items) % 2:
+        return None
+    pairs = {key.upper(): value for key, value in zip(items[0::2], items[1::2], strict=True)}
+    element, length = pairs.get("DATATYPE", ""), pairs.get("LEN", "")
+    if not element or not length.isdigit() or int(length) <= 0:
+        return None
+    return VectorFacts(element.upper(), int(length))
+
+
+def resolve_vector(facts: VectorFacts) -> ResolvedType:
+    """ARRAY of the element type, shown as VECTOR(<TYPE>, <dim>) (ADR-0007). An unknown element is ARRAY of UNKNOWN."""
+    element = VECTOR_ELEMENT_TYPES.get(facts.element)
+    if element is None:
+        return ResolvedType(sqltypes.ARRAY(iris_unmapped_type()), f"VECTOR({facts.element}, {facts.dimension})", False)
+    return ResolvedType(
+        sqltypes.ARRAY(element.item_type()), f"VECTOR({element.data_type.value}, {facts.dimension})", known=True
+    )
+
+
+_NATIVE_VECTOR = re.compile(r"^\s*vector\s*(?:\(\s*(\w+)\s*,\s*(\d+)\s*\))?\s*$", re.IGNORECASE)
+
+
+def native_vector(raw: str) -> ResolvedType | None:
+    """
+    FR-009: a DATA_TYPE that names VECTOR, which no IRIS release reports yet, is cataloged as ARRAY from the catalog's
+    own text, shown as that text; without element and dimension in it, ARRAY of UNKNOWN. None for any other type.
+    """
+    match = _NATIVE_VECTOR.match(raw)
+    if match is None:
+        return None
+    element = VECTOR_ELEMENT_TYPES.get((match[1] or "").upper())
+    item_type = element.item_type() if element is not None else iris_unmapped_type()
+    return ResolvedType(sqltypes.ARRAY(item_type), raw, known=True)
+
+
+def vector_grant_message(username: str, reason: str | None = None) -> str:
+    """The one hint per run when the dictionary cannot be read (review decision of 2026-11-26: conditional text)."""
+    message = (
+        f"IRIS-VECTOR-GRANT: if this Namespace has VECTOR columns, GRANT SELECT ON %Dictionary.PropertyDefinition "
+        f"TO {username} to catalog their element type and dimension"
+    )
+    return f"{message} — {reason}" if reason else message
+
+
+def vector_params_message(raw: str | None) -> str:
+    return f"IRIS-VECTOR-PARAMS: could not parse VECTOR parameters '{raw}'; cataloged as VARCHAR"
+
+
+def vector_element_message(element: str) -> str:
+    return f"IRIS-VECTOR-PARAMS: VECTOR element type '{element}' is not mapped; cataloged as ARRAY of UNKNOWN"
