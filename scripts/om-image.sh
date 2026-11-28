@@ -21,7 +21,8 @@ scripts/antlr4 >/dev/null 2>&1 || true  # downloads and checks the pinned ANTLR 
 echo "om-image: building the server distribution with Maven (spec, service, UI)..."
 # The container runs as root over a bind mount owned by the host user. On Docker Engine (Linux, WSL2) git then
 # refuses /om as "dubious ownership" and buildnumber-maven-plugin fails with a NullPointerException, hence
-# safe.directory. The build's output is handed back to the owner of .om, so later om-import runs can clean it.
+# safe.directory. Files the build created as root are handed back to the owner of .om, so later om-import runs
+# can clean them. Only those files are touched (find ! -user), not the whole tree.
 docker run --rm \
   -v "$ROOT/.om:/om" -v "$ROOT/.cache:/cache:ro" -v om-iris-m2:/root/.m2 -w /om \
   "$MAVEN_IMAGE" \
@@ -29,7 +30,7 @@ docker run --rm \
     && apt-get -qq update && apt-get -qq install -y --no-install-recommends python3 python3-pip >/dev/null \
     && printf "#!/bin/sh\\nexec java -jar /cache/antlr-4.9.2-complete.jar \"\$@\"\\n" > /usr/local/bin/antlr4 && chmod +x /usr/local/bin/antlr4 \
     && mvn -B -ntp -DskipTests -Dspotless.check.skip=true clean package -pl openmetadata-dist -am; \
-    rc=$?; chown -R "$(stat -c %u:%g /om)" /om; exit $rc'
+    rc=$?; owner="$(stat -c %u:%g /om)"; find /om ! -user "${owner%:*}" -exec chown -h "$owner" {} +; exit $rc'
 
 echo "om-image: building $SERVER_IMAGE ..."
 docker build -f .om/docker/development/Dockerfile -t "$SERVER_IMAGE" .om
