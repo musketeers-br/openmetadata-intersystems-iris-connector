@@ -92,10 +92,10 @@ per run for the cells alone while the repository is private (SPIKE-06); the rebu
 | VII. Upstream-Ready | Conftest follows OpenMetadata's per-connector integration-package shape; testcontainers fallback lets upstream run it; license headers; `make py_format` in `.om/ingestion` before `om-export` | ✅ |
 | VIII. English Artifacts | All artifacts, code comments and commit messages in English | ✅ |
 | Workflow: self-contained repository (1.2.2) | Spike outcomes and evidence are written in `research.md`; no document refers to external planning material | ✅ |
-| Workflow: spikes reviewed first | SPIKE-06 findings are written, not yet reviewed by Henry; the user authorized starting in parallel | ⚠️ tracked, see Complexity Tracking |
+| Workflow: spikes reviewed first | SPIKE-06 findings were written when the spec started, and the user authorized starting in parallel. Henry reviewed and merged SPIKE-06 on 2026-11-26 | ✅ (was ⚠️, see Complexity Tracking) |
 
-**Post-design re-check (after Phase 1)**: unchanged; all gates ✅. The ⚠️ remains until Henry reviews
-SPIKE-06.
+**Post-design re-check (after Phase 1)**: unchanged; all gates ✅. The ⚠️ on "spikes reviewed first"
+was cleared when Henry reviewed SPIKE-06 on 2026-11-26.
 
 ## Project Structure
 
@@ -189,5 +189,5 @@ Each step ends with its tests passing locally; steps 1–3 need only Docker and 
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |---|---|---|
-| Spec started before SPIKE-06 review (Development Workflow) | Wave 0 is on the critical path (every spec's acceptance needs the matrix). The findings exist and the CI evidence is in this repository's Actions history; the user authorized starting in parallel on 2026-11-25 | Waiting idles the fixture owner for the duration of the review. Mitigation: no merge to `main` until Henry has reviewed SPIKE-06 |
+| Spec started before SPIKE-06 review (Development Workflow) | Wave 0 is on the critical path (every spec's acceptance needs the matrix). The findings exist and the CI evidence is in this repository's Actions history; the user authorized starting in parallel on 2026-11-25 | Waiting idles the fixture owner for the duration of the review. Mitigation: no merge to `main` until Henry has reviewed SPIKE-06. Resolved: Henry reviewed and merged SPIKE-06 on 2026-11-26 |
 | Loader source under `overlay/` instead of `fixtures/iris/` (ADR-0012 wording) | Upstream must be able to seed IRIS from inside the OpenMetadata tree (FR-020) | Keeping it only in `fixtures/` breaks the upstream fallback. Two copies would break "one loader" (FR-001). ADR-0012 is updated in the same change (FR-026) |
