@@ -27,6 +27,10 @@ How to check this feature, and the supported-metrics matrix for spec 008's docs.
 These are the results on IRIS Community 2026.1 and 2026.3, as administrator and as a `SELECT`-only
 login. GAP ids point to `GAP-REPORT.md`.
 
+> **For the 008 docs: put this in the first lines of the profiler limits.** A percentage sample
+> below 100 skips the whole table, which is then not profiled at all (see Sampling below). A
+> service-level percentage default therefore profiles nothing on IRIS. Use a row count instead.
+
 ### Table metrics
 
 | Metric | IRIS | Note |
