@@ -16,8 +16,8 @@ CREATE USER omd_ingest IDENTIFIED BY "<password>"
 |---|---|---|---|
 | Metadata: schemas, tables, views, columns, types, keys, descriptions | `GRANT SELECT ON SCHEMA Sales TO omd_ingest` | the schema's objects are not listed (invisible, see below) | spec 005, all tracks |
 | View definitions and view lineage | the same `SELECT` | — | spec 002, all tracks |
-| Profiler | the same `SELECT` (expected) | the table is cataloged with an `IRIS-ACCESS` warning and is not profiled | spec 006 |
-| Data-quality tests | the same `SELECT` (expected) | the test cannot run on that table | spec 006 |
+| Profiler | the same `SELECT` | the table gets one `IRIS-ACCESS: cannot read profile of …` warning and is not profiled; with a column-level grant it is profiled on those columns, without a row count | spec 006, all tracks; see its [supported-metrics matrix](../006-profiler-dq/quickstart.md#supported-metrics-matrix-for-spec-008) |
+| Data-quality tests | the same `SELECT` | the table's tests are not run, with the same `IRIS-ACCESS` warning | spec 006, all tracks |
 | dbt lineage | none in IRIS (expected; dbt artifacts are read outside IRIS) | — | spec 007 |
 | VECTOR element type and dimension (optional) | `GRANT SELECT ON %Dictionary.PropertyDefinition TO omd_ingest` | VECTOR columns are cataloged as `VARCHAR`, with one `IRIS-VECTOR-GRANT` hint per run | spec 004, all tracks; see its [VECTOR columns note](../004-vector-enrichment/quickstart.md#vector-columns-docs-note-for-spec-008) |
 

@@ -194,3 +194,23 @@ def iris_admin_engine(iris_admin_service_connection, seeded) -> Iterator[Engine]
     engine = IrisConnection(iris_admin_service_connection).client
     yield engine
     engine.dispose()
+
+
+# --- 006: profiler and data quality ---
+
+
+@pytest.fixture
+def om_client():
+    """A fresh stub OpenMetadata client: one per test, so each test is one run for the once-per-run warnings."""
+    from tests.integration.iris.profiler_harness import StubClient
+
+    return StubClient()
+
+
+@pytest.fixture
+def run_status():
+    """The step's Status, fed by the framework's warning handler (spec 006 research R2)."""
+    from tests.integration.iris.profiler_harness import step_status
+
+    with step_status() as status:
+        yield status

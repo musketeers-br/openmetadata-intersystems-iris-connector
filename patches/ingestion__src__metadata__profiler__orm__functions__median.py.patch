@@ -1,0 +1,49 @@
+diff --git a/ingestion/src/metadata/profiler/orm/functions/median.py b/ingestion/src/metadata/profiler/orm/functions/median.py
+index 95947383..70d14186 100644
+--- a/ingestion/src/metadata/profiler/orm/functions/median.py
++++ b/ingestion/src/metadata/profiler/orm/functions/median.py
+@@ -15,6 +15,7 @@ Define Median function
+ 
+ # Keep SQA docs style defining custom constructs
+ # pylint: disable=consider-using-f-string,duplicate-code
++from sqlalchemy.exc import CompileError
+ from sqlalchemy.ext.compiler import compiles
+ from sqlalchemy.sql.functions import FunctionElement
+ from sqlalchemy.sql.sqltypes import DECIMAL
+@@ -231,6 +232,36 @@ def _(elements, compiler, **kwargs):  # pylint: disable=unused-argument
+         """.format(col=col, table=table, percentile=percentile)  # noqa: UP032
+ 
+ 
++@compiles(MedianFn, Dialects.Iris)
++def _(elements, compiler, **kwargs):
++    """
++    IRIS median: the MySQL window form, adapted. IRIS has no percentile function (SQLCODE -359), ROUND needs two
++    arguments, an unqualified table name resolves in SQLUser, and a bare column name inside the scalar subquery
++    binds to the outer row. So the subquery reads the FROM element of the enclosing query (the schema-qualified
++    table, or the sample when the profile is sampled), aliases the inner value and leaves NULLs out.
++    """
++    if len(elements.clauses.clauses) > 3:
++        raise CompileError("The dimensional (GROUP BY) median is not supported on IRIS")
++    col = compiler.process(elements.clauses.clauses[0], **kwargs)
++    table = elements.clauses.clauses[1].value
++    percentile = elements.clauses.clauses[2].value
++
++    froms = list(compiler.stack[-1].get("correlate_froms", ())) if compiler.stack else []
++    source = next((f for f in froms if getattr(f, "name", None) == table), froms[0] if len(froms) == 1 else None)
++    if source is None:
++        raise CompileError(f"IRIS median: cannot tell which table to read for {table}")
++    if getattr(source, "schema", None):
++        from_clause = compiler.preparer.format_table(source)
++    else:
++        from_clause = compiler.preparer.quote(source.name)
++    return (
++        f"(SELECT temp.median_value FROM (SELECT {col} AS median_value, "
++        f"ROW_NUMBER() OVER (ORDER BY {col}) AS row_num, COUNT(*) OVER () AS total_count "
++        f"FROM {from_clause} WHERE {col} IS NOT NULL) temp "
++        f"WHERE temp.row_num = ROUND({percentile} * temp.total_count, 0))"
++    )
++
++
+ @compiles(MedianFn, Dialects.SQLite)
+ def _(elements, compiler, **kwargs):  # pylint: disable=unused-argument
+     """

@@ -1,0 +1,12 @@
+diff --git a/ingestion/src/metadata/profiler/orm/registry.py b/ingestion/src/metadata/profiler/orm/registry.py
+index 006916b1..7d8cb605 100644
+--- a/ingestion/src/metadata/profiler/orm/registry.py
++++ b/ingestion/src/metadata/profiler/orm/registry.py
+@@ -84,6 +84,7 @@ class PythonDialects(Enum):
+     IbmDbSa = "ibm_db_sa"
+     Ibmi = "ibmi"
+     Informix = "informix"
++    Iris = "iris"
+     MariaDB = "mariadb"
+     MSSQL = "mssql"
+     MySQL = "mysql"

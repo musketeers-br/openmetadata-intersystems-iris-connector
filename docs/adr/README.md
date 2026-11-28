@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Each ADR records one architecture decision (AD-n) with its context, alternatives and how it is validated. ADR numbers match the AD numbers (ADR-0001 = AD-1). ADR-0014 and ADR-0015 were added after the spine (AD-14, AD-15).
+Each ADR records one architecture decision (AD-n) with its context, alternatives and how it is validated. ADR numbers match the AD numbers (ADR-0001 = AD-1). ADR-0014, ADR-0015 and ADR-0016 were added after the spine (AD-14, AD-15, AD-16).
 
 | ADR | Decision | Status | Validated by | Used by specs |
 |---|---|---|---|---|
@@ -13,12 +13,13 @@ Each ADR records one architecture decision (AD-n) with its context, alternatives
 | [0007](0007-vector-optional-enrichment.md) | VECTOR detail is an optional, capability-detected enrichment | Accepted, representation pending | SPIKE-03 → spec 004 | 000, 004 |
 | [0008](0008-access-gaps-as-warnings.md) | Access gaps surface as ingestion-status warnings | Accepted | SPIKE-03 → spec 005 | 002, 004, 005, 006 |
 | [0009](0009-exclusions-as-filter-patterns.md) | Default exclusions are filter patterns, not code paths (`^%`, `^INFORMATION_SCHEMA$`, `^Ens`) | Accepted; generated classes pending | SPIKE-01, SPIKE-02 → spec 002 | 000, 002 |
-| [0010](0010-profiler-registry.md) | Profiler and DQ through the dialect registry and `@compiles` | Accepted | SPIKE-04 → spec 006 | 006 |
+| [0010](0010-profiler-registry.md) | Profiler and DQ through the dialect registry and `@compiles` | Accepted; sampler refined by 0016 | SPIKE-04 → spec 006 | 006 |
 | [0011](0011-native-dbt-ingestion.md) | dbt via OpenMetadata's native dbt ingestion | Accepted | SPIKE-05 → spec 007 | 007 |
 | [0012](0012-shared-fixtures-and-matrix.md) | Test matrix and fixtures are shared contracts | Accepted | spec 001 | all |
 | [0013](0013-gap-report.md) | Limitations go to the Gap Report, never into workarounds | Accepted | spec 009 | all |
 | [0015](0015-dialect-state-presets.md) | Preset the official dialect's version and dictionary-access state so least-privilege logins work (narrow exception to 0013) | Accepted | SPIKE-01 → spec 000 | 000, 002, 005 |
 | [0014](0014-repository-topology.md) | Repository layout: overlay on a pinned OpenMetadata release; fork only for the upstream PR | Accepted | spec 000, 001 | all |
+| [0016](0016-iris-sampler.md) | An IRIS sampler: unquoted CTE names; percentage and randomized sampling unsupported (refines 0010) | Accepted; amended by spec 006 (test-suite interface, warning route, table skip, COALESCE) | SPIKE-04 → spec 006 | 006 |
 
 **Status values:** *Proposed* (to be confirmed in the first spec that uses it), *Accepted*, *Accepted, … pending* (decision stands; one detail is settled by the named spike before its spec), *Superseded by ADR-NNNN*.
 
