@@ -19,12 +19,17 @@ docker info >/dev/null 2>&1 || fail "docker is not running"
 scripts/antlr4 >/dev/null 2>&1 || true  # downloads and checks the pinned ANTLR jar into .cache/
 [ -f .cache/antlr-4.9.2-complete.jar ] || fail "the pinned ANTLR jar is missing from .cache/"
 echo "om-image: building the server distribution with Maven (spec, service, UI)..."
+# The container runs as root over a bind mount owned by the host user. On Docker Engine (Linux, WSL2) git then
+# refuses /om as "dubious ownership" and buildnumber-maven-plugin fails with a NullPointerException, hence
+# safe.directory. The build's output is handed back to the owner of .om, so later om-import runs can clean it.
 docker run --rm \
   -v "$ROOT/.om:/om" -v "$ROOT/.cache:/cache:ro" -v om-iris-m2:/root/.m2 -w /om \
   "$MAVEN_IMAGE" \
-  bash -c 'apt-get -qq update && apt-get -qq install -y --no-install-recommends python3 python3-pip >/dev/null \
+  bash -c 'git config --global --add safe.directory /om \
+    && apt-get -qq update && apt-get -qq install -y --no-install-recommends python3 python3-pip >/dev/null \
     && printf "#!/bin/sh\\nexec java -jar /cache/antlr-4.9.2-complete.jar \"\$@\"\\n" > /usr/local/bin/antlr4 && chmod +x /usr/local/bin/antlr4 \
-    && mvn -B -ntp -DskipTests -Dspotless.check.skip=true clean package -pl openmetadata-dist -am'
+    && mvn -B -ntp -DskipTests -Dspotless.check.skip=true clean package -pl openmetadata-dist -am; \
+    rc=$?; chown -R "$(stat -c %u:%g /om)" /om; exit $rc'
 
 echo "om-image: building $SERVER_IMAGE ..."
 docker build -f .om/docker/development/Dockerfile -t "$SERVER_IMAGE" .om

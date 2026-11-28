@@ -51,5 +51,5 @@ Prerequisite: fixtures at catalog v4 (`FIXTURES OK v4`).
      - exactly one `IRIS-VECTOR-GRANT` naming `omd_reader`.
 
 3. **UI** (needs `make om-image` and a running server): ingest the fixtures as `omd_reader_dict` and
-   open `AI.Embedding`. The schema tab shows the three columns as `VECTOR(…)`. Record a screenshot
-   in ADR-0007.
+   open `AI.Embedding`. The schema tab shows the three columns as `vector(…)`, in lowercase, because
+   the server lowercases every `dataTypeDisplay`. Record a screenshot in ADR-0007 (done 2026-11-28).

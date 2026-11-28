@@ -131,7 +131,8 @@ query constant → probe and cache → enrichment → warnings → tests → GAP
   - `docs/contracts/test-connection.md`: drop the "SPIKE-03 may add `CompiledProperty`" sentence.
 
   Push only with the user's go-ahead
-- [ ] T022 UI check (quickstart step 3) when an OpenMetadata server built from the overlay is available; screenshot and result into ADR-0007. If no server is available before review, leave this task open and say so in the PR
+- [X] T022 UI check (quickstart step 3) when an OpenMetadata server built from the overlay is available; screenshot and result into ADR-0007. If no server is available before review, leave this task open and say so in the PR
+  Done 2026-11-28, after the merge, on `main` 74d820b. The schema tab shows `vector(double, 3)`, `vector(int, 4)` and `vector(float, 2)`; the server lowercases every `dataTypeDisplay`. Screenshot and result are in ADR-0007, Validation. The WSL2 build needed a fix to `scripts/om-image.sh` (git `safe.directory` in the Maven container)
 - [X] T023 `make py_format` on touched OpenMetadata files, `make om-export`, `make om-check` (no diff), ruff on dev-repo files; `pytest fixtures` passes
 
 ## Dependencies

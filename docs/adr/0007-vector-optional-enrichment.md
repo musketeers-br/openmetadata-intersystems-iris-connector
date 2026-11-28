@@ -50,4 +50,11 @@ Spec 004, on all three release tracks, with `AI.Embedding.Vec VECTOR(DOUBLE, 3)`
 
 - **With the grant:** as `omd_reader_dict` and `_SYSTEM`, the three columns are `ARRAY` / `DOUBLE`, `INT`, `FLOAT` / `VECTOR(DOUBLE, 3)`, `VECTOR(INT, 4)`, `VECTOR(FLOAT, 2)`, with no hint.
 - **Without it:** as `omd_reader`, they are `VARCHAR(1037)`, `VARCHAR(83)` and `VARCHAR(691)`, and a run over every readable fixture has exactly one hint.
-- **UI check:** pending. It needs an OpenMetadata server built from the overlay, which does not fit beside the three IRIS containers on the development workstation. It runs with spec 008's demo, and its result is added here.
+- **UI check (2026-11-28, spec 004 T022):** passed. The setup was:
+  - a server built from the overlay with `make om-image`, at `main` 74d820b;
+  - Postgres and Elasticsearch from OpenMetadata's quickstart compose file;
+  - one metadata run as `omd_reader_dict` against `latest-em`, which ended at 100% with no warnings and no hint.
+
+  The schema tab of `AI.Embedding` shows the three columns as `vector(double, 3)`, `vector(int, 4)` and `vector(float, 2)`, and the API returns `ARRAY` with `DOUBLE`, `INT` and `FLOAT` as the array data types. The text is lowercase because the server lowercases every `dataTypeDisplay` when it stores a column (`DatabaseUtil.validateColumnDataTypeDisplay`), the same as `varchar(500)` and `integer` on the same table. The connector sends `VECTOR(DOUBLE, 3)`.
+
+  ![Schema tab of AI.Embedding on a server built from the overlay](assets/0007-vector-ui.png)
