@@ -150,6 +150,14 @@ result, and that is when it is built.
 - **The sample-data step** (`sampler/processor.py`, auto-classification) asks
   `sampler_class.is_skippable_sampling_error(exc)`. When the answer is true, it records one status
   warning (`Skipping sample collection for [<fqn>]: <exc>`) and goes on, with no failure.
+  - The hook is already in OpenMetadata 2.1.1, so no patch adds it. `SamplerInterface` declares
+    the class method `is_skippable_sampling_error` in `sampler/sampler_interface.py`, and it returns
+    `False` by default.
+  - The only caller is `SamplerProcessor._run_for_entity` in `sampler/processor.py`, inside its
+    `except` block.
+  - The Databricks sampler overrides it in the same way (`sampler/sqlalchemy/databricks/sampler.py`).
+  - The profiler and test steps do not call it, so in those steps the skip is the single failure
+    described above.
 
 **Decision:** the IRIS sampler raises one exception type, `IrisSamplingSkippedError`, from its
 constructor in two cases:
